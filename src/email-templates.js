@@ -8,6 +8,9 @@
  * @returns {Object} { subject, htmlBody }
  */
 function getDevOpsEmailTemplate(data) {
+  const positionTitle = toTitleCase(data.position);
+  const squadTitle = toTitleCase(data.squad);
+
   const subject = `Yêu cầu khởi tạo tài khoản email công ty cho nhân sự mới - ${data.fullName}`;
   const htmlBody = `
 <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 600px; margin: 0;">
@@ -32,11 +35,11 @@ function getDevOpsEmailTemplate(data) {
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Chức vụ:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.position}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${positionTitle}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Squad / Unit:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.squad}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${squadTitle}</td>
     </tr>
   </table>
   
@@ -56,6 +59,9 @@ function getDevOpsEmailTemplate(data) {
  * @returns {Object} { subject, htmlBody }
  */
 function getHREmailTemplate(data) {
+  const positionTitle = toTitleCase(data.position);
+  const squadTitle = toTitleCase(data.squad);
+
   const subject = `Yêu cầu tạo folder OKR onboarding cho nhân sự mới – ${data.fullName}`;
   const htmlBody = `
 <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 600px; margin: 0;">
@@ -80,11 +86,11 @@ function getHREmailTemplate(data) {
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Chức vụ:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.position}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${positionTitle}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Squad / Unit:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.squad}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${squadTitle}</td>
     </tr>
   </table>
   
@@ -104,7 +110,10 @@ function getHREmailTemplate(data) {
  * @returns {Object} { subject, htmlBody }
  */
 function getITEmailTemplate(data) {
-  const subject = `[Thông báo cấp máy] Nhân sự mới ${data.fullName} - ${data.position}`;
+  const positionTitle = toTitleCase(data.position);
+  const squadTitle = toTitleCase(data.squad);
+
+  const subject = `[Thông báo cấp máy] Nhân sự mới ${data.fullName} - ${positionTitle}`;
   const htmlBody = `
 <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 600px; margin: 0;">
   <p style="margin: 0 0 12px 0;">Hi anh Trung,</p>
@@ -128,11 +137,11 @@ function getITEmailTemplate(data) {
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Chức vụ:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.position}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${positionTitle}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Squad / Unit:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.squad}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${squadTitle}</td>
     </tr>
   </table>
   
@@ -153,11 +162,14 @@ function getITEmailTemplate(data) {
  * @returns {Object} { subject, htmlBody }
  */
 function getWelcomeCandidateEmailTemplate(data, guidePreviewUrl) {
+  const positionTitle = toTitleCase(data.position);
+  const squadTitle = toTitleCase(data.squad);
+
   // Format Squad Name hiển thị
   const formattedSquad =
-    data.squad && data.position
-      ? `${data.squad} (${data.position} Team)`
-      : data.squad || data.position;
+    squadTitle && positionTitle
+      ? `${squadTitle} (${positionTitle} Team)`
+      : squadTitle || positionTitle;
 
   // Mapping địa chỉ làm việc dựa trên Onboarding Type
   let officeAddress =
@@ -171,7 +183,7 @@ function getWelcomeCandidateEmailTemplate(data, guidePreviewUrl) {
       "Floor 1, Room 1.2, 09 Hoa Cau, Cau Kieu Ward, Ho Chi Minh City";
   }
 
-  const subject = `Welcome to Kyanon Digital: Essential Onboarding Steps for ${data.position}_${formattedSquad}`;
+  const subject = `Welcome to Kyanon Digital: Essential Onboarding Steps for ${positionTitle}_${formattedSquad}`;
   const htmlBody = `
 <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333333; max-width: 650px;">
   <p>Dear <strong>${data.fullName}</strong>,</p>
@@ -188,7 +200,7 @@ function getWelcomeCandidateEmailTemplate(data, guidePreviewUrl) {
       <ul>
         <li><strong>Start Date & Time:</strong> 8:30 AM, ${data.startDate}</li>
         <li><strong>Location:</strong> ${officeAddress}</li>
-        <li><strong>Desk Location:</strong> [Insert Desk/Zone/Team Area, e.g., ex: Floor 3 - Hoa Cau Office]</li>
+        <li><strong>Desk Location:</strong> [Insert Desk/Zone/Team Area, e.g., Floor 3 - Hoa Cau Office]</li>
         <li><strong>Check-in:</strong> (Will be activated at 8:30 AM on your start date)</li>
       </ul>
     </li>

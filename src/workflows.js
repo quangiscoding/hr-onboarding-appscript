@@ -3,39 +3,57 @@
  * @param {Object} data - Dữ liệu ứng viên
  */
 function handleOfferAcceptedWorkflow(data) {
-  let createdCount = 0;
+  const createdDrafts = [];
 
-  // 1. Tạo Draft gửi DevOps (Anh Tuấn)
+  // 1. Tạo Draft gửi DevOps
   const devopsMail = getDevOpsEmailTemplate(data);
-  GmailApp.createDraft(CONFIG.RECIPIENTS.DEVOPS, devopsMail.subject, "", {
-    htmlBody: devopsMail.htmlBody,
-  });
-  createdCount++;
+  const devopsDraft = GmailApp.createDraft(
+    CONFIG.RECIPIENTS.DEVOPS,
+    devopsMail.subject,
+    "",
+    {
+      htmlBody: devopsMail.htmlBody,
+    },
+  );
+  createdDrafts.push({ type: "DevOps", id: devopsDraft.getId() });
 
-  // 2. Tạo Draft gửi HR (Chị Tuyền)
+  // 2. Tạo Draft gửi HR
   const hrMail = getHREmailTemplate(data);
-  GmailApp.createDraft(CONFIG.RECIPIENTS.HR, hrMail.subject, "", {
-    htmlBody: hrMail.htmlBody,
-  });
-  createdCount++;
+  const hrDraft = GmailApp.createDraft(
+    CONFIG.RECIPIENTS.HR,
+    hrMail.subject,
+    "",
+    {
+      htmlBody: hrMail.htmlBody,
+    },
+  );
+  createdDrafts.push({ type: "HR", id: hrDraft.getId() });
 
-  // 3. Tạo Draft gửi IT (Anh Trung) - Đã sửa so sánh chữ thường
+  // 3. Tạo Draft gửi IT - Chỉ gửi khi Device Request chứa "as company standard"
   const deviceRequested = data.deviceRequest
     ?.toLowerCase()
     .includes("as company standard");
   if (deviceRequested) {
     const itMail = getITEmailTemplate(data);
-    GmailApp.createDraft(CONFIG.RECIPIENTS.IT, itMail.subject, "", {
-      htmlBody: itMail.htmlBody,
-    });
-    createdCount++;
+    const itDraft = GmailApp.createDraft(
+      CONFIG.RECIPIENTS.IT,
+      itMail.subject,
+      "",
+      {
+        htmlBody: itMail.htmlBody,
+      },
+    );
+    createdDrafts.push({ type: "IT", id: itDraft.getId() });
   }
 
-  // 4. Bật Toast Popup thông báo góc dưới màn hình
-  SpreadsheetApp.getActiveSpreadsheet().toast(
-    `Đã tạo thành công ${createdCount} bản nháp Email nhắc việc cho ${data.fullName}`,
+  // 4. 📝 GHI LOG INTERNAL (Lưu từng Draft ID theo loại Request)
+  logInternalWorkflow(data, createdDrafts);
+
+  // 5. Hiện Pop-up Alert thông báo giữa màn hình
+  SpreadsheetApp.getUi().alert(
     "Thành công 🎉",
-    5,
+    `Đã tạo thành công ${createdDrafts.length} bản nháp Email nhắc việc cho ${data.fullName}!`,
+    SpreadsheetApp.getUi().ButtonSet.OK,
   );
 }
 
@@ -44,7 +62,7 @@ function handleOfferAcceptedWorkflow(data) {
  * @param {Object} data - Dữ liệu ứng viên
  */
 function handleWelcomeEmailWorkflow(data) {
-  // 1. Đọc file PDF đính kèm & lấy file ID để tạo URL preview
+  // 1. Đọc file PDF đính kèm
   const pdfFileInfo = getGuidePdfFileInfo(
     data.employmentType,
     data.onboardingType,
@@ -56,7 +74,7 @@ function handleWelcomeEmailWorkflow(data) {
   // 2. Lấy Template Email Candidate
   const candidateMail = getWelcomeCandidateEmailTemplate(data, guidePreviewUrl);
 
-  // 3. Chuẩn bị danh sách CC (TA, Manager, People Team)
+  // 3. Chuẩn bị danh sách CC
   const ccList = [
     data.taEmail,
     data.managerEmail,
@@ -65,24 +83,31 @@ function handleWelcomeEmailWorkflow(data) {
     .filter(Boolean)
     .join(",");
 
-  // 4. Tạo Cấu hình Options cho Gmail Draft
+  // 4. Cấu hình Options cho Gmail Draft
   const options = {
     htmlBody: candidateMail.htmlBody,
     cc: ccList,
   };
 
-  // Đổi tên file PDF đính kèm theo customFileName
   if (pdfFileInfo?.file) {
     options.attachments = [pdfFileInfo.file.setName(data.customFileName)];
   }
 
-  // 5. Tạo Draft Welcome Email
-  GmailApp.createDraft(data.personalEmail, candidateMail.subject, "", options);
+  // 5. Tạo Draft Welcome Email & Lấy Draft ID
+  const candidateDraft = GmailApp.createDraft(
+    data.personalEmail,
+    candidateMail.subject,
+    "",
+    options,
+  );
 
-  // 6. Bật Toast Popup thông báo góc dưới màn hình
-  SpreadsheetApp.getActiveSpreadsheet().toast(
-    `Đã tạo bản nháp Welcome Email kèm File PDF cho ${data.fullName}`,
+  // 6. 📝 GHI LOG CANDIDATE
+  logCandidateWorkflow(data, candidateDraft.getId());
+
+  // 7. Hiện Pop-up Alert thông báo giữa màn hình
+  SpreadsheetApp.getUi().alert(
     "Thành công 🎉",
-    5,
+    `Đã tạo bản nháp Welcome Email kèm File PDF cho ${data.fullName}!`,
+    SpreadsheetApp.getUi().ButtonSet.OK,
   );
 }
