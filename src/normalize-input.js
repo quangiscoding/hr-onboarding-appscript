@@ -1,5 +1,5 @@
 /** ==========================================
- * normalize-input.js - LOGIC CHÍNH & TRIGGER XỬ LÝ DỮ LIỆU
+ * NORMALIZE-INPUT.JS - LOGIC CHÍNH & TRIGGER XỬ LÝ DỮ LIỆU
  * ========================================== */
 
 /**
@@ -40,7 +40,7 @@ function getNormalizedInput(triggerType = "MANUAL_TEST") {
   // 3. Chuẩn hóa Tên
   const rawFullName = toTitleCase(rowData[COLS.FULL_NAME]); // Giữ tên đầy đủ có dấu chuẩn "Trần Thị Tú Anh"
   const accentlessName = removeAccents(rawFullName);
-  const parts = removeAccents(rawFullName).split(" ").filter(Boolean); // ["tran", "thi", "tu", "anh"]
+  const parts = accentlessName.split(" ").filter(Boolean); // ["tran", "thi", "tu", "anh"]
 
   // Lấy "Tên Họ" không dấu viết hoa chữ cái đầu (Ví dụ: "Anh Tran")
   let formattedName = "Candidate";
@@ -62,7 +62,7 @@ function getNormalizedInput(triggerType = "MANUAL_TEST") {
     rowNumber: rowIndex,
     rowLink: `${SpreadsheetApp.getActiveSpreadsheet().getUrl()}#gid=${sheet.getSheetId()}&range=${rowIndex}:${rowIndex}`,
 
-    // Trạng thái & Chia nhánh Logic (Tất cả đều được clean() về lowercase & chuẩn khoảng trắng)
+    // Trạng thái & Chia nhánh Logic
     status: clean(rowData[COLS.OFFER_STATUS]),
     employmentType: clean(rowData[COLS.EMPLOYMENT_TYPE]),
     onboardingType: clean(rowData[COLS.ONBOARDING_TYPE]),
@@ -73,8 +73,8 @@ function getNormalizedInput(triggerType = "MANUAL_TEST") {
     accentlessFullName: accentlessName,
     formattedName: formattedName,
     customFileName: `${formattedName}_Essential Onboarding Steps.pdf`,
-    position: clean(rowData[COLS.TITLE]),
-    squad: clean(rowData[COLS.SQUAD]),
+    position: toTitleCase(rowData[COLS.TITLE]),
+    squad: toTitleCase(rowData[COLS.SQUAD]),
     level: clean(rowData[COLS.LEVEL]),
     startDate: formatDateValue(rowData[COLS.DATE_ONBOARD]),
 
@@ -100,6 +100,7 @@ function getNormalizedInput(triggerType = "MANUAL_TEST") {
 function getTriggerType(e) {
   // Bỏ qua nếu e không hợp lệ hoặc người dùng sửa ở dòng tiêu đề (Dòng 1)
   if (!e?.range || e.range.getRow() < 2) return null;
+
   const sheet = e.range.getSheet();
   const rowIndex = e.range.getRow();
   const colIndex = e.range.getColumn();
@@ -125,16 +126,32 @@ function getTriggerType(e) {
   }
 
   // -----------------------------------------------------------------------
-  // LUỒNG 2: Nhập hoặc Cut-Paste vào cột ALLOC_CODE
+  // LUỒNG 2: Tích ô Checkbox ở cột SEND_WELCOME_EMAIL
   // -----------------------------------------------------------------------
-  if (editedCol === COLS.ALLOC_CODE && newValue !== "") {
-    const offerStatusCol = headers.indexOf(COLS.OFFER_STATUS) + 1;
+  if (editedCol === COLS.SEND_WELCOME_EMAIL) {
+    const isChecked = e.value === "TRUE" || e.value === true;
 
-    const currentStatus = clean(
-      sheet.getRange(rowIndex, offerStatusCol).getValue(),
-    );
+    if (isChecked) {
+      // 1. Kiểm tra ô Alloc Code ở cùng dòng
+      const allocCodeCol = headers.indexOf(COLS.ALLOC_CODE) + 1;
+      const allocCode =
+        allocCodeCol > 0
+          ? sheet.getRange(rowIndex, allocCodeCol).getValue()
+          : null;
 
-    return currentStatus === "offer accepted" ? "WELCOME_EMAIL" : null;
+      // 2. Nếu thiếu Alloc Code -> Báo lỗi & Bỏ tích checkbox
+      if (!allocCode || String(allocCode).trim() === "") {
+        SpreadsheetApp.getUi().alert(
+          "⚠️ Thiếu Alloc Code!",
+          "Vui lòng nhập Alloc Code cho ứng viên trước khi tích chọn gửi Welcome Email.",
+          SpreadsheetApp.getUi().ButtonSet.OK,
+        );
+        e.range.setValue(false); // Bỏ tích checkbox
+        return null;
+      }
+
+      return "WELCOME_EMAIL";
+    }
   }
 
   return null;
@@ -145,14 +162,11 @@ function getTriggerType(e) {
  */
 function testNormalizeOutput() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  // 1. Chỉ định chính xác Sheet tên là "New"
   const sheet = ss.getSheetByName("New");
   if (!sheet) {
     throw new Error("Không tìm thấy sheet tên là 'New'!");
   }
-  // 2. Tự động active dòng 3 trên Sheet "New"
   sheet.setActiveRange(sheet.getRange(3, 1));
-  // 3. Chạy test
   const result = getNormalizedInput("MANUAL_TEST");
   Logger.log(JSON.stringify(result, null, 2));
 }
