@@ -1,6 +1,10 @@
+/** ==========================================
+ * WORKFLOWS.JS - QUẢN LÝ CÁC LUỒNG TẠO DRAFT EMAIL
+ * ========================================== */
+
 /**
  * LUỒNG 1: Tạo bản nháp Email gửi cho các Phòng ban (DevOps, HR, IT)
- * @param {Object} data - Dữ liệu ứng viên
+ * @param {Object} data - Dữ liệu ứng viên đã chuẩn hóa
  */
 function handleOfferAcceptedWorkflow(data) {
   const createdDrafts = [];
@@ -30,9 +34,7 @@ function handleOfferAcceptedWorkflow(data) {
   createdDrafts.push({ type: "HR", id: hrDraft.getId() });
 
   // 3. Tạo Draft gửi IT - Chỉ gửi khi Device Request chứa "as company standard"
-  const deviceRequested = data.deviceRequest
-    ?.toLowerCase()
-    .includes("as company standard");
+  const deviceRequested = isStandardDevice(data.deviceRequest);
   if (deviceRequested) {
     const itMail = getITEmailTemplate(data);
     const itDraft = GmailApp.createDraft(
@@ -59,22 +61,35 @@ function handleOfferAcceptedWorkflow(data) {
 
 /**
  * LUỒNG 2: Gửi / Tạo Draft Welcome Email cho Nhân sự mới kèm File PDF
- * @param {Object} data - Dữ liệu ứng viên
+ * @param {Object} data - Dữ liệu ứng viên đã chuẩn hóa
  */
 function handleWelcomeEmailWorkflow(data) {
-  // 1. Đọc file PDF đính kèm
-  const pdfFileInfo = getGuidePdfFileInfo(
+  // 1. Lấy thông tin PDF & Blob đính kèm trước
+  const pdfInfo = getGuidePdfFileInfo(
     data.employmentType,
     data.onboardingType,
+    data.customFileName,
   );
-  const guidePreviewUrl = pdfFileInfo?.fileId
-    ? `https://drive.google.com/file/d/${pdfFileInfo.fileId}/view`
-    : "#";
 
-  // 2. Lấy Template Email Candidate
+  // Tạo URL xem trước file PDF cho nút bấm trong Email
+  const guidePreviewUrl = pdfInfo?.fileId
+    ? `https://drive.google.com/file/d/${pdfInfo.fileId}/view`
+    : "";
+
+  // 2. Gọi ĐÚNG tên hàm Template: getWelcomeCandidateEmailTemplate
   const candidateMail = getWelcomeCandidateEmailTemplate(data, guidePreviewUrl);
 
-  // 3. Chuẩn bị danh sách CC
+  // 3. Chuẩn bị mảng đính kèm (Blob)
+  const emailAttachments = [];
+  if (pdfInfo && pdfInfo.pdfBlob) {
+    emailAttachments.push(pdfInfo.pdfBlob);
+  } else {
+    Logger.log(
+      "⚠️ Cảnh báo: Không tìm thấy file PDF đính kèm cho Welcome Email!",
+    );
+  }
+
+  // 4. Danh sách CC (TA in charge, Line Manager, People Team)
   const ccList = [
     data.taEmail,
     data.managerEmail,
@@ -83,28 +98,38 @@ function handleWelcomeEmailWorkflow(data) {
     .filter(Boolean)
     .join(",");
 
-  // 4. Cấu hình Options cho Gmail Draft
+  // 5. Cấu hình Options cho Gmail Draft
   const options = {
     htmlBody: candidateMail.htmlBody,
     cc: ccList,
+    attachments: emailAttachments,
   };
 
-  if (pdfFileInfo?.file) {
-    options.attachments = [pdfFileInfo.file.setName(data.customFileName)];
-  }
-
-  // 5. Tạo Draft Welcome Email & Lấy Draft ID
+  // 6. Tạo Draft Welcome Email duy nhất
+  const recipientEmail = data.workingEmail || data.personalEmail;
   const candidateDraft = GmailApp.createDraft(
-    data.workingEmail,
+    recipientEmail,
     candidateMail.subject,
     "",
     options,
   );
 
-  // 6. 📝 GHI LOG CANDIDATE
+  // 7. 📝 GHI LOG CANDIDATE DRAFT
   logCandidateWorkflow(data, candidateDraft.getId());
 
-  // 7. Hiện Pop-up Alert thông báo giữa màn hình
+  // 8. Tự động đổi màu nhẹ ô Checkbox báo hiệu hoàn tất (UX)
+  if (data.rowNumber) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn());
+    const headers = headerRange.getValues()[0].map(normalizeHeaderKey);
+    const checkboxCol = headers.indexOf(COLS.SEND_WELCOME_EMAIL) + 1;
+
+    if (checkboxCol > 0) {
+      sheet.getRange(data.rowNumber, checkboxCol).setBackground("#e2e3e5");
+    }
+  }
+
+  // 9. Hiện Pop-up Alert thông báo giữa màn hình
   SpreadsheetApp.getUi().alert(
     "Thành công 🎉",
     `Đã tạo bản nháp Welcome Email kèm File PDF cho ${data.fullName}!`,

@@ -89,13 +89,6 @@ function isStandardDevice(deviceRequestStr) {
  * @param {string} onboardingType - Địa điểm làm việc (danang/hcm/onsite)
  * @returns {Object|null} { file, fileId }
  */
-/**
- * Helper: Lấy File Blob PDF đã đặt tên mới + File ID dựa trên Employment Type và Onboarding Type
- * @param {string} employmentType - Loại hợp đồng (intern/probation)
- * @param {string} onboardingType - Địa điểm làm việc (danang/hcm/onsite)
- * @param {string} [customFileName] - Tên file đính kèm muốn hiển thị cho ứng viên (ví dụ: "Anh Tran_Essential Onboarding Steps.pdf")
- * @returns {Object|null} { pdfBlob, fileId }
- */
 function getGuidePdfFileInfo(employmentType, onboardingType, customFileName) {
   try {
     const empStr = clean(employmentType);
@@ -110,10 +103,10 @@ function getGuidePdfFileInfo(employmentType, onboardingType, customFileName) {
     if (fileId) {
       const file = DriveApp.getFileById(fileId);
 
-      // Lấy Blob của file PDF
+      // 1. Tải Blob của file PDF vào RAM
       let pdfBlob = file.getBlob();
 
-      // Nếu có truyền tên file tùy chỉnh -> Đổi tên Blob đính kèm (KHÔNG làm đổi tên file gốc trên Drive)
+      // 2. Đổi tên Blob đính kèm (không đổi tên file gốc trên Drive)
       if (customFileName) {
         pdfBlob.setName(customFileName);
       }
@@ -123,10 +116,10 @@ function getGuidePdfFileInfo(employmentType, onboardingType, customFileName) {
         fileId: fileId,
       };
     } else {
-      Logger.log("Không tìm thấy File ID khớp với Key: " + lookupKey);
+      Logger.log("⚠️ Không tìm thấy File ID khớp với Key: " + lookupKey);
     }
   } catch (err) {
-    Logger.log("Lỗi khi lấy file PDF từ Drive ID: " + err.toString());
+    Logger.log("❌ Lỗi khi lấy file PDF từ Drive ID: " + err.toString());
   }
   return null;
 }
