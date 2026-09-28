@@ -9,6 +9,7 @@ Bạn là một Chuyên gia Lập trình Google Apps Script (GAS) cao cấp đ�
 Hệ thống tự động hóa Onboarding Email Automation cho Kyanon Digital chạy trên Google Sheets thông qua Google Apps Script (phát triển local với `clasp`).
 
 ### Các tính năng & mô-đun đã xây dựng:
+
 1. **Kiến trúc mô-đun hóa (Modular Architecture):**
    - **`src/appsscript.json`**: Cấu hình OAuth Scopes, V8 runtime và múi giờ `Asia/Ho_Chi_Minh`.
    - **`src/utils.js`**:
@@ -55,7 +56,6 @@ Hệ thống tự động hóa Onboarding Email Automation cho Kyanon Digital ch
   "managerEmail": "hau.nt@kyanon.digital",
   "currentUserEmail": "quang.nguyenminh@kyanon.digital"
 }
-
 ```
 
 ---
@@ -67,5 +67,7 @@ Khi đọc repo này, Agent có nhiệm vụ tự chủ động audit toàn b�
 1. **Tuân thủ phân tách trách nhiệm (Separation of Concerns):** Không viết gộp logic nghiệp vụ vào `main.js`. Mọi helper đưa vào `utils.js`, template đưa vào `email-templates.js`, workflow đưa vào `workflows.js`.
 2. **Xử lý dữ liệu an toàn (Defensive Programming):** Luôn dùng hàm `clean()` cho các chuỗi so sánh, bọc các thao tác gọi dịch vụ ngoài (DriveApp, GmailApp) trong khối `try...catch`.
 3. **UI Feedback:** Giữ nguyên giao diện thông báo mượt mà cho người dùng bằng `SpreadsheetApp.getActiveSpreadsheet().toast()`.
+
+```
 
 ```
