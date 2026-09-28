@@ -1,0 +1,217 @@
+/** ==========================================
+ * EMAIL-TEMPLATES.JS - TEMPLATE EMAIL HTML CHÍNH THỨC
+ * ========================================== */
+
+/**
+ * 1. Template Mail nhắc DevOps (Tạo Email công ty)
+ * @param {Object} data - Dữ liệu từ getNormalizedInput()
+ * @returns {Object} { subject, htmlBody }
+ */
+function getDevOpsEmailTemplate(data) {
+  const subject = `Yêu cầu khởi tạo tài khoản email công ty cho nhân sự mới - ${data.fullName}`;
+  const htmlBody = `
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 600px; margin: 0;">
+  <p style="margin: 0 0 12px 0;">Hi anh Tuấn,</p>
+  
+  <p style="margin: 0 0 16px 0;">
+    Nhờ anh vào file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>), hỗ trợ khởi tạo tài khoản email công ty cho nhân sự mới với ạ:
+  </p>
+  
+  <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
+    <tr>
+      <td style="padding: 8px 0; color: #666666; width: 130px;">Họ và tên:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.fullName}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Email cá nhân:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #EF403E;">${data.personalEmail}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Ngày Onboard:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.startDate}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Chức vụ:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.position}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Squad / Unit:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.squad}</td>
+    </tr>
+  </table>
+  
+  <div style="text-align: center; margin: 20px 0 16px 0;">
+    <a href="${data.rowLink}" target="_blank" style="background-color: #EF403E; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">Mở Google Sheet (Dòng ${data.rowNumber})</a>
+  </div>
+  
+  <p style="margin: 0;">Em cảm ơn anh!</p>
+</div>`;
+
+  return { subject, htmlBody };
+}
+
+/**
+ * 2. Template Mail nhắc HR (Tạo Folder OKR)
+ * @param {Object} data - Dữ liệu từ getNormalizedInput()
+ * @returns {Object} { subject, htmlBody }
+ */
+function getHREmailTemplate(data) {
+  const subject = `Yêu cầu tạo folder OKR onboarding cho nhân sự mới – ${data.fullName}`;
+  const htmlBody = `
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 600px; margin: 0;">
+  <p style="margin: 0 0 12px 0;">Hi chị Tuyền,</p>
+  
+  <p style="margin: 0 0 16px 0;">
+    Có nhân sự mới sẽ Onboard vào ngày <strong>${data.startDate}</strong> nhờ chị tiến hành tạo Folder OKRs trên file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>) ạ:
+  </p>
+  
+  <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
+    <tr>
+      <td style="padding: 8px 0; color: #666666; width: 130px;">Họ và tên:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.fullName}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Email cá nhân:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #EF403E;">${data.personalEmail}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Ngày Onboard:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.startDate}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Chức vụ:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.position}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Squad / Unit:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.squad}</td>
+    </tr>
+  </table>
+  
+  <div style="text-align: center; margin: 20px 0 16px 0;">
+    <a href="${data.rowLink}" target="_blank" style="background-color: #EF403E; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">Mở Google Sheet (Dòng ${data.rowNumber})</a>
+  </div>
+  
+  <p style="margin: 0;">Em cảm ơn chị!</p>
+</div>`;
+
+  return { subject, htmlBody };
+}
+
+/**
+ * 3. Template Mail nhắc IT (Cấp máy)
+ * @param {Object} data - Dữ liệu từ getNormalizedInput()
+ * @returns {Object} { subject, htmlBody }
+ */
+function getITEmailTemplate(data) {
+  const subject = `[Thông báo cấp máy] Nhân sự mới ${data.fullName} - ${data.position}`;
+  const htmlBody = `
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 600px; margin: 0;">
+  <p style="margin: 0 0 12px 0;">Hi anh Trung,</p>
+  
+  <p style="margin: 0 0 16px 0;">
+    Em gửi anh thông tin nhân sự sẽ Onboard vào ngày <strong>${data.startDate}</strong> nhờ anh hỗ trợ cấp thiết bị (tra cứu chi tiết tại file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> - dòng <strong>${data.rowNumber}</strong>):
+  </p>
+  
+  <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
+    <tr>
+      <td style="padding: 8px 0; color: #666666; width: 130px;">Họ và tên:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.fullName}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Email cá nhân:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #EF403E;">${data.personalEmail}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Ngày Onboard:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.startDate}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Chức vụ:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.position}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Squad / Unit:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.squad}</td>
+    </tr>
+  </table>
+  
+  <div style="text-align: center; margin: 20px 0 16px 0;">
+    <a href="${data.rowLink}" target="_blank" style="background-color: #EF403E; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">Mở Google Sheet (Dòng ${data.rowNumber})</a>
+  </div>
+  
+  <p style="margin: 0;">Em cảm ơn anh!</p>
+</div>`;
+
+  return { subject, htmlBody };
+}
+
+/**
+ * 4. Template Welcome Email gửi cho Nhân sự mới (Candidate)
+ * @param {Object} data - Dữ liệu từ getNormalizedInput()
+ * @param {string} guidePreviewUrl - Link preview file PDF trên Google Drive
+ * @returns {Object} { subject, htmlBody }
+ */
+function getWelcomeCandidateEmailTemplate(data, guidePreviewUrl) {
+  // Format Squad Name hiển thị
+  const formattedSquad =
+    data.squad && data.position
+      ? `${data.squad} (${data.position} Team)`
+      : data.squad || data.position;
+
+  // Mapping địa chỉ làm việc dựa trên Onboarding Type
+  let officeAddress =
+    "Floor 2, Room 2.6, 294-296 Truong Sa, Cau Kieu Ward, Ho Chi Minh City";
+  const onboardType = String(data.onboardingType || "").toLowerCase();
+
+  if (onboardType.includes("danang")) {
+    officeAddress = "Floor 3, 433-435 Nguyen Huu Tho, Cam Le, Da Nang";
+  } else if (onboardType.includes("hoa cau")) {
+    officeAddress =
+      "Floor 1, Room 1.2, 09 Hoa Cau, Cau Kieu Ward, Ho Chi Minh City";
+  }
+
+  const subject = `Welcome to Kyanon Digital: Essential Onboarding Steps for ${data.position}_${formattedSquad}`;
+  const htmlBody = `
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333333; max-width: 650px;">
+  <p>Dear <strong>${data.fullName}</strong>,</p>
+
+  <p>Welcome to Kyanon Digital!</p>
+
+  <p>Please find the Onboarding Guide attached. This document contains all the essential steps and logistics you need to prepare before your start date on <strong>${data.startDate}</strong>.</p>
+
+  <p><strong>It covers:</strong></p>
+  <ul>
+    <li>Required documents.</li>
+    <li>
+      <strong>First-day Logistics & Work Location:</strong>
+      <ul>
+        <li><strong>Start Date & Time:</strong> 8:30 AM, ${data.startDate}</li>
+        <li><strong>Location:</strong> ${officeAddress}</li>
+        <li><strong>Desk Location:</strong> [Insert Desk/Zone/Team Area, e.g., ex: Floor 3 - Hoa Cau Office]</li>
+        <li><strong>Check-in:</strong> (Will be activated at 8:30 AM on your start date)</li>
+      </ul>
+    </li>
+    <li>
+      <strong>Your Official Email & Password:</strong><br>
+      <span style="color: #EF403E; font-weight: bold;">${data.workingEmail}</span> / <code>12#QWEasd</code>
+    </li>
+    <li>Pre-start tasks (NDA, Company Intro, Security Policy)</li>
+  </ul>
+
+  <!-- NÚT BẤM MỞ GUIDE PDF -->
+  <div style="text-align: center; margin: 25px 0;">
+    <a href="${guidePreviewUrl || "#"}" target="_blank" style="background-color: #EF403E; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block;">View Essential Onboarding Steps (PDF)</a>
+  </div>
+
+  <p>Should you have any questions, please contact <strong>${data.taEmail}</strong> at <strong>[HR CONTACT PHONE]</strong>.</p>
+
+  <p>We look forward to seeing you soon!</p>
+
+  <p>Best regards,<br>
+  <strong>[YOUR NAME]</strong><br>
+  <em>On behalf of the People Team</em></p>
+</div>`;
+
+  return { subject, htmlBody };
+}
