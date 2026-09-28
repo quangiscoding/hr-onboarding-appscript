@@ -1,74 +1,86 @@
-const logUrl =
-  "https://docs.google.com/spreadsheets/d/1WKf-qJ7ENBn2Az-uXps9gYB1yUtERBRj1TS375sh8Qs/edit?gid=1808971321#gid=1808971321";
 /**
- * Lấy đối tượng Sheet từ URL đầy đủ và GID tương ứng
+ * Lấy Tab theo tên. Nếu chưa có thì TỰ ĐỘNG TẠO MỚI + Tạo dòng Tiêu đề (Header)
+ * @param {string} sheetName - Tên tab cần lấy/tạo
+ * @param {Array<string>} headers - Danh sách tiêu đề cột nếu phải tạo tab mới
  */
-function getSheetByUrlAndGid(url, gid) {
-  try {
-    // 1. Mở file Google Sheet bằng URL
-    const ss = SpreadsheetApp.openByUrl(url);
+function getOrCreateLogSheet(sheetName, headers) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(sheetName);
 
-    // 2. Tìm tab có GID trùng khớp
-    const sheets = ss.getSheets();
-    return (
-      sheets.find(
-        (sheet) => sheet.getSheetId().toString() === gid.toString(),
-      ) || null
-    );
+  // Nếu chưa có sheet thì tạo mới
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+
+    // Tạo dòng Header và định dạng đậm
+    if (headers && headers.length > 0) {
+      sheet.appendRow(headers);
+      sheet
+        .getRange(1, 1, 1, headers.length)
+        .setFontWeight("bold")
+        .setBackground("#f3f3f3"); // Tô màu nền xám nhẹ cho đẹp
+      sheet.setFrozenRows(1); // Khóa hàng tiêu đề lại
+    }
+  }
+
+  return sheet;
+}
+
+/**
+ * Ghi log Internal Draft (Tự động khởi tạo tab nếu thiếu)
+ * Tiêu đề: Timestamp | Fullname | Position | Request Type | Draft ID | Status
+ */
+function logInternalWorkflow(data, drafts) {
+  try {
+    const headers = [
+      "Timestamp",
+      "Fullname",
+      "Position",
+      "Request Type",
+      "Draft ID",
+      "Status",
+    ];
+    const sheet = getOrCreateLogSheet("Internal Draft Log", headers);
+
+    drafts.forEach((draft) => {
+      sheet.appendRow([
+        new Date(), // Timestamp
+        data.fullName, // Fullname
+        data.position, // Position
+        draft.type, // Request Type (DevOps / HR / IT)
+        draft.id, // Draft ID
+        "DRAFT_CREATED", // Status
+      ]);
+    });
   } catch (error) {
-    Logger.log(`❌ Lỗi mở Sheet từ URL [${url}]: ` + error.message);
-    return null;
+    Logger.log("❌ Lỗi ghi Internal Log: " + error.message);
   }
 }
 
 /**
- * Ghi log Internal Draft
- * URL: https://docs.google.com/spreadsheets/d/1WKf-qJ7ENBn2Az-uXps9gYB1yUtERBRj1TS375sh8Qs/edit?gid=349228243#gid=349228243
+ * Ghi log Candidate Draft (Tự động khởi tạo tab nếu thiếu)
+ * Tiêu đề: Timestamp | Fullname | Position | Alloc Code | Draft ID | Status
  */
-function logInternalWorkflow(data, drafts) {
-  const targetGid = "349228243";
+function logCandidateWorkflow(data, draftId) {
+  try {
+    const headers = [
+      "Timestamp",
+      "Fullname",
+      "Position",
+      "Alloc Code",
+      "Draft ID",
+      "Status",
+    ];
+    const sheet = getOrCreateLogSheet("Candidate Draft Log", headers);
 
-  const sheet = getSheetByUrlAndGid(logUrl, targetGid);
-
-  if (!sheet) {
-    Logger.log("❌ Không thể ghi log: Không tìm thấy tab Internal Draft Log!");
-    return;
-  }
-
-  drafts.forEach((draft) => {
     sheet.appendRow([
       new Date(), // Timestamp
       data.fullName, // Fullname
       data.position, // Position
-      draft.type, // Request Type (DevOps / HR / IT)
-      draft.id, // Draft ID
+      data.allocCode, // Alloc Code
+      draftId, // Draft ID
       "DRAFT_CREATED", // Status
     ]);
-  });
-  Logger.log("✅ Đã ghi log Internal Draft thành công!");
-}
-
-/**
- * Ghi log Candidate Draft
- * URL: https://docs.google.com/spreadsheets/d/1WKf-qJ7ENBn2Az-uXps9gYB1yUtERBRj1TS375sh8Qs/edit?gid=1808971321#gid=1808971321
- */
-function logCandidateWorkflow(data, draftId) {
-  const targetGid = "1808971321";
-
-  const sheet = getSheetByUrlAndGid(logUrl, targetGid);
-
-  if (!sheet) {
-    Logger.log("❌ Không thể ghi log: Không tìm thấy tab Candidate Draft Log!");
-    return;
+  } catch (error) {
+    Logger.log("❌ Lỗi ghi Candidate Log: " + error.message);
   }
-
-  sheet.appendRow([
-    new Date(), // Timestamp
-    data.fullName, // Fullname
-    data.position, // Position
-    data.allocCode, // Alloc Code
-    draftId, // Draft ID
-    "DRAFT_CREATED", // Status
-  ]);
-  Logger.log("✅ Đã ghi log Candidate Draft thành công!");
 }
