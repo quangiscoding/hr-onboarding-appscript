@@ -1,16 +1,6 @@
 /** ==========================================
- * UTILS.JS - HẰNG SỐ VÀ TIỆN ÍCH DÙNG CHUNG
+ * UTILS.JS - TIỆN ÍCH DÙNG CHUNG (PURE HELPERS)
  * ========================================== */
-
-// Cấu hình Email mặc định của các phòng ban
-const CONFIG = {
-  RECIPIENTS: {
-    DEVOPS: "quang.nguyenminh@kyanon.digital", // Thay email thật anh Tuấn khi bàn giao
-    HR: "quang.nguyenminh@kyanon.digital", // Email chị Tuyền
-    IT: "quang.nguyenminh@kyanon.digital", // Email anh Trung
-    PEOPLE_TEAM: "people@kyanon.digital",
-  },
-};
 
 /**
  * Helper: Chuẩn hóa key của Header (bỏ ký tự đặc biệt, khoảng trắng, viết thường)
@@ -21,25 +11,6 @@ function normalizeHeaderKey(header) {
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 }
-
-// Từ điển Key đã được chuẩn hóa
-const COLS = {
-  FULL_NAME: normalizeHeaderKey("Full Name"),
-  LEVEL: normalizeHeaderKey("Level"),
-  EMPLOYMENT_TYPE: normalizeHeaderKey("Employment Type"),
-  TITLE: normalizeHeaderKey("Title"),
-  SQUAD: normalizeHeaderKey("Squad/ Unit"),
-  LINE_MANAGER: normalizeHeaderKey("Line Manager"),
-  TA_IN_CHARGE: normalizeHeaderKey("TA In Charge"),
-  DATE_ONBOARD: normalizeHeaderKey("Date of Onboard"),
-  OFFER_STATUS: normalizeHeaderKey("Offer Status"),
-  DEVICE_REQUEST: normalizeHeaderKey("Device Request from newcomer"),
-  ONBOARDING_TYPE: normalizeHeaderKey("Onboarding Type"),
-  WORKING_EMAIL: normalizeHeaderKey("Working Email"),
-  PERSONAL_EMAIL: normalizeHeaderKey("Personal Email"),
-  REMARKS: normalizeHeaderKey("Remarks\n(update by Atlas)"),
-  ALLOC_CODE: normalizeHeaderKey("Alloc Code\n(update by Atlas)"),
-};
 
 /**
  * Helper: Chuẩn hóa chuỗi input
@@ -66,10 +37,6 @@ function removeAccents(str) {
 }
 
 /**
- * Helper: Viết hoa chữ cái đầu của mỗi từ (Title Case)
- * Ví dụ: "tran thi tu anh" -> "Tran Thi Tu Anh"
- */
-/**
  * Chuẩn hóa chuỗi về dạng Title Case (Viết hoa chữ cái đầu mỗi từ)
  * Ví dụ: "trầN thị TÚ anH" -> "Trần Thị Tú Anh"
  */
@@ -78,11 +45,11 @@ function toTitleCase(str) {
 
   return str
     .toString()
-    .toLowerCase() // 1. Chuyển tất cả về chữ thường trước
-    .split(" ") // 2. Tách theo khoảng trắng
+    .toLowerCase()
+    .split(" ")
     .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1)) // 3. Viết hoa ký tự đầu từng từ
-    .join(" "); // 4. Ghép lại bằng khoảng trắng
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 /**
@@ -124,13 +91,6 @@ function isStandardDevice(deviceRequestStr) {
  */
 function getGuidePdfFileInfo(employmentType, onboardingType) {
   try {
-    const DRIVE_FILE_MAP = {
-      intern_danang: "1soQu_zY8ZWrKwu3MqA7TGgEQibWQgXht",
-      intern_hcm: "1fk9H4gvXn2CzIoQSbNUvnMEqQrsrKd2_",
-      probation_danang: "1aAr-bRUjRxonjSLgANHhEgCSvnDdSrwZ",
-      probation_hcm: "1be3OS8_KnNEJKk3RqwcqpuFaR-4uLb2e",
-    };
-
     const empStr = clean(employmentType);
     const onboardStr = clean(onboardingType);
 
@@ -138,7 +98,7 @@ function getGuidePdfFileInfo(employmentType, onboardingType) {
     const location = onboardStr.includes("danang") ? "danang" : "hcm";
     const lookupKey = `${category}_${location}`;
 
-    const fileId = DRIVE_FILE_MAP[lookupKey];
+    const fileId = CONFIG.GUIDE_PDF_MAP[lookupKey];
 
     if (fileId) {
       return {
