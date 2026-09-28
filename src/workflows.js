@@ -95,7 +95,7 @@ function handleWelcomeEmailWorkflow(data) {
 
   // 5. Tạo Draft Welcome Email & Lấy Draft ID
   const candidateDraft = GmailApp.createDraft(
-    data.personalEmail,
+    data.workingEmail,
     candidateMail.subject,
     "",
     options,
