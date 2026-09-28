@@ -69,9 +69,20 @@ function removeAccents(str) {
  * Helper: Viết hoa chữ cái đầu của mỗi từ (Title Case)
  * Ví dụ: "tran thi tu anh" -> "Tran Thi Tu Anh"
  */
+/**
+ * Chuẩn hóa chuỗi về dạng Title Case (Viết hoa chữ cái đầu mỗi từ)
+ * Ví dụ: "trầN thị TÚ anH" -> "Trần Thị Tú Anh"
+ */
 function toTitleCase(str) {
   if (!str) return "";
-  return clean(str).replace(/\b\w/g, (c) => c.toUpperCase());
+
+  return str
+    .toString()
+    .toLowerCase() // 1. Chuyển tất cả về chữ thường trước
+    .split(" ") // 2. Tách theo khoảng trắng
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1)) // 3. Viết hoa ký tự đầu từng từ
+    .join(" "); // 4. Ghép lại bằng khoảng trắng
 }
 
 /**

@@ -19,8 +19,10 @@ function handleOfferAcceptedWorkflow(data) {
   });
   createdCount++;
 
-  // 3. Tạo Draft gửi IT (Anh Trung) - Chỉ gửi khi Device Request chứa "As company standard"
-  const deviceRequested = data.deviceRequest?.includes("As company standard");
+  // 3. Tạo Draft gửi IT (Anh Trung) - Đã sửa so sánh chữ thường
+  const deviceRequested = data.deviceRequest
+    ?.toLowerCase()
+    .includes("as company standard");
   if (deviceRequested) {
     const itMail = getITEmailTemplate(data);
     GmailApp.createDraft(CONFIG.RECIPIENTS.IT, itMail.subject, "", {

@@ -39,6 +39,7 @@ function getNormalizedInput(triggerType = "MANUAL_TEST") {
 
   // 3. Chuẩn hóa Tên
   const rawFullName = toTitleCase(rowData[COLS.FULL_NAME]); // Giữ tên đầy đủ có dấu chuẩn "Trần Thị Tú Anh"
+  const accentlessName = removeAccents(rawFullName);
   const parts = removeAccents(rawFullName).split(" ").filter(Boolean); // ["tran", "thi", "tu", "anh"]
 
   // Lấy "Tên Họ" không dấu viết hoa chữ cái đầu (Ví dụ: "Anh Tran")
@@ -140,9 +141,18 @@ function getTriggerType(e) {
 }
 
 /**
- * Hàm TEST: Chạy từ Editor để kiểm tra Output
+ * Hàm TEST: Tự động chọn Sheet "New" và Dòng 3 để test
  */
 function testNormalizeOutput() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // 1. Chỉ định chính xác Sheet tên là "New"
+  const sheet = ss.getSheetByName("New");
+  if (!sheet) {
+    throw new Error("Không tìm thấy sheet tên là 'New'!");
+  }
+  // 2. Tự động active dòng 3 trên Sheet "New"
+  sheet.setActiveRange(sheet.getRange(3, 1));
+  // 3. Chạy test
   const result = getNormalizedInput("MANUAL_TEST");
   Logger.log(JSON.stringify(result, null, 2));
 }

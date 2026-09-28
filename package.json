@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "push": "tsc && cp src/*.json src/*.js dist/ 2>/dev/null || true && clasp push"
+    "push": "clasp push"
   },
   "devDependencies": {
     "@types/google-apps-script": "^2.0.13",
