@@ -156,7 +156,58 @@ function getITEmailTemplate(data) {
 }
 
 /**
- * 4. Template Welcome Email gửi cho Nhân sự mới (Candidate)
+ * 4. Template Notification Email gửi cho TA In Charge
+ * @param {Object} data - Dữ liệu từ getNormalizedInput()
+ * @returns {Object} { subject, htmlBody }
+ */
+function getTaNotificationEmailTemplate(data) {
+  const positionTitle = toTitleCase(data.position);
+  const squadTitle = toTitleCase(data.squad);
+
+  const subject = `[Onboarding] Nhắc gửi Welcome Email cho nhân sự mới ${data.fullName} - ${data.startDate}`;
+  const htmlBody = `
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 600px; margin: 0;">
+  <p style="margin: 0 0 12px 0;">Hi ${data.taEmail},</p>
+  
+  <p style="margin: 0 0 16px 0;">
+    Nhắc bạn gửi Welcome Email cho nhân sự mới sẽ Onboard vào ngày <strong>${data.startDate}</strong>. Chi tiết tại file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>):
+  </p>
+  
+  <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
+    <tr>
+      <td style="padding: 8px 0; color: #666666; width: 130px;">Họ và tên:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.fullName}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Email cá nhân:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #EF403E;">${data.personalEmail}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Ngày Onboard:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.startDate}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Chức vụ:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${positionTitle}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; color: #666666;">Squad / Unit:</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${squadTitle}</td>
+    </tr>
+  </table>
+  
+  <div style="text-align: center; margin: 20px 0 16px 0;">
+    <a href="${data.rowLink}" target="_blank" style="background-color: #EF403E; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">Mở Google Sheet (Dòng ${data.rowNumber})</a>
+  </div>
+  
+  <p style="margin: 0;">Cảm ơn bạn!</p>
+</div>`;
+
+  return { subject, htmlBody };
+}
+
+/**
+ * 5. Template Welcome Email gửi cho Nhân sự mới (Candidate)
  * @param {Object} data - Dữ liệu từ getNormalizedInput()
  * @param {string} guidePreviewUrl - Link preview file PDF trên Google Drive
  * @returns {Object} { subject, htmlBody }

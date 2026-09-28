@@ -18,6 +18,7 @@ function onEdit(e) {
     // 3. Phân nhánh xử lý nghiệp vụ
     if (triggerType === "OFFER_ACCEPTED") handleOfferAcceptedWorkflow(data);
     if (triggerType === "WELCOME_EMAIL") handleWelcomeEmailWorkflow(data);
+    if (triggerType === "TA_NOTIFICATION") handleTaNotificationWorkflow(data);
   } catch (error) {
     Logger.log("Lỗi trong quá trình xử lý onEdit: " + error.toString());
   }

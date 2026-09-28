@@ -87,6 +87,9 @@ function getNormalizedInput(triggerType = "MANUAL_TEST") {
     taEmail: formatKyanonEmail(rowData[COLS.TA_IN_CHARGE]),
     managerEmail: formatKyanonEmail(rowData[COLS.LINE_MANAGER]),
 
+    // Trạng thái cột checkbox gửi email cho TA
+    sendTaNotification: String(rowData[COLS.SEND_TA_NOTIFICATION_EMAIL]) === "true",
+
     // Người thực thi
     currentUserEmail: Session.getEffectiveUser().getEmail(),
   };
@@ -151,6 +154,33 @@ function getTriggerType(e) {
       }
 
       return "WELCOME_EMAIL";
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // LUỒNG 3: Tích ô Checkbox ở cột SEND_TA_NOTIFICATION_EMAIL
+  // -----------------------------------------------------------------------
+  if (editedCol === COLS.SEND_TA_NOTIFICATION_EMAIL) {
+    const isChecked = e.value === "TRUE" || e.value === true;
+
+    if (isChecked) {
+      // 1. Kiểm tra ô TA In Charge ở cùng dòng
+      const taCol = headers.indexOf(COLS.TA_IN_CHARGE) + 1;
+      const taEmail =
+        taCol > 0 ? sheet.getRange(rowIndex, taCol).getValue() : null;
+
+      // 2. Nếu thiếu TA In Charge -> Báo lỗi & Bỏ tích checkbox
+      if (!taEmail || String(taEmail).trim() === "") {
+        SpreadsheetApp.getUi().alert(
+          "⚠️ Thiếu TA In Charge!",
+          "Vui lòng nhập TA In Charge cho ứng viên trước khi tích chọn gửi Notification Email.",
+          SpreadsheetApp.getUi().ButtonSet.OK,
+        );
+        e.range.setValue(false); // Bỏ tích checkbox
+        return null;
+      }
+
+      return "TA_NOTIFICATION";
     }
   }
 

@@ -1,5 +1,5 @@
 /** ==========================================
- * WORKFLOWS.JS - QUẢN LÝ CÁC LUỒNG TẠO DRAFT EMAIL
+ * WORKFLOWS.JS - QUẢN LÝ CÁC LUỒNG TẠO DRAFT EMAIL & GỬI EMAIL TRỰC TIẾP
  * ========================================== */
 
 /**
@@ -60,7 +60,65 @@ function handleOfferAcceptedWorkflow(data) {
 }
 
 /**
- * LUỒNG 2: Gửi / Tạo Draft Welcome Email cho Nhân sự mới kèm File PDF
+ * LUỒNG 2: Gửi Email Notification TRỰC TIẾP cho TA In Charge (không tạo Draft)
+ * @param {Object} data - Dữ liệu ứng viên đã chuẩn hóa
+ */
+function handleTaNotificationWorkflow(data) {
+  // 1. Kiểm tra TA Email hợp lệ trước khi gửi
+  if (!data.taEmail) {
+    SpreadsheetApp.getUi().alert(
+      "⚠️ Thiếu TA In Charge!",
+      "Không tìm thấy email của TA In Charge, không thể gửi Notification Email.",
+      SpreadsheetApp.getUi().ButtonSet.OK,
+    );
+    return;
+  }
+
+  // 2. Gọi Template Email cho TA
+  const taMail = getTaNotificationEmailTemplate(data);
+
+  // 3. Gửi Email TRỰC TIẾP (không tạo Draft), bọc try...catch theo nguyên tắc Defensive Programming
+  let sentEmail = null;
+  try {
+    GmailApp.sendEmail(data.taEmail, taMail.subject, "", {
+      htmlBody: taMail.htmlBody,
+    });
+    sentEmail = { to: data.taEmail };
+  } catch (error) {
+    Logger.log("❌ Lỗi khi gửi Notification Email cho TA: " + error.toString());
+    SpreadsheetApp.getUi().alert(
+      "Lỗi ❌",
+      `Không thể gửi Notification Email tới ${data.taEmail}. Vui lòng kiểm tra lại.\n\nChi tiết: ${error.message}`,
+      SpreadsheetApp.getUi().ButtonSet.OK,
+    );
+    return;
+  }
+
+  // 4. 📝 GHI LOG TA NOTIFICATION (Trạng thái EMAIL_SENT)
+  logTaNotificationWorkflow(data, sentEmail.to);
+
+  // 5. Tự động đổi màu nhẹ ô Checkbox báo hiệu hoàn tất (UX)
+  if (data.rowNumber) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn());
+    const headers = headerRange.getValues()[0].map(normalizeHeaderKey);
+    const checkboxCol = headers.indexOf(COLS.SEND_TA_NOTIFICATION_EMAIL) + 1;
+
+    if (checkboxCol > 0) {
+      sheet.getRange(data.rowNumber, checkboxCol).setBackground("#e2e3e5");
+    }
+  }
+
+  // 6. Hiện Pop-up Alert thông báo giữa màn hình
+  SpreadsheetApp.getUi().alert(
+    "Thành công 🎉",
+    `Đã gửi Notification Email trực tiếp cho TA (${data.taEmail}) về nhân sự ${data.fullName}!`,
+    SpreadsheetApp.getUi().ButtonSet.OK,
+  );
+}
+
+/**
+ * LUỒNG 3: Gửi / Tạo Draft Welcome Email cho Nhân sự mới kèm File PDF
  * @param {Object} data - Dữ liệu ứng viên đã chuẩn hóa
  */
 function handleWelcomeEmailWorkflow(data) {

@@ -35,4 +35,7 @@ const COLS = {
   REMARKS: normalizeHeaderKey("Remarks\n(update by Atlas)"),
   ALLOC_CODE: normalizeHeaderKey("Alloc Code\n(update by Atlas)"),
   SEND_WELCOME_EMAIL: normalizeHeaderKey("Send Welcome Email"), // Cột Checkbox
+  SEND_TA_NOTIFICATION_EMAIL: normalizeHeaderKey(
+    "Send Notification Email to TA\n(update by Atlas)",
+  ), // Cột Checkbox
 };

@@ -56,6 +56,35 @@ function logInternalWorkflow(data, drafts) {
 }
 
 /**
+ * Ghi log cho Luồng Gửi Notification Email Trực Tiếp cho TA In Charge
+ * Cột: Timestamp | Fullname | Position | Alloc Code | Sent To | Status
+ */
+function logTaNotificationWorkflow(data, sentTo) {
+  try {
+    const headers = [
+      "Timestamp",
+      "Fullname",
+      "Position",
+      "Alloc Code",
+      "Sent To",
+      "Status",
+    ];
+    const sheet = getOrCreateLogSheet("TA Notification Log", headers);
+
+    sheet.appendRow([
+      new Date(), // Timestamp
+      data.fullName, // Fullname
+      toTitleCase(data.position), // Position
+      data.allocCode, // Alloc Code
+      sentTo, // Sent To (TA email)
+      "EMAIL_SENT", // Status
+    ]);
+  } catch (error) {
+    Logger.log("❌ Lỗi ghi TA Notification Log: " + error.message);
+  }
+}
+
+/**
  * Ghi log cho Luồng Candidate Draft Welcome Email
  * Cột: Timestamp | Fullname | Position | Alloc Code | Draft ID | Status
  */
