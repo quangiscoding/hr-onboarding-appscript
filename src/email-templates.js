@@ -4,34 +4,46 @@
 
 /**
  * 1. Template Mail nhắc DevOps (Tạo Email công ty)
- * @param {Object} data - Dữ liệu từ getNormalizedInput()
- * @returns {Object} { subject, htmlBody }
+ *
+ * @param {Object} data - Đối tượng chứa thông tin nhân sự đã được chuẩn hóa
+ * @returns {{subject: string, htmlBody: string}}
  */
 function getDevOpsEmailTemplate(data) {
-  const positionTitle = toTitleCase(data.position);
-  const squadTitle = toTitleCase(data.squad);
+  const positionTitle =
+    typeof toTitleCase === "function"
+      ? toTitleCase(data.position || "")
+      : data.position || "";
+  const squadTitle =
+    typeof toTitleCase === "function"
+      ? toTitleCase(data.squad || "")
+      : data.squad || "";
 
-  const subject = `Yêu cầu khởi tạo tài khoản email công ty cho nhân sự mới - ${data.fullName}`;
+  const subject = `Yêu cầu khởi tạo tài khoản email công ty cho nhân sự mới - ${data.fullName || ""}`;
+
   const htmlBody = `
 <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 600px; margin: 0;">
   <p style="margin: 0 0 12px 0;">Hi anh Tuấn,</p>
   
   <p style="margin: 0 0 16px 0;">
-    Nhờ anh vào file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>), hỗ trợ khởi tạo tài khoản email công ty cho nhân sự mới với ạ:
+    Nhờ anh vào file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>), hỗ trợ khởi tạo tài khoản email công ty cho nhân sự mới với ạ.
+  </p>
+
+  <p style="margin: 0 0 16px 0;">
+    Sau khi tạo xong email, nhờ anh tích chọn ô <strong>Send Notification Email to TA (update by Atlas)</strong> tại dòng <strong>${data.rowNumber}</strong> để hệ thống tự động gửi email nhắc TA phụ trách ạ.
   </p>
   
   <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
     <tr>
       <td style="padding: 8px 0; color: #666666; width: 130px;">Họ và tên:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.fullName}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.fullName || ""}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Email cá nhân:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #EF403E;">${data.personalEmail}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #EF403E;">${data.personalEmail || ""}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Ngày Onboard:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.startDate}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.startDate || ""}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Chức vụ:</td>
