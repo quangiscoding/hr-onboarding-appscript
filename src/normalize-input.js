@@ -3,18 +3,24 @@
  * ========================================== */
 
 /**
- * Lấy và chuẩn hóa (Normalize) dữ liệu của dòng đang được chọn (Active Row) trên Google Sheet.
- * @param {string} [triggerType] - Thuộc tính "OFFER_ACCEPTED" hoặc "WELCOME_EMAIL" (nếu có)
+ * Lấy và chuẩn hóa (Normalize) dữ liệu của dòng trên Google Sheet.
+ *
+ * @param {string} [triggerType="MANUAL_TEST"] - Thuộc tính "OFFER_ACCEPTED", "WELCOME_EMAIL", "TA_NOTIFICATION"
+ * @param {number} [targetRow=null] - Số dòng cụ thể cần lấy dữ liệu (Truyền từ Custom Menu)
  * @returns {Object} Đối tượng chứa toàn bộ dữ liệu nhân sự đã chuẩn hóa.
  */
-function getNormalizedInput(triggerType = "MANUAL_TEST") {
-  // 1. Lấy Sheet và Hàng đang chọn
+function getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const activeRange = sheet.getActiveRange();
 
-  if (!activeRange) throw new Error("Vui lòng chọn một ô/dòng trên bảng tính!");
+  // 1. Xác định dòng cần lấy dữ liệu (Ưu tiên targetRow truyền vào từ Custom Menu)
+  let rowIndex = targetRow;
+  if (!rowIndex) {
+    const activeRange = sheet.getActiveRange();
+    if (!activeRange)
+      throw new Error("Vui lòng chọn một ô/dòng trên bảng tính!");
+    rowIndex = activeRange.getRow();
+  }
 
-  const rowIndex = activeRange.getRow();
   if (rowIndex < 2) {
     throw new Error(
       "Vui lòng chọn dòng chứa dữ liệu nhân sự (không chọn dòng tiêu đề)!",
@@ -22,11 +28,9 @@ function getNormalizedInput(triggerType = "MANUAL_TEST") {
   }
 
   // 2. Đọc Headers (Dòng 1) và Data (Dòng chọn)
-  const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn());
-  const headers = headerRange.getValues()[0];
-
-  const rowRange = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn());
-  const rowValues = rowRange.getValues()[0];
+  const lastCol = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const rowValues = sheet.getRange(rowIndex, 1, 1, lastCol).getValues()[0];
 
   // Map Header Key chuẩn hóa với Giá trị ô
   const rowData = {};
@@ -42,7 +46,7 @@ function getNormalizedInput(triggerType = "MANUAL_TEST") {
   const accentlessName = removeAccents(rawFullName);
   const parts = accentlessName.split(" ").filter(Boolean); // ["tran", "thi", "tu", "anh"]
 
-  // Lấy "Tên Họ" không dấu viết hoa chữ cái đầu (Ví dụ: "Anh Tran")
+  // Lấy "Tên Họ" không dấu viết hoa chữ cái đầu cho tên file (Ví dụ: "Anh Tran")
   let formattedName = "Candidate";
   if (parts.length >= 2) {
     const firstName = parts[parts.length - 1]; // "anh"
@@ -88,7 +92,8 @@ function getNormalizedInput(triggerType = "MANUAL_TEST") {
     managerEmail: formatKyanonEmail(rowData[COLS.LINE_MANAGER]),
 
     // Trạng thái cột checkbox gửi email cho TA
-    sendTaNotification: String(rowData[COLS.SEND_TA_NOTIFICATION_EMAIL]) === "true",
+    sendTaNotification:
+      String(rowData[COLS.SEND_TA_NOTIFICATION_EMAIL]) === "true",
 
     // Người thực thi
     currentUserEmail: Session.getEffectiveUser().getEmail(),
@@ -101,85 +106,63 @@ function getNormalizedInput(triggerType = "MANUAL_TEST") {
  * @return {string|null} - Khóa "OFFER_ACCEPTED", "WELCOME_EMAIL" hoặc null
  */
 function getTriggerType(e) {
-  // Bỏ qua nếu e không hợp lệ hoặc người dùng sửa ở dòng tiêu đề (Dòng 1)
   if (!e?.range || e.range.getRow() < 2) return null;
 
   const sheet = e.range.getSheet();
   const rowIndex = e.range.getRow();
   const colIndex = e.range.getColumn();
 
-  // Đọc danh sách tên cột từ Dòng 1 và chuẩn hóa
   const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn());
   const headers = headerRange.getValues()[0].map(normalizeHeaderKey);
 
-  // Cột vừa bị chỉnh sửa
   const editedCol = headers[colIndex - 1];
-
-  // Giá trị mới và giá trị cũ đã làm sạch
   const newValue = clean(e.value);
   const oldValue = clean(e.oldValue);
 
-  // -----------------------------------------------------------------------
-  // LUỒNG 1: Sửa cột OFFER_STATUS sang "offer accepted"
-  // -----------------------------------------------------------------------
   if (editedCol === COLS.OFFER_STATUS) {
     return newValue === "offer accepted" && oldValue !== "offer accepted"
       ? "OFFER_ACCEPTED"
       : null;
   }
 
-  // -----------------------------------------------------------------------
-  // LUỒNG 2: Tích ô Checkbox ở cột SEND_WELCOME_EMAIL
-  // -----------------------------------------------------------------------
   if (editedCol === COLS.SEND_WELCOME_EMAIL) {
     const isChecked = e.value === "TRUE" || e.value === true;
-
     if (isChecked) {
-      // 1. Kiểm tra ô Alloc Code ở cùng dòng
       const allocCodeCol = headers.indexOf(COLS.ALLOC_CODE) + 1;
       const allocCode =
         allocCodeCol > 0
           ? sheet.getRange(rowIndex, allocCodeCol).getValue()
           : null;
 
-      // 2. Nếu thiếu Alloc Code -> Báo lỗi & Bỏ tích checkbox
       if (!allocCode || String(allocCode).trim() === "") {
         SpreadsheetApp.getUi().alert(
           "⚠️ Thiếu Alloc Code!",
           "Vui lòng nhập Alloc Code cho ứng viên trước khi tích chọn gửi Welcome Email.",
           SpreadsheetApp.getUi().ButtonSet.OK,
         );
-        e.range.setValue(false); // Bỏ tích checkbox
+        e.range.setValue(false);
         return null;
       }
-
       return "WELCOME_EMAIL";
     }
   }
 
-  // -----------------------------------------------------------------------
-  // LUỒNG 3: Tích ô Checkbox ở cột SEND_TA_NOTIFICATION_EMAIL
-  // -----------------------------------------------------------------------
   if (editedCol === COLS.SEND_TA_NOTIFICATION_EMAIL) {
     const isChecked = e.value === "TRUE" || e.value === true;
-
     if (isChecked) {
-      // 1. Kiểm tra ô TA In Charge ở cùng dòng
       const taCol = headers.indexOf(COLS.TA_IN_CHARGE) + 1;
       const taEmail =
         taCol > 0 ? sheet.getRange(rowIndex, taCol).getValue() : null;
 
-      // 2. Nếu thiếu TA In Charge -> Báo lỗi & Bỏ tích checkbox
       if (!taEmail || String(taEmail).trim() === "") {
         SpreadsheetApp.getUi().alert(
           "⚠️ Thiếu TA In Charge!",
           "Vui lòng nhập TA In Charge cho ứng viên trước khi tích chọn gửi Notification Email.",
           SpreadsheetApp.getUi().ButtonSet.OK,
         );
-        e.range.setValue(false); // Bỏ tích checkbox
+        e.range.setValue(false);
         return null;
       }
-
       return "TA_NOTIFICATION";
     }
   }
@@ -197,6 +180,6 @@ function testNormalizeOutput() {
     throw new Error("Không tìm thấy sheet tên là 'New'!");
   }
   sheet.setActiveRange(sheet.getRange(3, 1));
-  const result = getNormalizedInput("MANUAL_TEST");
+  const result = getNormalizedInput("MANUAL_TEST", 3);
   Logger.log(JSON.stringify(result, null, 2));
 }
