@@ -15,7 +15,7 @@ function onOpen() {
     )
     .addSeparator()
     .addItem(
-      "3. Gửi Yêu cầu cho DevOps (Offer Accepted)",
+      "3. Thông báo Offer Accepted (DevOps / HR / Line Manager)",
       "menuSendDevOpsEmail",
     )
     .addToUi();
