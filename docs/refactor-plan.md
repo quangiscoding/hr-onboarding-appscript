@@ -157,11 +157,11 @@ core ✗──✗ mọi module nghiệp vụ (core không được biết đến
 
 **Nghiệm thu:** `grep -n "getUi()" src/` chỉ còn `main.js` + `core/ui-feedback.js`; luồng email chạy y như trước trên sheet thật.
 
-### Phase 2 — Chia thư mục module (½ ngày)
+### Phase 2 — Chia thư mục module (½ ngày) ✅ ĐÃ HOÀN THÀNH 2026-09-30
 
-1. Di chuyển file theo cây mục tiêu mục 2.1 (`git mv` để giữ history).
-2. `main.js` chỉ còn `onOpen` + `menu*` + `executeWorkflowRunner` (runner có thể tách thành `core/workflow-runner.js`).
-3. Chạy `clasp push`, test đủ 3 luồng + log.
+1. Di chuyển file theo cây mục tiêu mục 2.1 (`git mv` để giữ history). ✅
+2. `main.js` chỉ còn `onOpen` + `menu*` + `executeWorkflowRunner` (runner có thể tách thành `core/workflow-runner.js`). ✅ (giữ nguyên, chưa tách runner)
+3. Chạy `clasp push`, test đủ 3 luồng + log. ⏳ Cần người dùng chạy `clasp push` + test trên sheet thật.
 
 **Nghiệm thu:** `clasp push` thành công không thiếu file; test thủ công 3 luồng OK; `clasp status` hiển thị đúng cây mới.
 

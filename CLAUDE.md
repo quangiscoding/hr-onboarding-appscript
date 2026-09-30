@@ -16,21 +16,31 @@ Hệ thống tự động hóa Onboarding Email Automation cho Kyanon Digital ch
 
 ### 1.1. Cây file & trách nhiệm từng module
 
+> ⚠️ **GAS namespace:** chia subdirectory không tạo module riêng — mọi hàm vẫn là global. File chỉ là cách tổ chức code; không import chéo trực tiếp giữa các module nghiệp vụ.
+
 ```
 src/
 ├── appsscript.json        # Manifest: V8, timezone Asia/Ho_Chi_Minh, OAuth scopes
 ├── main.js                # CONTROLLER: onOpen (menu) + WORKFLOW_REGISTRY + executeWorkflowRunner
-├── config.js              # CONFIG (RECIPIENTS, GUIDE_PDF_MAP, OFFICE_ADDRESS, LOG) + từ điển COLS
-├── utils.js               # Pure helpers (clean, removeAccents, toTitleCase, formatKyanonEmail...)
-│                          #   + Sheet helpers (getHeaderColumnMap) + Template/Drive helpers
-├── normalize-input.js     # getNormalizedInput(triggerType, targetRow): sheet row -> JSON payload chuẩn
-├── workflows.js           # BUSINESS LOGIC: 3 hàm handle*Workflow(data)
-├── email-templates.js     # 5 hàm get*EmailTemplate(data) -> { subject, htmlBody }
-├── email-templates/       # 5 file .html (devops, hr, it, ta-notification, welcome-candidate)
-├── logger.js              # appendWorkflowLog generic + 3 hàm log*Workflow -> tab sheet
-├── legacy-utils.js        # @customfunction cho sheet formula (specificDays, convertVn2...)
-└── recruitment/sidebar.js # Stub showSidebar — module AI Recruitment làm sau (Phase 5)
+│                          #   (PHẢI nằm ở gốc src/ — menu bind theo tên hàm)
+├── core/                  # Không phụ thuộc nghiệp vụ, dùng chung bởi mọi module
+│   ├── config.js          #   CONFIG (RECIPIENTS, GUIDE_PDF_MAP, OFFICE_ADDRESS, LOG) + COLS
+│   ├── utils.js           #   Pure helpers + Sheet helpers + Template/Drive helpers
+│   └── ui-feedback.js     #   WorkflowError + notifySuccess/notifyWarning/notifyError/confirmAction
+│                          #   (điểm DUY NHẤT gọi getUi() ngoài main.js)
+├── onboarding/            # Module 1: Onboarding Email Automation
+│   ├── normalize-input.js #   getNormalizedInput: sheet row -> JSON payload chuẩn
+│   ├── workflows.js       #   3 hàm handle*Workflow: return {ok, message,...} / throw WorkflowError
+│   ├── email-templates.js #   5 hàm get*EmailTemplate -> { subject, htmlBody }
+│   ├── email-templates/   #   5 file .html
+│   └── logger.js          #   appendWorkflowLog + 3 hàm log*Workflow -> tab sheet
+├── recruitment/
+│   └── sidebar.js         # Stub showSidebar — module AI Recruitment làm sau (Phase 5)
+└── legacy/
+    └── custom-functions.js # @customfunction cho sheet formula (specificDays, convertVn2...)
 ```
+
+**Quy tắc phụ thuộc:** `main.js -> onboarding/* -> core/*`; `recruitment/* -> core/*`; 2 module nghiệp vụ KHÔNG import chéo; `core` không biết đến module nghiệp vụ.
 
 ### 1.2. Chi tiết từng module
 
@@ -69,9 +79,10 @@ src/
   - `appendWorkflowLog(config, values)`: generic writer, tự tạo tab + header nếu chưa có; fail-safe (lỗi log không crash workflow).
   - `logInternalWorkflow(data, drafts)` / `logTaNotificationWorkflow(data, sentTo)` / `logCandidateWorkflow(data, draftId)`.
 
-- **`legacy-utils.js`** — các hàm `@customfunction` dùng trực tiếp trong công thức sheet, **KHÔNG ĐƯỢC ĐỔI TÊN**: `specificDays(dayName, monthName, year)`, `removeAccent(text)`, `convertVn2FirstLastName(text, removeAccentFlag)`, `convertVn2FirstFullname(text, removeAccentFlag)`, `convertFName2EmailAddress(text)`.
+- **`legacy/custom-functions.js`** — các hàm `@customfunction` dùng trực tiếp trong công thức sheet, **KHÔNG ĐƯỢC ĐỔI TÊN**: `specificDays(dayName, monthName, year)`, `removeAccent(text)`, `convertVn2FirstLastName(text, removeAccentFlag)`, `convertVn2FirstFullname(text, removeAccentFlag)`, `convertFName2EmailAddress(text)`.
 
 - **`recruitment/sidebar.js`**: stub `showSidebar()` — module AI Recruitment sẽ xây ở Phase 5 của `docs/refactor-plan.md`.
+- **`core/ui-feedback.js`**: class `WorkflowError(code, userMessage, details)` + `notifySuccess/notifyWarning/notifyError/confirmAction`. Workflow chỉ return kết quả / throw WorkflowError; main.js gọi các hàm này để hiển thị (Phase 1).
 
 ---
 
