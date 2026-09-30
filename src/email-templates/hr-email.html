@@ -46,7 +46,9 @@
       </td>
     </tr>
     <tr>
-      <td style="padding: 8px 0; color: #666666">Email cá nhân:</td>
+      <td style="padding: 8px 0; color: #666666">
+        <?= it.personalEmail ? "Email cá nhân:" : "Working email:" ?>
+      </td>
       <td style="padding: 8px 0; font-weight: bold; color: #ef403e">
         <?= it.personalEmail || it.workingEmail || "" ?>
       </td>
