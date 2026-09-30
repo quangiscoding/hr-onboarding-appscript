@@ -1,14 +1,21 @@
+/** ==========================================
+ * LEGACY-UTILS.JS - CÁC CUSTOM FUNCTION CHO SHEET FORMULA
+ * ==========================================
+ * Toàn bộ hàm trong file này là @customfunction (gọi trực tiếp từ ô Google Sheet),
+ * giữ nguyên tên để không phá các formula đang có trên Sheet.
+ */
+
 /**
- * Đếm số lượng của một ngày cụ thể trong tuần (như Monday, Tuesday...) có trong một tháng.
+ * Đếm số lượng một ngày cụ thể trong tuần (Monday, Tuesday...) trong một tháng.
  *
- * @param {string} dayName - Tên ngày trong tuần bằng tiếng Anh (VD: "Monday", "Tuesday")
- * @param {string} monthName - Tên tháng bằng tiếng Anh (VD: "January", "October")
+ * @param {string} dayName - Tên ngày trong tuần tiếng Anh (VD: "Monday")
+ * @param {string} monthName - Tên tháng tiếng Anh (VD: "October")
  * @param {number} year - Năm cần kiểm tra (VD: 2026)
  * @return {number} Số lần xuất hiện của ngày đó trong tháng
+ * @customfunction
  */
 function specificDays(dayName, monthName, year) {
-  // Danh sách tên 12 tháng bằng tiếng Anh
-  var monthNames = [
+  const monthNames = [
     "January",
     "February",
     "March",
@@ -23,179 +30,130 @@ function specificDays(dayName, monthName, year) {
     "December",
   ];
 
-  // Danh sách tên các ngày trong tuần bằng tiếng Anh (chú ý: "Saterday" giữ theo chuẩn gốc)
-  var dayNames = [
+  const dayNames = [
     "Sunday",
     "Monday",
     "Tuesday",
     "Wednesday",
     "Thursday",
     "Friday",
-    "Saterday",
+    "Saterday", // giữ theo chuẩn gốc
   ];
 
-  // Chuyển chuỗi tên ngày và tháng thành chỉ số (index) tương ứng trong mảng
-  var day = dayNames.indexOf(dayName);
-  var month = monthNames.indexOf(monthName) + 1; // Tháng trong JavaScript tính từ 1-12 khi truyền vào tham số Date(year, month, 0)
+  const day = dayNames.indexOf(dayName);
+  const month = monthNames.indexOf(monthName) + 1;
 
-  // Xác định tổng số ngày trong tháng (bằng cách lấy ngày 0 của tháng tiếp theo)
-  var daysinMonth = new Date(year, month, 0).getDate();
+  if (day === -1 || month === 0) return 0;
 
-  // Biến đếm tổng số ngày thỏa mãn
-  var sumDays = 0;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  let count = 0;
 
-  // Lặp qua từng ngày trong tháng để so sánh
-  for (var i = 1; i <= daysinMonth; i++) {
-    // Lấy thứ trong tuần của ngày thứ i (0 = Sunday, 1 = Monday,...)
-    var checkDay = new Date(year, month - 1, parseInt(i)).getDay();
-
-    // Nếu thứ trùng khớp thì tăng biến đếm lên 1
-    if (day == checkDay) {
-      sumDays++;
+  for (let i = 1; i <= daysInMonth; i++) {
+    if (new Date(year, month - 1, i).getDay() === day) {
+      count++;
     }
   }
 
-  // Trả về tổng số ngày đếm được
-  return sumDays;
+  return count;
 }
 
 /**
- * Loại bỏ toàn bộ dấu tiếng Việt khỏi chuỗi văn bản (Chuyển có dấu -> không dấu).
+ * Loại bỏ toàn bộ dấu tiếng Việt khỏi chuỗi (Chuyển có dấu -> không dấu).
  *
  * @param {string} text - Chuỗi văn bản tiếng Việt có dấu
- * @return {string} Chuỗi văn bản đã được xóa sạch dấu
+ * @return {string} Chuỗi đã xóa sạch dấu
+ * @customfunction
  */
 function removeAccent(text) {
-  // Bỏ dấu cho chữ 'a' và 'A' (bao gồm â, ă và các dấu thanh)
-  text = text.replace(/[âấầẩẫậăắằẳẵặ]/g, "a");
-  text = text.replace(/[ÂẤẦẨẪẬĂẮẰẲẴẶ]/g, "A");
-
-  text = text.replace(/[áàảãạ]/g, "a");
-  text = text.replace(/[ÁÀẢÃẠ]/g, "A");
-
-  // Bỏ dấu cho chữ 'e' và 'E' (bao gồm ê và các dấu thanh)
-  text = text.replace(/[éèẻẽẹêếềểễệ]/g, "e");
-  text = text.replace(/[ÉÈẺẼẸÊẾỀỂỄỆ]/g, "e");
-
-  // Bỏ dấu cho chữ 'o' và 'O'
-  text = text.replace(/[óòỏõọ]/g, "o");
-  text = text.replace(/[ÓÒỎÕỌ]/g, "o");
-
-  // Bỏ dấu cho chữ 'đ' và 'Đ'
-  text = text.replace(/[đ]/g, "d");
-  text = text.replace(/[Đ]/g, "D");
-
-  // Bỏ dấu cho các biến thể 'ô', 'ơ'
-  text = text.replace(/[ôốồổỗộơớờởỡợ]/g, "o");
-  text = text.replace(/[ÔỐỒỔỖỘƠỚỜỞỠỢ]/g, "O");
-
-  // Bỏ dấu cho chữ 'u' và 'U' (bao gồm ư và các dấu thanh)
-  text = text.replace(/[úùủũụưứừửữự]/g, "u");
-  text = text.replace(/[ÚÙỦŨỤƯỨỪỬỮỰ]/g, "U");
-
-  // Bỏ dấu cho chữ 'i' và 'I'
-  text = text.replace(/[íìỉĩị]/g, "i");
-  text = text.replace(/[ÍÌỈĨỊ]/g, "i");
-
-  // Bỏ dấu cho chữ 'y' và 'Y'
-  text = text.replace(/[ýỳỷỹỵ]/g, "y");
-  text = text.replace(/[ÝỲỶỸỴ]/g, "Y");
-
-  return text;
+  if (!text) return "";
+  return String(text)
+    .replace(/[âấầẩẫậăắằẳẵặ]/g, "a")
+    .replace(/[ÂẤẦẨẪẬĂẮẰẲẴẶ]/g, "A")
+    .replace(/[áàảãạ]/g, "a")
+    .replace(/[ÁÀẢÃẠ]/g, "A")
+    .replace(/[éèẻẽẹêếềểễệ]/g, "e")
+    .replace(/[ÉÈẺẼẸÊẾỀỂỄỆ]/g, "E")
+    .replace(/[óòỏõọ]/g, "o")
+    .replace(/[ÓÒỎÕỌ]/g, "O")
+    .replace(/[đ]/g, "d")
+    .replace(/[Đ]/g, "D")
+    .replace(/[ôốồổỗộơớờởỡợ]/g, "o")
+    .replace(/[ÔỐỒỔỖỘƠỚỜỞỠỢ]/g, "O")
+    .replace(/[úùủũụưứừửữự]/g, "u")
+    .replace(/[ÚÙỦŨỤƯỨỪỬỮỰ]/g, "U")
+    .replace(/[íìỉĩị]/g, "i")
+    .replace(/[ÍÌỈĨỊ]/g, "I")
+    .replace(/[ýỳỷỹỵ]/g, "y")
+    .replace(/[ÝỲỶỸỴ]/g, "Y");
 }
 
 /**
- * Chuyển đổi tên dạng Việt Nam sang dạng Short Name (Tên + Họ).
- * Ví dụ: "Trần Thị Tú Anh" -> "Anh Trần" (Nếu removeAccentFlag = 1 -> "Anh Tran")
+ * Đảo cấu trúc họ tên Việt Nam: [Tên] + [Họ].
+ * Ví dụ: "Trần Thị Tú Anh" -> "Anh Trần" (removeAccentFlag=1 -> "Anh Tran")
  *
  * @param {string} text - Họ và tên đầy đủ
- * @param {number} [removeAccentFlag=0] - 1: Bỏ dấu tiếng Việt, 0: Giữ nguyên dấu
- * @return {string} Chuỗi tên đã được đảo cấu trúc [Tên] + [Họ]
+ * @param {number} [removeAccentFlag=0] - 1: Bỏ dấu, 0: Giữ nguyên
+ * @return {string}
  * @customfunction
  */
 function convertVn2FirstLastName(text, removeAccentFlag = 0) {
-  // Trả về rỗng nếu chuỗi vào là rỗng
-  if (text == "") {
-    return "";
-  }
+  if (!text) return "";
 
-  // Cắt bỏ khoảng trắng thừa ở 2 đầu chuỗi
-  text = text.trim();
-
-  // Nếu flag = 1 thì thực hiện bỏ dấu tiếng Việt
+  let normalized = String(text).trim();
   if (removeAccentFlag == 1) {
-    text = removeAccent(text);
+    normalized = removeAccent(normalized);
   }
 
-  // Tách chuỗi họ tên thành mảng các từ dựa vào khoảng trắng
-  arrTmp = text.split(" ");
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
 
-  // Ghép: [Từ cuối cùng (Tên)] + [Khoảng trắng] + [Từ đầu tiên (Họ)]
-  firstLastName = arrTmp[arrTmp.length - 1] + " " + arrTmp[0];
-
-  return firstLastName;
+  return `${parts[parts.length - 1]} ${parts[0]}`;
 }
 
 /**
- * Chuyển đổi họ tên Việt Nam sang dạng Full Name chuẩn quốc tế (Tên + Họ + Tên lót).
- * Ví dụ: "Trần Thị Tú Anh" -> "Anh Trần Thị Tú" (Nếu removeAccentFlag = 1 -> "Anh Tran Thi Tu")
+ * Chuyển họ tên Việt Nam sang dạng quốc tế: [Tên] + [Họ + Tên lót].
+ * Ví dụ: "Trần Thị Tú Anh" -> "Anh Trần Thị Tú" (removeAccentFlag=1 -> "Anh Tran Thi Tu")
  *
  * @param {string} text - Họ và tên đầy đủ
- * @param {number} [removeAccentFlag=0] - 1: Bỏ dấu tiếng Việt, 0: Giữ nguyên dấu
- * @return {string} Chuỗi tên đã chuyển dạng [Tên] + [Họ] + [Các tên lót]
+ * @param {number} [removeAccentFlag=0] - 1: Bỏ dấu, 0: Giữ nguyên
+ * @return {string}
  * @customfunction
  */
 function convertVn2FirstFullname(text, removeAccentFlag = 0) {
-  if (text == "") {
-    return "";
-  }
+  if (!text) return "";
 
-  text = text.trim();
+  let normalized = String(text).trim();
   if (removeAccentFlag == 1) {
-    text = removeAccent(text);
+    normalized = removeAccent(normalized);
   }
 
-  // Tách chuỗi tên thành mảng các từ
-  arrTmp = text.split(" ");
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
 
-  // Lấy từ cuối cùng (Tên chính) làm từ khởi đầu
-  firstFullName = arrTmp[arrTmp.length - 1];
-
-  // Nối tiếp các từ còn lại (từ đầu tiên đến cận cuối) vào đằng sau
-  for (i = 0; i < arrTmp.length - 1; i++) {
-    firstFullName += " " + arrTmp[i];
-  }
-
-  return firstFullName;
+  const firstName = parts[parts.length - 1];
+  return [firstName, ...parts.slice(0, -1)].join(" ");
 }
 
 /**
- * Tạo địa chỉ Email/Username từ chuỗi tên đã đảo (dạng FirstFullName không dấu).
- * Ví dụ input: "Anh Tran Thi Tu" -> Output: "anh.tranthitu"
+ * Tạo địa chỉ Email/Username từ chuỗi tên dạng FirstFullName không dấu.
+ * Ví dụ: "Anh Tran Thi Tu" -> "anh.tranthitu"
  *
  * @param {string} text - Chuỗi tên dạng FirstFullName (VD: "Anh Tran Thi Tu")
  * @return {string} Tiền tố Email (VD: "anh.tranthitu")
  * @customfunction
  */
 function convertFName2EmailAddress(text) {
-  if (text == "") {
-    return "";
+  if (!text) return "";
+
+  const parts = String(text).trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] || "";
+
+  // [Tên chính] + "." + [Họ] + [các tên lót dính liền]
+  let email = `${parts[0]}.${parts[1]}`;
+  for (let i = 2; i < parts.length; i++) {
+    email += parts[i];
   }
 
-  // Loại bỏ khoảng trắng đầu/cuối và viết thường toàn bộ chuỗi
-  text = text.trim().toLowerCase();
-
-  // Tách các từ trong chuỗi tên
-  arrTmp = text.split(" ");
-
-  // Tạo phần prefix: [Tên chính] + [Dấu chấm] + [Họ]
-  emailAddress = arrTmp[0];
-  emailAddress += "." + arrTmp[1];
-
-  // Nối dính liền toàn bộ các tên lót phía sau (nếu có)
-  for (i = 2; i < arrTmp.length; i++) {
-    emailAddress += "" + arrTmp[i];
-  }
-
-  return emailAddress;
+  return email;
 }

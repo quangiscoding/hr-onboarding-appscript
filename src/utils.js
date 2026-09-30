@@ -1,9 +1,13 @@
 /** ==========================================
  * UTILS.JS - TIỆN ÍCH DÙNG CHUNG (PURE HELPERS)
- * ========================================== */
+ * ==========================================
+ * Toàn bộ hàm trong file này là "pure" hoặc chỉ đọc dữ liệu,
+ * không phụ thuộc nghiệp vụ cụ thể — có thể tái sử dụng ở mọi module.
+ */
 
 /**
- * Helper: Chuẩn hóa key của Header (bỏ ký tự đặc biệt, khoảng trắng, viết thường)
+ * Chuẩn hóa key của Header (bỏ ký tự đặc biệt, khoảng trắng, viết thường)
+ * Dùng làm "khóa" tra cứu cột trên Google Sheet.
  */
 function normalizeHeaderKey(header) {
   if (!header) return "";
@@ -13,7 +17,8 @@ function normalizeHeaderKey(header) {
 }
 
 /**
- * Helper: Chuẩn hóa chuỗi input
+ * Chuẩn hóa chuỗi input: NFC, lowercase, trim, gọn khoảng trắng.
+ * Luôn dùng hàm này cho các chuỗi dùng để SO SÁNH.
  */
 function clean(str) {
   return String(str || "")
@@ -23,9 +28,7 @@ function clean(str) {
     .replace(/\s+/g, " ");
 }
 
-/**
- * Helper: Bỏ dấu tiếng Việt
- */
+/** Bỏ dấu tiếng Việt (ví dụ "Trần" -> "Tran") */
 function removeAccents(str) {
   if (!str) return "";
   return clean(
@@ -36,10 +39,7 @@ function removeAccents(str) {
   );
 }
 
-/**
- * Chuẩn hóa chuỗi về dạng Title Case (Viết hoa chữ cái đầu mỗi từ)
- * Ví dụ: "trầN thị TÚ anH" -> "Trần Thị Tú Anh"
- */
+/** Viết hoa chữ cái đầu mỗi từ: "trầN thị TÚ anH" -> "Trần Thị Tú Anh" */
 function toTitleCase(str) {
   if (!str) return "";
 
@@ -52,18 +52,14 @@ function toTitleCase(str) {
     .join(" ");
 }
 
-/**
- * Helper: Chuẩn hóa Email Kyanon. Nếu chỉ có username sẽ tự thêm đuôi '@kyanon.digital'
- */
+/** Chuẩn hóa Email Kyanon: chỉ có username thì tự thêm đuôi '@kyanon.digital' */
 function formatKyanonEmail(alloc) {
-  let cleanAlloc = clean(alloc);
+  const cleanAlloc = clean(alloc);
   if (!cleanAlloc) return "";
   return cleanAlloc.includes("@") ? cleanAlloc : `${cleanAlloc}@kyanon.digital`;
 }
 
-/**
- * Helper: Định dạng hiển thị Ngày tháng (dd/MM/yyyy)
- */
+/** Định dạng ngày tháng hiển thị (dd/MM/yyyy) */
 function formatDateValue(dateVal) {
   if (!dateVal) return "";
   if (dateVal instanceof Date) {
@@ -76,12 +72,40 @@ function formatDateValue(dateVal) {
   return clean(dateVal);
 }
 
-/**
- * Helper: Kiểm tra nhu cầu thiết bị có phải "as company standard" hay không
- */
+/** Kiểm tra nhu cầu thiết bị có phải "as company standard" hay không */
 function isStandardDevice(deviceRequestStr) {
   return clean(deviceRequestStr).includes("as company standard");
 }
+
+/** Rút gọn email về username: "nguyen.trt@kyanon.digital" -> "nguyen.trt" */
+function toEmailUsername(email, fallback = "") {
+  const raw = String(email || "").trim();
+  if (!raw) return fallback;
+  return raw.includes("@") ? raw.split("@")[0] : raw;
+}
+
+/* ------------------------------------------------------------------ */
+/* SHEET HELPERS - tiện ích thao tác trên Google Sheet                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Đọc headers (dòng 1) của sheet và trả về Map: [normalizedKey] -> số cột (1-based)
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet
+ * @returns {Object} { key: columnIndex }
+ */
+function getHeaderColumnMap(sheet) {
+  const lastCol = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const map = {};
+  headers.forEach((header, index) => {
+    if (header) map[normalizeHeaderKey(header)] = index + 1;
+  });
+  return map;
+}
+
+/* ------------------------------------------------------------------ */
+/* TEMPLATE & DRIVE HELPERS                                            */
+/* ------------------------------------------------------------------ */
 
 /**
  * Load file HTML từ thư mục email-templates và inject dữ liệu
@@ -90,7 +114,6 @@ function isStandardDevice(deviceRequestStr) {
  * @returns {string} Chuỗi HTML string đã render
  */
 function renderHtmlTemplate(templateName, data) {
-  // Bỏ 'src/' ở đầu, chỉ giữ lại 'email-templates/'
   const filePath = `email-templates/${templateName}`;
   const template = HtmlService.createTemplateFromFile(filePath);
 
@@ -99,42 +122,39 @@ function renderHtmlTemplate(templateName, data) {
 }
 
 /**
- * Helper: Lấy File PDF + File ID trực tiếp dựa trên Employment Type và Onboarding Type
+ * Lấy File PDF hướng dẫn (Blob đã đổi tên) dựa trên Employment Type + Onboarding Type
  * @param {string} employmentType - Loại hợp đồng (intern/probation)
  * @param {string} onboardingType - Địa điểm làm việc (danang/hcm/onsite)
- * @returns {Object|null} { file, fileId }
+ * @param {string} customFileName - Tên hiển thị của file đính kèm
+ * @returns {Object|null} { pdfBlob, fileId } hoặc null nếu lỗi/không tìm thấy
  */
 function getGuidePdfFileInfo(employmentType, onboardingType, customFileName) {
   try {
-    const empStr = clean(employmentType);
-    const onboardStr = clean(onboardingType);
-
-    const category = empStr.includes("intern") ? "intern" : "probation";
-    const location = onboardStr.includes("danang") ? "danang" : "hcm";
+    const category = clean(employmentType).includes("intern")
+      ? "intern"
+      : "probation";
+    const location = clean(onboardingType).includes("danang")
+      ? "danang"
+      : "hcm";
     const lookupKey = `${category}_${location}`;
 
     const fileId = CONFIG.GUIDE_PDF_MAP[lookupKey];
-
-    if (fileId) {
-      const file = DriveApp.getFileById(fileId);
-
-      // 1. Tải Blob của file PDF vào RAM
-      let pdfBlob = file.getBlob();
-
-      // 2. Đổi tên Blob đính kèm (không đổi tên file gốc trên Drive)
-      if (customFileName) {
-        pdfBlob.setName(customFileName);
-      }
-
-      return {
-        pdfBlob: pdfBlob,
-        fileId: fileId,
-      };
-    } else {
+    if (!fileId) {
       Logger.log("⚠️ Không tìm thấy File ID khớp với Key: " + lookupKey);
+      return null;
     }
+
+    const file = DriveApp.getFileById(fileId);
+    const pdfBlob = file.getBlob();
+
+    // Đổi tên Blob đính kèm (không đổi tên file gốc trên Drive)
+    if (customFileName) {
+      pdfBlob.setName(customFileName);
+    }
+
+    return { pdfBlob, fileId };
   } catch (err) {
     Logger.log("❌ Lỗi khi lấy file PDF từ Drive ID: " + err.toString());
+    return null;
   }
-  return null;
 }

@@ -1,10 +1,33 @@
 /** ==========================================
- * MAIN.JS - ĐIỀU PHỐI VÀ XỬ LÝ CHÍNH (CONTROLLER)
- * ========================================== */
-
-/**
- * Tự động tạo Custom Menu trên Google Sheets khi mở file
+ * MAIN.JS - ĐIỀU PHỐI & MENU (CONTROLLER)
+ * ==========================================
+ * Nhiệm vụ: định nghĩa Custom Menu + chạy workflow sau khi validate.
+ * KHÔNG chứa business logic — chỉ điều phối (Separation of Concerns).
  */
+
+/** Registry trung tâm: triggerType -> { validate, run, label }.
+ *  Thêm luồng mới: bổ sung 1 entry tại đây + 1 item trong onOpen(). */
+const WORKFLOW_REGISTRY = {
+  WELCOME_EMAIL: {
+    label: "Tạo Draft Welcome Email",
+    validate: (data, ui) =>
+      validateRequiredField(data.allocCode, "Alloc Code", ui),
+    run: (data) => handleWelcomeEmailWorkflow(data),
+  },
+  OFFER_ACCEPTED: {
+    label: "Tạo Draft Offer Accepted",
+    validate: () => true,
+    run: (data) => handleOfferAcceptedWorkflow(data),
+  },
+  TA_NOTIFICATION: {
+    label: "Gửi Notification cho TA",
+    validate: (data, ui) =>
+      validateRequiredField(data.taEmail, "TA In Charge", ui),
+    run: (data) => handleTaNotificationWorkflow(data),
+  },
+};
+
+/** Tự động tạo Custom Menu trên Google Sheets khi mở file */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu("🚀 Hera Onboarding Tools")
@@ -27,34 +50,35 @@ function onOpen() {
     .addToUi();
 }
 
-/**
- * 1. Xử lý menu Gửi Welcome Email
- */
+/** 1. Menu: Tạo Draft Welcome Email */
 function menuSendWelcomeEmail() {
   executeWorkflowRunner("WELCOME_EMAIL");
 }
 
-/**
- * 2. Xử lý menu Gửi TA Notification
- */
+/** 2. Menu: Tạo Draft Offer Accepted */
+function menuSendDevOpsEmail() {
+  executeWorkflowRunner("OFFER_ACCEPTED");
+}
+
+/** 3. Menu: Gửi Notification cho TA */
 function menuSendTaNotification() {
   executeWorkflowRunner("TA_NOTIFICATION");
 }
 
 /**
- * 3. Xử lý menu Gửi Yêu cầu cho DevOps
- */
-function menuSendDevOpsEmail() {
-  executeWorkflowRunner("OFFER_ACCEPTED");
-}
-
-/**
- * Bộ điều phối chung (Controller Runner) cho các Action từ Menu
- *
- * @param {string} triggerType - "WELCOME_EMAIL" | "TA_NOTIFICATION" | "OFFER_ACCEPTED"
+ * Bộ điều phối chung (Controller Runner) cho các Action từ Menu:
+ * chọn dòng -> normalize -> validate -> confirm -> chạy workflow.
+ * @param {string} triggerType - Key trong WORKFLOW_REGISTRY
  */
 function executeWorkflowRunner(triggerType) {
   const ui = SpreadsheetApp.getUi();
+  const workflow = WORKFLOW_REGISTRY[triggerType];
+
+  if (!workflow) {
+    ui.alert(`❌ Không tìm thấy workflow: ${triggerType}`);
+    return;
+  }
+
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     const activeRange = sheet.getActiveRange();
@@ -72,41 +96,23 @@ function executeWorkflowRunner(triggerType) {
       return;
     }
 
-    // 1. Đọc và chuẩn hóa dữ liệu của dòng đang được chọn (truyền rõ rowIndex)
+    // 1. Đọc và chuẩn hóa dữ liệu của dòng đang chọn
     const data = getNormalizedInput(triggerType, rowIndex);
 
-    // 2. Validation dữ liệu trước khi thực thi
-    if (triggerType === "WELCOME_EMAIL" && !data.allocCode) {
-      ui.alert(
-        "⚠️ Thiếu Alloc Code!",
-        "Vui lòng nhập Alloc Code cho ứng viên trước khi thực hiện gửi Welcome Email.",
-        ui.ButtonSet.OK,
-      );
-      return;
-    }
-
-    if (triggerType === "TA_NOTIFICATION" && !data.taEmail) {
-      ui.alert(
-        "⚠️ Thiếu TA In Charge!",
-        "Vui lòng nhập/chọn TA In Charge cho ứng viên trước khi thực hiện gửi Notification.",
-        ui.ButtonSet.OK,
-      );
-      return;
-    }
+    // 2. Validate dữ liệu theo từng luồng
+    if (!workflow.validate(data, ui)) return;
 
     // 3. Hỏi xác nhận người dùng
     const confirm = ui.alert(
       "Xác nhận thực hiện",
-      `Bạn có chắc chắn muốn thực thi luồng [${triggerType}] cho nhân sự: ${data.fullName} (Dòng ${data.rowNumber})?\n\nThao tác này sẽ gửi mail/tạo draft dưới danh nghĩa Gmail: ${Session.getActiveUser().getEmail()}`,
+      `Bạn có chắc chắn muốn thực thi luồng [${workflow.label}] cho nhân sự: ${data.fullName} (Dòng ${data.rowNumber})?\n\nThao tác này sẽ gửi mail/tạo draft dưới danh nghĩa Gmail: ${Session.getActiveUser().getEmail()}`,
       ui.ButtonSet.YES_NO,
     );
 
     if (confirm !== ui.Button.YES) return;
 
-    // 4. Phân nhánh gọi hàm xử lý nghiệp vụ tương ứng
-    if (triggerType === "OFFER_ACCEPTED") handleOfferAcceptedWorkflow(data);
-    if (triggerType === "WELCOME_EMAIL") handleWelcomeEmailWorkflow(data);
-    if (triggerType === "TA_NOTIFICATION") handleTaNotificationWorkflow(data);
+    // 4. Thực thi luồng nghiệp vụ tương ứng
+    workflow.run(data);
   } catch (error) {
     Logger.log(
       `Lỗi trong quá trình xử lý Workflow Runner [${triggerType}]: ` +
@@ -114,4 +120,19 @@ function executeWorkflowRunner(triggerType) {
     );
     ui.alert("❌ Đã xảy ra lỗi!", error.toString(), ui.ButtonSet.OK);
   }
+}
+
+/**
+ * Helper validate: báo alert nếu field bắt buộc còn thiếu.
+ * @returns {boolean} true nếu hợp lệ
+ */
+function validateRequiredField(value, fieldLabel, ui) {
+  if (value) return true;
+
+  ui.alert(
+    `⚠️ Thiếu ${fieldLabel}!`,
+    `Vui lòng nhập/chọn ${fieldLabel} cho ứng viên trước khi thực hiện.`,
+    ui.ButtonSet.OK,
+  );
+  return false;
 }

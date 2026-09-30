@@ -1,12 +1,15 @@
 /** ==========================================
- * NORMALIZE-INPUT.JS - LOGIC CHÍNH & TRIGGER XỬ LÝ DỮ LIỆU
- * ========================================== */
+ * NORMALIZE-INPUT.JS - ĐỌC & CHUẨN HÓA DỮ LIỆU NHÂN SỰ
+ * ==========================================
+ * Trách nhiệm duy nhất: biến 1 dòng dữ liệu trên Google Sheet
+ * thành 1 JSON Payload chuẩn để các workflow sử dụng.
+ */
 
 /**
  * Lấy và chuẩn hóa (Normalize) dữ liệu của dòng trên Google Sheet.
  *
- * @param {string} [triggerType="MANUAL_TEST"] - Thuộc tính "OFFER_ACCEPTED", "WELCOME_EMAIL", "TA_NOTIFICATION"
- * @param {number} [targetRow=null] - Số dòng cụ thể cần lấy dữ liệu (Truyền từ Custom Menu)
+ * @param {string} [triggerType="MANUAL_TEST"] - "OFFER_ACCEPTED" | "WELCOME_EMAIL" | "TA_NOTIFICATION"
+ * @param {number} [targetRow=null] - Số dòng cụ thể cần lấy dữ liệu (truyền từ Custom Menu)
  * @returns {Object} Đối tượng chứa toàn bộ dữ liệu nhân sự đã chuẩn hóa.
  */
 function getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null) {
@@ -32,25 +35,23 @@ function getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null) {
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
   const rowValues = sheet.getRange(rowIndex, 1, 1, lastCol).getValues()[0];
 
-  // Map Header Key chuẩn hóa với Giá trị ô
+  // Map Header Key chuẩn hóa với Giá trị ô (dùng lại sheet helper của utils.js)
+  const colMap = getHeaderColumnMap(sheet);
   const rowData = {};
-  headers.forEach((header, index) => {
-    if (header) {
-      const safeKey = normalizeHeaderKey(header);
-      rowData[safeKey] = rowValues[index];
-    }
+  Object.keys(colMap).forEach((key) => {
+    rowData[key] = rowValues[colMap[key] - 1];
   });
 
   // 3. Chuẩn hóa Tên
-  const rawFullName = toTitleCase(rowData[COLS.FULL_NAME]); // Giữ tên đầy đủ có dấu chuẩn "Trần Thị Tú Anh"
+  const rawFullName = toTitleCase(rowData[COLS.FULL_NAME]);
   const accentlessName = removeAccents(rawFullName);
-  const parts = accentlessName.split(" ").filter(Boolean); // ["tran", "thi", "tu", "anh"]
+  const parts = accentlessName.split(" ").filter(Boolean);
 
-  // Lấy "Tên Họ" không dấu viết hoa chữ cái đầu cho tên file (Ví dụ: "Anh Tran")
+  // "Tên Họ" không dấu, viết hoa chữ cái đầu (Ví dụ: "Anh Tran")
   let formattedName = "Candidate";
   if (parts.length >= 2) {
-    const firstName = parts[parts.length - 1]; // "anh"
-    const lastName = parts[0]; // "tran"
+    const firstName = parts[parts.length - 1];
+    const lastName = parts[0];
     formattedName = toTitleCase(`${firstName} ${lastName}`);
   } else if (parts.length === 1) {
     formattedName = toTitleCase(parts[0]);
@@ -93,83 +94,9 @@ function getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null) {
     taEmail: formatKyanonEmail(rowData[COLS.TA_IN_CHARGE]),
     managerEmail: formatKyanonEmail(rowData[COLS.LINE_MANAGER]),
 
-    // Trạng thái cột checkbox gửi email cho TA
-    sendTaNotification:
-      String(rowData[COLS.SEND_TA_NOTIFICATION_EMAIL]) === "true",
-
     // Người thực thi
     currentUserEmail: Session.getEffectiveUser().getEmail(),
   };
-}
-
-/**
- * Lấy Trigger Type dựa trên ô/cột vừa bị chỉnh sửa trên Sheet
- * @param {Object} e - Event Object tự động truyền từ trigger onEdit(e)
- * @return {string|null} - Khóa "OFFER_ACCEPTED", "WELCOME_EMAIL" hoặc null
- */
-function getTriggerType(e) {
-  if (!e?.range || e.range.getRow() < 2) return null;
-
-  const sheet = e.range.getSheet();
-  const rowIndex = e.range.getRow();
-  const colIndex = e.range.getColumn();
-
-  const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn());
-  const headers = headerRange.getValues()[0].map(normalizeHeaderKey);
-
-  const editedCol = headers[colIndex - 1];
-  const newValue = clean(e.value);
-  const oldValue = clean(e.oldValue);
-
-  if (editedCol === COLS.OFFER_STATUS) {
-    return newValue === "offer accepted" && oldValue !== "offer accepted"
-      ? "OFFER_ACCEPTED"
-      : null;
-  }
-
-  if (editedCol === COLS.SEND_WELCOME_EMAIL) {
-    const isChecked = e.value === "TRUE" || e.value === true;
-    if (isChecked) {
-      const allocCodeCol = headers.indexOf(COLS.ALLOC_CODE) + 1;
-      const allocCode =
-        allocCodeCol > 0
-          ? sheet.getRange(rowIndex, allocCodeCol).getValue()
-          : null;
-
-      if (!allocCode || String(allocCode).trim() === "") {
-        SpreadsheetApp.getUi().alert(
-          "⚠️ Thiếu Alloc Code!",
-          "Vui lòng nhập Alloc Code cho ứng viên trước khi tích chọn gửi Welcome Email.",
-          SpreadsheetApp.getUi().ButtonSet.OK,
-        );
-        e.range.setValue(false);
-        return null;
-      }
-      return "WELCOME_EMAIL";
-    }
-  }
-
-  if (editedCol === COLS.SEND_TA_NOTIFICATION_EMAIL) {
-    const isChecked = e.value === "TRUE" || e.value === true;
-    if (isChecked) {
-      const taCol = headers.indexOf(COLS.TA_IN_CHARGE) + 1;
-      const taEmail =
-        taCol > 0 ? sheet.getRange(rowIndex, taCol).getValue() : null;
-
-      if (!taEmail || String(taEmail).trim() === "") {
-        SpreadsheetApp.getUi().alert(
-          "⚠️ Thiếu TA In Charge!",
-          "Vui lòng nhập TA In Charge cho ứng viên trước khi tích chọn gửi Notification Email.",
-          SpreadsheetApp.getUi().ButtonSet.OK,
-        );
-        e.range.setValue(false);
-        return null;
-      }
-      return "TA_NOTIFICATION";
-    }
-  }
-
-  return null;
 }
 
 /**

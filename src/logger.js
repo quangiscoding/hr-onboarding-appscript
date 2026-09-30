@@ -1,9 +1,12 @@
 /** ==========================================
- * LOGGER.JS - QUẢN LÝ TẠO & GHI LOG BẢNG TÍNH
- * ========================================== */
+ * LOGGER.JS - GHI LOG WORKFLOW VÀO TAB BẢNG TÍNH
+ * ==========================================
+ * Mỗi luồng có 1 tab log riêng, cấu hình tập trung trong CONFIG.LOG.
+ * Ghi log là side-effect: luôn fail-safe (không làm crash workflow).
+ */
 
 /**
- * Lấy Tab log theo tên. Nếu chưa có thì TỰ ĐỘNG TẠO MỚI + Format Header
+ * Lấy tab log theo tên. Nếu chưa có thì TỰ ĐỘNG TẠO MỚI + format header.
  */
 function getOrCreateLogSheet(sheetName, headers) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -25,90 +28,60 @@ function getOrCreateLogSheet(sheetName, headers) {
 }
 
 /**
- * Ghi log cho Luồng Internal (Offer Accepted -> DevOps, HR, IT)
- * Cột: Timestamp | Fullname | Position | Request Type | Draft ID | Status
+ * Generic writer: append 1 bản ghi vào tab log.
+ * @param {Object} config - Phần tử của CONFIG.LOG (SHEET_NAME, HEADERS)
+ * @param {Array} values - Mảng giá trị, thứ tự khớp HEADERS
+ */
+function appendWorkflowLog(config, values) {
+  try {
+    const sheet = getOrCreateLogSheet(config.SHEET_NAME, config.HEADERS);
+    sheet.appendRow([new Date(), ...values]);
+  } catch (error) {
+    Logger.log(
+      `❌ Lỗi ghi log vào tab "${config.SHEET_NAME}": ` + error.message,
+    );
+  }
+}
+
+/**
+ * Ghi log luồng Internal (Offer Accepted -> DevOps, HR, IT)
+ * @param {Object} data
+ * @param {Array<{type: string, id: string}>} drafts
  */
 function logInternalWorkflow(data, drafts) {
-  try {
-    const headers = [
-      "Timestamp",
-      "Fullname",
-      "Position",
-      "Request Type",
-      "Draft ID",
-      "Status",
-    ];
-    const sheet = getOrCreateLogSheet("Internal Draft Log", headers);
-
-    drafts.forEach((draft) => {
-      sheet.appendRow([
-        new Date(), // Timestamp
-        data.fullName, // Fullname
-        toTitleCase(data.position), // Position
-        draft.type, // Request Type (DevOps / HR / IT)
-        draft.id, // Draft ID
-        "DRAFT_CREATED", // Status
-      ]);
-    });
-  } catch (error) {
-    Logger.log("❌ Lỗi ghi Internal Log: " + error.message);
-  }
+  drafts.forEach((draft) => {
+    appendWorkflowLog(CONFIG.LOG.INTERNAL, [
+      data.fullName,
+      toTitleCase(data.position),
+      draft.type,
+      draft.id,
+      "DRAFT_CREATED",
+    ]);
+  });
 }
 
 /**
- * Ghi log cho Luồng Gửi Notification Email Trực Tiếp cho TA In Charge
- * Cột: Timestamp | Fullname | Position | Alloc Code | Sent To | Status
+ * Ghi log luồng TA Notification (gửi trực tiếp)
  */
 function logTaNotificationWorkflow(data, sentTo) {
-  try {
-    const headers = [
-      "Timestamp",
-      "Fullname",
-      "Position",
-      "Alloc Code",
-      "Sent To",
-      "Status",
-    ];
-    const sheet = getOrCreateLogSheet("TA Notification Log", headers);
-
-    sheet.appendRow([
-      new Date(), // Timestamp
-      data.fullName, // Fullname
-      toTitleCase(data.position), // Position
-      data.allocCode, // Alloc Code
-      sentTo, // Sent To (TA email)
-      "EMAIL_SENT", // Status
-    ]);
-  } catch (error) {
-    Logger.log("❌ Lỗi ghi TA Notification Log: " + error.message);
-  }
+  appendWorkflowLog(CONFIG.LOG.TA_NOTIFICATION, [
+    data.fullName,
+    toTitleCase(data.position),
+    data.allocCode,
+    sentTo,
+    "EMAIL_SENT",
+  ]);
 }
 
 /**
- * Ghi log cho Luồng Candidate Draft Welcome Email
- * Cột: Timestamp | Fullname | Position | Alloc Code | Draft ID | Status
+ * Ghi log luồng Candidate Welcome Draft
  */
 function logCandidateWorkflow(data, draftId) {
-  try {
-    const headers = [
-      "Timestamp",
-      "Fullname",
-      "Position",
-      "Alloc Code",
-      "Draft ID",
-      "Status",
-    ];
-    const sheet = getOrCreateLogSheet("Candidate Draft Log", headers);
-
-    sheet.appendRow([
-      new Date(), // Timestamp
-      data.fullName, // Fullname
-      toTitleCase(data.position), // Position
-      data.allocCode, // Alloc Code
-      draftId, // Draft ID
-      "DRAFT_CREATED", // Status
-    ]);
-  } catch (error) {
-    Logger.log("❌ Lỗi ghi Candidate Log: " + error.message);
-  }
+  appendWorkflowLog(CONFIG.LOG.CANDIDATE, [
+    data.fullName,
+    toTitleCase(data.position),
+    data.allocCode,
+    draftId,
+    "DRAFT_CREATED",
+  ]);
 }
