@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        font-family: "Google Sans", Roboto, Arial, sans-serif;
+        font-size: 13px;
+        color: #202124;
+        margin: 0;
+        padding: 12px;
+      }
+      h2 { font-size: 15px; margin: 0 0 4px; color: #ef403e; }
+      .subtitle { color: #5f6368; font-size: 11.5px; margin-bottom: 12px; }
+      .section-title {
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: #5f6368;
+        margin: 14px 0 6px;
+      }
+      .card {
+        background: #f8f9fa;
+        border: 1px solid #e8eaed;
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+      .field { display: flex; margin: 3px 0; gap: 6px; }
+      .field .label { flex: 0 0 96px; color: #5f6368; }
+      .field .value { flex: 1; font-weight: 500; word-break: break-word; }
+      textarea {
+        width: 100%;
+        min-height: 150px;
+        border: 1px solid #dadce0;
+        border-radius: 6px;
+        padding: 8px;
+        font-family: inherit;
+        font-size: 12.5px;
+        resize: vertical;
+      }
+      textarea:focus { outline: 2px solid #ef403e33; border-color: #ef403e; }
+      .hint { color: #5f6368; font-size: 11px; margin: 4px 0 10px; }
+      .btn {
+        width: 100%;
+        padding: 9px 12px;
+        border: none;
+        border-radius: 6px;
+        background: #ef403e;
+        color: #fff;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .btn:hover { background: #d93836; }
+      .btn:disabled { background: #bdc1c6; cursor: not-allowed; }
+      .btn-secondary {
+        width: 100%;
+        margin-top: 6px;
+        padding: 7px 12px;
+        border: 1px solid #dadce0;
+        border-radius: 6px;
+        background: #fff;
+        color: #1a73e8;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .status {
+        display: none;
+        margin-top: 10px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        word-break: break-word;
+      }
+      .status.error { display: block; background: #fce8e6; color: #b3261e; }
+      .status.success { display: block; background: #e6f4ea; color: #137333; }
+      .status.success a { color: #137333; font-weight: 600; }
+      .spinner {
+        display: inline-block;
+        width: 12px; height: 12px;
+        border: 2px solid #fff;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .empty { color: #b3261e; margin-top: 12px; }
+    </style>
+  </head>
+  <body>
+    <h2>🚀 Welcome Onboard Generator</h2>
+    <div class="subtitle">Tạo draft bài đăng chào mừng nhân sự mới trên Outline Wiki</div>
+
+    <div id="loading">Đang đọc dữ liệu ứng viên từ dòng đang chọn...</div>
+    <div id="error-box" class="status error"></div>
+
+    <div id="main" style="display: none">
+      <div class="section-title">Thông tin ứng viên (dòng đang chọn)</div>
+      <div class="card" id="candidate-card"></div>
+
+      <div class="section-title">Introduction</div>
+      <textarea
+        id="introduction"
+        placeholder="We are thrilled to welcome Ms./Mr. ... as our ...! 🎉 ..."
+      ></textarea>
+      <div class="hint">
+        Nội dung này sẽ là phần <b>Introduction</b> trong bài đăng (markdown hỗ trợ
+        <b>**bold**</b>, _italic_, emoji).
+      </div>
+
+      <button id="submit-btn" class="btn" onclick="handleSubmit()">Submit → Tạo draft trên Outline</button>
+      <button class="btn-secondary" onclick="reloadCandidate()">↻ Đọc lại dòng đang chọn</button>
+
+      <div id="status" class="status"></div>
+    </div>
+
+    <script>
+      let currentCandidate = null;
+
+      function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = String(str == null ? "" : str);
+        return div.innerHTML;
+      }
+
+      function renderCandidate(candidate) {
+        const rows = [
+          ["Full Name", candidate.fullName],
+          ["Job Title", candidate.title],
+          ["Squad/ Unit", candidate.squad],
+          ["Employment Type", candidate.employmentType],
+          ["Level", candidate.level],
+          ["Line Manager", candidate.lineManager],
+          ["TA In Charge", candidate.taInCharge],
+          ["First working day", candidate.dateOfOnboard],
+          ["Working Email", candidate.workingEmail],
+          ["Personal Email", candidate.personalEmail],
+          ["Phone Number", candidate.phoneNumber],
+          ["Dòng sheet", "#" + candidate.rowNumber],
+        ];
+        document.getElementById("candidate-card").innerHTML = rows
+          .filter(([, v]) => v)
+          .map(
+            ([label, value]) =>
+              `<div class="field"><span class="label">${label}</span><span class="value">${escapeHtml(value)}</span></div>`
+          )
+          .join("");
+      }
+
+      function showStatus(type, html) {
+        const el = document.getElementById("status");
+        el.className = "status " + type;
+        el.innerHTML = html;
+      }
+
+      function setLoading(loading) {
+        const btn = document.getElementById("submit-btn");
+        btn.disabled = loading;
+        btn.innerHTML = loading
+          ? '<span class="spinner"></span>Đang tạo draft...'
+          : "Submit → Tạo draft trên Outline";
+      }
+
+      function loadCandidate() {
+        google.script.run
+          .withSuccessHandler(function (res) {
+            document.getElementById("loading").style.display = "none";
+            if (!res || !res.ok) {
+              const box = document.getElementById("error-box");
+              box.style.display = "block";
+              box.textContent = (res && res.error) || "Không đọc được dữ liệu.";
+              return;
+            }
+            currentCandidate = res.candidate;
+            renderCandidate(res.candidate);
+            document.getElementById("main").style.display = "block";
+          })
+          .withFailureHandler(function (err) {
+            document.getElementById("loading").style.display = "none";
+            const box = document.getElementById("error-box");
+            box.style.display = "block";
+            box.textContent = "Lỗi: " + err.message;
+          })
+          .getSelectedCandidate();
+      }
+
+      function reloadCandidate() {
+        document.getElementById("status").className = "status";
+        loadCandidate();
+      }
+
+      function handleSubmit() {
+        const introduction = document.getElementById("introduction").value.trim();
+        if (!introduction) {
+          showStatus("error", "⚠️ Vui lòng nhập nội dung Introduction.");
+          return;
+        }
+
+        setLoading(true);
+        showStatus("success", "Đang gửi tới Outline...");
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            setLoading(false);
+            if (res && res.ok) {
+              showStatus(
+                "success",
+                escapeHtml(res.message) +
+                  (res.url
+                    ? '<br><a href="' + res.url + '" target="_blank">Mở draft trên Outline →</a>'
+                    : "")
+              );
+            } else {
+              showStatus("error", "❌ " + escapeHtml((res && res.error) || "Lỗi không xác định."));
+            }
+          })
+          .withFailureHandler(function (err) {
+            setLoading(false);
+            showStatus("error", "❌ Lỗi: " + escapeHtml(err.message));
+          })
+          .submitIntroductionPost({ introduction: introduction, candidate: currentCandidate });
+      }
+
+      // Khởi tạo khi sidebar mở
+      loadCandidate();
+    </script>
+  </body>
+</html>

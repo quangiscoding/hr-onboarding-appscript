@@ -31,6 +31,18 @@ const CONFIG = {
       "Floor 1, Room 1.2, 09 Hoa Cau, Cau Kieu Ward, Ho Chi Minh City",
   },
 
+  /**
+   * Outline Wiki (AI Recruitment module)
+   * ⚠️ API token KHÔNG hardcode ở đây — đặt Script Property "OUTLINE_API_TOKEN"
+   * trong Apps Script (Project Settings → Script Properties) thay vì commit lên git.
+   * publish: false -> document nằm trong Drafts cá nhân của tài khoản token.
+   */
+  OUTLINE: {
+    BASE_URL: "https://outline.kyanon.digital",
+    PUBLISH: false, // false = tạo draft (mục Drafts), true = publish vào collection
+    // COLLECTION_ID: "", // chỉ cần khi PUBLISH = true
+  },
+
   /** Cấu hình tab log: tên sheet + header của từng luồng */
   LOG: {
     INTERNAL: {

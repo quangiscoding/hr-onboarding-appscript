@@ -81,7 +81,7 @@ src/
 
 - **`legacy/custom-functions.js`** — các hàm `@customfunction` dùng trực tiếp trong công thức sheet, **KHÔNG ĐƯỢC ĐỔI TÊN**: `specificDays(dayName, monthName, year)`, `removeAccent(text)`, `convertVn2FirstLastName(text, removeAccentFlag)`, `convertVn2FirstFullname(text, removeAccentFlag)`, `convertFName2EmailAddress(text)`.
 
-- **`recruitment/sidebar.js`**: stub `showSidebar()` — module AI Recruitment sẽ xây ở Phase 5 của `docs/refactor-plan.md`.
+- **`recruitment/sidebar.js` + `sidebar.html`**: module AI Recruitment — sidebar "Welcome Onboard Generator": đọc dòng đang chọn (`getSelectedCandidate`) → người dùng soạn Introduction → Submit → gọi Outline API `documents.create` (`publish:false` → draft nằm ở mục Drafts cá nhân của tài khoản token). **API token bắt buộc đặt trong Script Property `OUTLINE_API_TOKEN`** (Apps Script → Project Settings → Script Properties), KHÔNG hardcode.
 - **`core/ui-feedback.js`**: class `WorkflowError(code, userMessage, details)` + `notifySuccess/notifyWarning/notifyError/confirmAction`. Workflow chỉ return kết quả / throw WorkflowError; main.js gọi các hàm này để hiển thị (Phase 1).
 
 ---
