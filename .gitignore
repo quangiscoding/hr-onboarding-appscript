@@ -46,3 +46,10 @@ coverage/
 .cache/
 .parcel-cache/
 .turbo/
+
+# Project-specific
+# Manual backup folder (do not commit)
+src-backup/
+# Local clasp credentials
+.clasp-credentials*.json
+.clasprc.json

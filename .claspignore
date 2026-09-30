@@ -3,9 +3,19 @@
 /node_modules
 /.git
 /.vscode
+/.freebuff
 
 # Chặn các file cấu hình dev ở ngoài thư mục root
 
 /package.json
 /pnpm-lock.yaml
 /README.md
+/CLAUDE.md
+/.claspignore
+/.gitignore
+
+# Thư mục ngoài src (phòng khi rootDir thay đổi)
+
+/src-backup
+/docs
+/scripts
