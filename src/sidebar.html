@@ -131,13 +131,27 @@
       let imageBase64Data = null;
       let imageNameData = "";
 
-      // Khi load sidebar, tự động lấy CV Link từ ô/dòng được chọn
+      // Khi load sidebar, tự động lấy CV Link & API Keys đã lưu
       window.onload = function () {
+        // 1. Tự động lấy CV Link
         google.script.run
           .withSuccessHandler(function (url) {
             if (url) document.getElementById("cvUrl").value = url;
           })
           .getSelectedCvUrl();
+
+        // 2. Tự động load API Keys đã nhớ
+        google.script.run
+          .withSuccessHandler(function (keys) {
+            if (keys) {
+              if (keys.geminiKey)
+                document.getElementById("geminiKey").value = keys.geminiKey;
+              if (keys.outlineToken)
+                document.getElementById("outlineToken").value =
+                  keys.outlineToken;
+            }
+          })
+          .getSavedApiKeys();
       };
 
       // Xem trước ảnh và chuyển thành Base64
@@ -167,6 +181,9 @@
           setStatus("Vui lòng nhập đầy đủ Gemini API Key và Link CV!", true);
           return;
         }
+
+        // Tự động lưu Gemini Key lại cho lần sau
+        google.script.run.saveApiKeys(apiKey, null);
 
         btn.disabled = true;
         setStatus("⏳ Đang đọc CV và tạo Introduction từ Gemini...", false);
@@ -198,6 +215,9 @@
           );
           return;
         }
+
+        // Tự động lưu Outline Token lại cho lần sau
+        google.script.run.saveApiKeys(null, token);
 
         // Lấy câu đầu tiên hoặc lấy dòng Job Title làm Title draft
         const lines = content.split("\n");
