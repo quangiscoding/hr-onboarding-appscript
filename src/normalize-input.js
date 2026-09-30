@@ -59,6 +59,7 @@ function getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null) {
   // 4. Lấy Alloc Code & Working Email
   const allocCode = clean(rowData[COLS.ALLOC_CODE]);
   const workingEmail = formatKyanonEmail(allocCode);
+  const okrFolderUrl = clean(rowData[COLS.LINK_FOLDER_OKRS]);
 
   // 5. Trả về Kết Quả JSON Output
   return {
@@ -86,6 +87,7 @@ function getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null) {
     personalEmail: clean(rowData[COLS.PERSONAL_EMAIL]),
     workingEmail: workingEmail,
     allocCode: allocCode,
+    okrFolderUrl: okrFolderUrl,
 
     // Emails liên quan
     taEmail: formatKyanonEmail(rowData[COLS.TA_IN_CHARGE]),
