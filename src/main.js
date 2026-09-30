@@ -19,6 +19,9 @@ function onOpen() {
       "menuSendDevOpsEmail",
     )
     .addToUi();
+  ui.createMenu("🚀 AI Recruitment")
+    .addItem("Mở AI Introduction Generator", "showSidebar")
+    .addToUi();
 }
 
 /**

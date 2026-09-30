@@ -1,0 +1,245 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 12px;
+        color: #333;
+      }
+      .form-group {
+        margin-bottom: 12px;
+      }
+      label {
+        font-weight: bold;
+        font-size: 12px;
+        display: block;
+        margin-bottom: 4px;
+      }
+      input[type="text"],
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      textarea {
+        height: 140px;
+        resize: vertical;
+      }
+      button {
+        background-color: #0b57d0;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        width: 100%;
+        margin-top: 5px;
+      }
+      button:hover {
+        background-color: #0842a0;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      .btn-outline {
+        background-color: #0f9d58;
+        margin-top: 10px;
+      }
+      .btn-outline:hover {
+        background-color: #0b8043;
+      }
+      .status {
+        font-size: 11px;
+        margin-top: 8px;
+        color: #555;
+        word-wrap: break-word;
+      }
+      .error {
+        color: #d93025;
+      }
+      .success {
+        color: #188038;
+      }
+      img#preview {
+        max-width: 100%;
+        max-height: 150px;
+        margin-top: 8px;
+        border-radius: 4px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="form-group">
+      <label for="geminiKey">Gemini API Key:</label>
+      <input type="text" id="geminiKey" placeholder="AIzaSy..." />
+    </div>
+
+    <div class="form-group">
+      <label for="cvUrl">Link CV Candidate (Tự động lấy):</label>
+      <input
+        type="text"
+        id="cvUrl"
+        placeholder="https://drive.google.com/..."
+      />
+    </div>
+
+    <button id="btnGenerate" onclick="handleGenerate()">
+      ✨ Generate Introduction (Gemini)
+    </button>
+
+    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee" />
+
+    <div class="form-group">
+      <label for="candidatePhoto">Upload Ảnh Ứng Viên:</label>
+      <input
+        type="file"
+        id="candidatePhoto"
+        accept="image/*"
+        onchange="previewImage(event)"
+      />
+      <img id="preview" src="#" alt="Preview Image" />
+    </div>
+
+    <div class="form-group">
+      <label for="introText">Nội dung Introduction (Review / Edit):</label>
+      <textarea
+        id="introText"
+        placeholder="Kết quả từ Gemini sẽ xuất hiện ở đây..."
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="outlineToken">Outline API Token:</label>
+      <input type="text" id="outlineToken" placeholder="ol_api_token_..." />
+    </div>
+
+    <button id="btnDraft" class="btn-outline" onclick="handleCreateDraft()">
+      📝 Tạo Draft trên Outline
+    </button>
+
+    <div id="status" class="status"></div>
+
+    <script>
+      let imageBase64Data = null;
+      let imageNameData = "";
+
+      // Khi load sidebar, tự động lấy CV Link từ ô/dòng được chọn
+      window.onload = function () {
+        google.script.run
+          .withSuccessHandler(function (url) {
+            if (url) document.getElementById("cvUrl").value = url;
+          })
+          .getSelectedCvUrl();
+      };
+
+      // Xem trước ảnh và chuyển thành Base64
+      function previewImage(event) {
+        const file = event.target.files[0];
+        if (file) {
+          imageNameData = file.name;
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            imageBase64Data = e.target.result;
+            const preview = document.getElementById("preview");
+            preview.src = imageBase64Data;
+            preview.style.display = "block";
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+
+      // Xử lý sự kiện bấm nút Generate
+      function handleGenerate() {
+        const apiKey = document.getElementById("geminiKey").value.trim();
+        const cvUrl = document.getElementById("cvUrl").value.trim();
+        const statusDiv = document.getElementById("status");
+        const btn = document.getElementById("btnGenerate");
+
+        if (!apiKey || !cvUrl) {
+          setStatus("Vui lòng nhập đầy đủ Gemini API Key và Link CV!", true);
+          return;
+        }
+
+        btn.disabled = true;
+        setStatus("⏳ Đang đọc CV và tạo Introduction từ Gemini...", false);
+
+        google.script.run
+          .withSuccessHandler(function (result) {
+            document.getElementById("introText").value = result;
+            setStatus("✅ Đã tạo Introduction thành công!", false, true);
+            btn.disabled = false;
+          })
+          .withFailureHandler(function (error) {
+            setStatus("❌ Lỗi: " + error.message, true);
+            btn.disabled = false;
+          })
+          .generateIntroductionWithGemini(apiKey, cvUrl);
+      }
+
+      // Xử lý sự kiện bấm nút Tạo Draft Outline
+      function handleCreateDraft() {
+        const token = document.getElementById("outlineToken").value.trim();
+        const content = document.getElementById("introText").value.trim();
+        const statusDiv = document.getElementById("status");
+        const btn = document.getElementById("btnDraft");
+
+        if (!token || !content) {
+          setStatus(
+            "Vui lòng nhập Outline API Token và đảm bảo có nội dung Introduction!",
+            true,
+          );
+          return;
+        }
+
+        // Lấy câu đầu tiên hoặc lấy dòng Job Title làm Title draft
+        const lines = content.split("\n");
+        let title = "New Candidate Introduction";
+        for (let line of lines) {
+          if (line.includes("Job Title:")) {
+            title = "Welcome " + line.replace("Job Title:", "").trim();
+            break;
+          }
+        }
+
+        btn.disabled = true;
+        setStatus("⏳ Đang tạo Draft trên Outline...", false);
+
+        google.script.run
+          .withSuccessHandler(function (data) {
+            setStatus(
+              "🎉 Đã tạo Draft thành công! Kiểm tra tại https://outline.kyanon.digital/drafts",
+              false,
+              true,
+            );
+            btn.disabled = false;
+          })
+          .withFailureHandler(function (error) {
+            setStatus("❌ Lỗi: " + error.message, true);
+            btn.disabled = false;
+          })
+          .createOutlineDraft(
+            token,
+            title,
+            content,
+            imageBase64Data,
+            imageNameData,
+          );
+      }
+
+      function setStatus(msg, isError = false, isSuccess = false) {
+        const div = document.getElementById("status");
+        div.innerText = msg;
+        div.className =
+          "status " + (isError ? "error" : isSuccess ? "success" : "");
+      }
+    </script>
+  </body>
+</html>
