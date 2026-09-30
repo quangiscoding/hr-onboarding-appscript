@@ -29,7 +29,7 @@ function getDevOpsEmailTemplate(data) {
   </p>
 
   <p style="margin: 0 0 16px 0;">
-    Sau khi tạo xong email, nhờ anh tích chọn ô <strong>Send Notification Email to TA (update by Atlas)</strong> tại dòng <strong>${data.rowNumber}</strong> để hệ thống tự động gửi email nhắc TA phụ trách ạ.
+    Sau khi tạo xong email, nhờ anh chọn dòng <strong>${data.rowNumber}</strong>, truy cập menu <strong>&#128640; Hera Tools</strong> &rarr; chọn <strong>2. Gửi Notification cho TA</strong> để hệ thống tự động gửi email nhắc TA phụ trách ạ.
   </p>
   
   <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
@@ -71,30 +71,41 @@ function getDevOpsEmailTemplate(data) {
  * @returns {Object} { subject, htmlBody }
  */
 function getHREmailTemplate(data) {
-  const positionTitle = toTitleCase(data.position);
-  const squadTitle = toTitleCase(data.squad);
+  const positionTitle =
+    typeof toTitleCase === "function"
+      ? toTitleCase(data.position || "")
+      : data.position || "";
+  const squadTitle =
+    typeof toTitleCase === "function"
+      ? toTitleCase(data.squad || "")
+      : data.squad || "";
 
-  const subject = `Yêu cầu tạo folder OKR onboarding cho nhân sự mới – ${data.fullName}`;
+  const subject = `Yêu cầu tạo folder OKR onboarding cho nhân sự mới – ${data.fullName || ""}`;
+
   const htmlBody = `
 <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 600px; margin: 0;">
   <p style="margin: 0 0 12px 0;">Hi chị Tuyền,</p>
   
   <p style="margin: 0 0 16px 0;">
-    Có nhân sự mới sẽ Onboard vào ngày <strong>${data.startDate}</strong> nhờ chị tiến hành tạo Folder OKRs trên file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>) ạ:
+    Có nhân sự mới sẽ Onboard vào ngày <strong>${data.startDate || ""}</strong>, nhờ chị tiến hành tạo Folder OKRs trên file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>) ạ.
+  </p>
+
+  <p style="margin: 0 0 16px 0;">
+    Sau khi tạo xong Folder OKRs, nhờ chị chọn dòng <strong>${data.rowNumber}</strong>, truy cập menu <strong>&#128640; Hera Tools</strong> &rarr; chọn <strong>2. Gửi Notification cho TA</strong> để hệ thống tự động thông báo đến TA phụ trách ạ.
   </p>
   
   <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
     <tr>
       <td style="padding: 8px 0; color: #666666; width: 130px;">Họ và tên:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.fullName}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.fullName || ""}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Email cá nhân:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #EF403E;">${data.personalEmail}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #EF403E;">${data.personalEmail || ""}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Ngày Onboard:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.startDate}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.startDate || ""}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Chức vụ:</td>
@@ -173,30 +184,41 @@ function getITEmailTemplate(data) {
  * @returns {Object} { subject, htmlBody }
  */
 function getTaNotificationEmailTemplate(data) {
-  const positionTitle = toTitleCase(data.position);
-  const squadTitle = toTitleCase(data.squad);
+  const positionTitle =
+    typeof toTitleCase === "function"
+      ? toTitleCase(data.position || "")
+      : data.position || "";
+  const squadTitle =
+    typeof toTitleCase === "function"
+      ? toTitleCase(data.squad || "")
+      : data.squad || "";
 
-  const subject = `[Onboarding] Nhắc gửi Welcome Email cho nhân sự mới ${data.fullName} - ${data.startDate}`;
+  const subject = `[Cập nhật Onboarding] Thông tin tài khoản/folder đã sẵn sàng cho ${data.fullName || ""} (Dòng ${data.rowNumber})`;
+
   const htmlBody = `
 <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 600px; margin: 0;">
-  <p style="margin: 0 0 12px 0;">Hi ${data.taEmail},</p>
+  <p style="margin: 0 0 12px 0;">Hi ${data.taEmail || "bạn"},</p>
   
   <p style="margin: 0 0 16px 0;">
-    Nhắc bạn gửi Welcome Email cho nhân sự mới sẽ Onboard vào ngày <strong>${data.startDate}</strong>. Chi tiết tại file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>):
+    Dòng <strong>${data.rowNumber}</strong> trên file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> vừa được cập nhật tiến độ mới cho nhân sự <strong>${data.fullName || ""}</strong>.
+  </p>
+
+  <p style="margin: 0 0 16px 0;">
+    Bạn vui lòng kiểm tra thông tin trên Sheet, chọn dòng <strong>${data.rowNumber}</strong> và truy cập menu <strong>&#128640; Hera Tools</strong> &rarr; chọn <strong>1. Gửi Welcome Email</strong> để tiến hành gửi mail chào mừng cho nhân sự mới nhé.
   </p>
   
   <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
     <tr>
       <td style="padding: 8px 0; color: #666666; width: 130px;">Họ và tên:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.fullName}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.fullName || ""}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Email cá nhân:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #EF403E;">${data.personalEmail}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #EF403E;">${data.personalEmail || ""}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Ngày Onboard:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.startDate}</td>
+      <td style="padding: 8px 0; font-weight: bold; color: #111111;">${data.startDate || ""}</td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666;">Chức vụ:</td>
