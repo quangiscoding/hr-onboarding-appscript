@@ -25,11 +25,11 @@ function getDevOpsEmailTemplate(data) {
   <p style="margin: 0 0 12px 0;">Hi anh Tuấn,</p>
   
   <p style="margin: 0 0 16px 0;">
-    Nhờ anh vào file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>), hỗ trợ khởi tạo tài khoản email công ty cho nhân sự mới với ạ.
+    Sắp tới bên mình có nhân sự mới sẽ Onboard vào ngày <strong>${data.startDate || ""}</strong>, nhờ anh hỗ trợ tạo giúp em tài khoản Email công ty trên file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>) ạ.
   </p>
 
   <p style="margin: 0 0 16px 0;">
-    Sau khi tạo xong email, nhờ anh chọn dòng <strong>${data.rowNumber}</strong>, truy cập menu <strong>&#128640; Hera Tools</strong> &rarr; chọn <strong>2. Gửi Notification cho TA</strong> để hệ thống tự động gửi email nhắc TA phụ trách ạ.
+    <strong>Sau khi tạo xong email, nhờ anh thông báo đến TA bằng cách:</strong> Chọn dòng <strong>${data.rowNumber}</strong> &rarr; truy cập menu <strong>&#128640; Hera Tools</strong> &rarr; chọn <strong>2. Gửi Notification cho TA</strong> để hệ thống tự động gửi thông báo đến TA phụ trách giúp em nhé.
   </p>
   
   <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
@@ -87,11 +87,11 @@ function getHREmailTemplate(data) {
   <p style="margin: 0 0 12px 0;">Hi chị Tuyền,</p>
   
   <p style="margin: 0 0 16px 0;">
-    Có nhân sự mới sẽ Onboard vào ngày <strong>${data.startDate || ""}</strong>, nhờ chị tiến hành tạo Folder OKRs trên file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>) ạ.
+    Sắp tới bên mình có nhân sự mới sẽ Onboard vào ngày <strong>${data.startDate || ""}</strong>, nhờ chị hỗ trợ tạo giúp em Folder OKRs trên file <a href="${data.rowLink}" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline;">Hera | On-boarding List</a> (dòng <strong>${data.rowNumber}</strong>) ạ.
   </p>
 
   <p style="margin: 0 0 16px 0;">
-    Sau khi tạo xong Folder OKRs, nhờ chị chọn dòng <strong>${data.rowNumber}</strong>, truy cập menu <strong>&#128640; Hera Tools</strong> &rarr; chọn <strong>2. Gửi Notification cho TA</strong> để hệ thống tự động thông báo đến TA phụ trách ạ.
+    <strong>Sau khi tạo xong Folder OKRs, nhờ chị thông báo đến TA bằng cách:</strong> Chọn dòng <strong>${data.rowNumber}</strong> &rarr; truy cập menu <strong>&#128640; Hera Tools</strong> &rarr; chọn <strong>2. Gửi Notification cho TA</strong> để hệ thống tự động thông báo đến TA phụ trách giúp em nhé.
   </p>
   
   <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
