@@ -7,13 +7,17 @@ function showSidebar() {
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
-// 3. Hàm lấy link CV từ dòng đang chọn (Tìm cột tên 'CV' hoặc cột mặc định)
+// 3. Hàm lấy link CV từ dòng đang chọn (Xử lý cả Hyperlink ẩn và bỏ qua tiêu đề)
 function getSelectedCvUrl() {
   const sheet = SpreadsheetApp.getActiveSheet();
   const range = sheet.getActiveRange();
   if (!range) return "";
 
   const row = range.getRow();
+
+  // Nếu đang chọn dòng 1 (dòng tiêu đề), không lấy dữ liệu tiêu đề
+  if (row === 1) return "";
+
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
   // Tìm cột có tiêu đề là 'CV'
@@ -21,18 +25,31 @@ function getSelectedCvUrl() {
     (h) => h.toString().trim().toUpperCase() === "CV",
   );
 
+  let targetCell;
   if (cvColumnIndex !== -1) {
-    return sheet
-      .getRange(row, cvColumnIndex + 1)
-      .getValue()
-      .toString()
-      .trim();
+    targetCell = sheet.getRange(row, cvColumnIndex + 1);
   } else {
-    // Nếu không tìm thấy cột 'CV', lấy giá trị ở ô đang chọn hiện tại
-    return sheet.getRange(row, range.getColumn()).getValue().toString().trim();
+    targetCell = sheet.getRange(row, range.getColumn());
   }
-}
 
+  // 1. Kiểm tra nếu ô sử dụng RichText (Link ẩn dạng Insert Link)
+  const richText = targetCell.getRichTextValue();
+  if (richText && richText.getLinkUrl()) {
+    return richText.getLinkUrl();
+  }
+
+  // 2. Kiểm tra nếu ô dùng công thức =HYPERLINK("url", "label")
+  const formula = targetCell.getFormula();
+  if (formula && formula.toUpperCase().startsWith("=HYPERLINK")) {
+    const match = formula.match(/=HYPERLINK\(\s*["']([^"']+)["']/i);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+
+  // 3. Trường hợp ô chứa text URL thuần
+  return targetCell.getValue().toString().trim();
+}
 // 4. Gọi Gemini API để phân tích CV và tạo Introduction
 function generateIntroductionWithGemini(apiKey, cvUrl) {
   if (!apiKey) throw new Error("Vui lòng nhập Gemini API Key!");
