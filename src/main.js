@@ -7,7 +7,7 @@
  */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
-  ui.createMenu("🚀 Hera Tools")
+  ui.createMenu("🚀 Hera Onboarding Tools")
     .addItem("1. Gửi Welcome Email (Dòng đang chọn)", "menuSendWelcomeEmail")
     .addItem(
       "2. Gửi Notification cho TA (Dòng đang chọn)",

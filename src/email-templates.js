@@ -29,7 +29,7 @@ function getDevOpsEmailTemplate(data) {
   </p>
 
   <p style="margin: 0 0 16px 0;">
-    <strong>Sau khi tạo xong email, nhờ anh thông báo đến TA bằng cách:</strong> Chọn dòng <strong>${data.rowNumber}</strong> &rarr; truy cập menu <strong>&#128640; Hera Tools</strong> &rarr; chọn <strong>2. Gửi Notification cho TA</strong> để hệ thống tự động gửi thông báo đến TA phụ trách giúp em nhé.
+    <strong>Sau khi tạo xong email, nhờ anh thông báo đến TA bằng cách:</strong> Chọn dòng <strong>${data.rowNumber}</strong> &rarr; truy cập menu <strong>&#128640; Hera Onboarding Tools</strong> &rarr; chọn <strong>2. Gửi Notification cho TA</strong> để hệ thống tự động gửi thông báo đến TA phụ trách giúp em nhé.
   </p>
   
   <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
@@ -91,7 +91,7 @@ function getHREmailTemplate(data) {
   </p>
 
   <p style="margin: 0 0 16px 0;">
-    <strong>Sau khi tạo xong Folder OKRs, nhờ chị thông báo đến TA bằng cách:</strong> Chọn dòng <strong>${data.rowNumber}</strong> &rarr; truy cập menu <strong>&#128640; Hera Tools</strong> &rarr; chọn <strong>2. Gửi Notification cho TA</strong> để hệ thống tự động thông báo đến TA phụ trách giúp em nhé.
+    <strong>Sau khi tạo xong Folder OKRs, nhờ chị thông báo đến TA bằng cách:</strong> Chọn dòng <strong>${data.rowNumber}</strong> &rarr; truy cập menu <strong>&#128640; Hera Onboarding Tools</strong> &rarr; chọn <strong>2. Gửi Notification cho TA</strong> để hệ thống tự động thông báo đến TA phụ trách giúp em nhé.
   </p>
   
   <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
@@ -204,7 +204,7 @@ function getTaNotificationEmailTemplate(data) {
   </p>
 
   <p style="margin: 0 0 16px 0;">
-    Bạn vui lòng kiểm tra thông tin trên Sheet, chọn dòng <strong>${data.rowNumber}</strong> và truy cập menu <strong>&#128640; Hera Tools</strong> &rarr; chọn <strong>1. Gửi Welcome Email</strong> để tiến hành gửi mail chào mừng cho nhân sự mới nhé.
+    Bạn vui lòng kiểm tra thông tin trên Sheet, chọn dòng <strong>${data.rowNumber}</strong> và truy cập menu <strong>&#128640; Hera Onboarding Tools</strong> &rarr; chọn <strong>1. Gửi Welcome Email</strong> để tiến hành gửi mail chào mừng cho nhân sự mới nhé.
   </p>
   
   <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #EF403E; border-bottom: 1px solid #eeeeee;">
