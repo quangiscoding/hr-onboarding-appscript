@@ -1,11 +1,15 @@
 /** ==========================================
  * WORKFLOWS.JS - CÁC LUỒNG EMAIL (BUSINESS LOGIC)
  * ==========================================
- * Mỗi hàm handle*Workflow(data) thực hiện 1 luồng nghiệp vụ:
- *   1. handleOfferAcceptedWorkflow  - Tạo draft cho DevOps / HR / IT
- *   2. handleTaNotificationWorkflow - Gửi mail TRỰC TIẾP cho TA In Charge
- *   3. handleWelcomeEmailWorkflow   - Tạo draft Welcome Email cho ứng viên (kèm PDF)
- * Toàn bộ UI feedback (alert/toast) nằm cuối từng luồng để dễ theo dõi.
+ * Mỗi hàm handle*Workflow(data) thực hiện 1 luồng nghiệp vụ và
+ * RETURN kết quả thuần — KHÔNG gọi SpreadsheetApp.getUi() (xem docs/refactor-plan.md, Phase 1).
+ *
+ * Contract chung của mọi handler:
+ * - Thành công: return { ok: true, message: string, ...dữ liệu chi tiết }
+ * - Thất nghiệp vụ: throw WorkflowError(code, userMessage, details)
+ * - Lỗi hệ thống khác: throw bình thường, tầng gọi tự catch
+ *
+ * Nhờ vậy các luồng tái sử dụng được từ Menu, Sidebar, Web App hoặc trigger nền.
  */
 
 /* ------------------------------------------------------------------ */
@@ -32,6 +36,7 @@ function createLabeledDraft(to, mail, type) {
 /**
  * Tạo bản nháp Email gửi cho các Phòng ban (DevOps, HR, IT)
  * @param {Object} data - Dữ liệu ứng viên đã chuẩn hóa
+ * @returns {{ ok: true, message: string, drafts: Array<{type: string, id: string}> }}
  */
 function handleOfferAcceptedWorkflow(data) {
   const createdDrafts = [];
@@ -68,12 +73,12 @@ function handleOfferAcceptedWorkflow(data) {
   // 4. Ghi log
   logInternalWorkflow(data, createdDrafts);
 
-  // 5. Thông báo kết quả
-  SpreadsheetApp.getUi().alert(
-    "Thành công 🎉",
-    `Đã tạo thành công ${createdDrafts.length} bản nháp Email nhắc việc cho ${data.fullName}!`,
-    SpreadsheetApp.getUi().ButtonSet.OK,
-  );
+  // 5. Trả kết quả cho tầng hiển thị
+  return {
+    ok: true,
+    message: `Đã tạo thành công ${createdDrafts.length} bản nháp Email nhắc việc cho ${data.fullName}!`,
+    drafts: createdDrafts,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -83,16 +88,16 @@ function handleOfferAcceptedWorkflow(data) {
 /**
  * Gửi Email Notification TRỰC TIẾP cho TA In Charge (không tạo Draft)
  * @param {Object} data - Dữ liệu ứng viên đã chuẩn hóa
+ * @returns {{ ok: true, message: string, sentTo: string }}
+ * @throws {WorkflowError} MISSING_TA_EMAIL khi thiếu TA, SEND_FAILED khi GmailApp lỗi
  */
 function handleTaNotificationWorkflow(data) {
   // 1. Kiểm tra TA Email hợp lệ trước khi gửi
   if (!data.taEmail) {
-    SpreadsheetApp.getUi().alert(
-      "⚠️ Thiếu TA In Charge!",
+    throw new WorkflowError(
+      "MISSING_TA_EMAIL",
       "Không tìm thấy email của TA In Charge, không thể gửi Notification Email.",
-      SpreadsheetApp.getUi().ButtonSet.OK,
     );
-    return;
   }
 
   // 2. Gửi Email trực tiếp, bọc try...catch (Defensive Programming)
@@ -103,23 +108,22 @@ function handleTaNotificationWorkflow(data) {
     });
   } catch (error) {
     Logger.log("❌ Lỗi khi gửi Notification Email cho TA: " + error.toString());
-    SpreadsheetApp.getUi().alert(
-      "Lỗi ❌",
-      `Không thể gửi Notification Email tới ${data.taEmail}. Vui lòng kiểm tra lại.\n\nChi tiết: ${error.message}`,
-      SpreadsheetApp.getUi().ButtonSet.OK,
+    throw new WorkflowError(
+      "SEND_FAILED",
+      `Không thể gửi Notification Email tới ${data.taEmail}. Vui lòng kiểm tra lại.`,
+      { originalError: error.message, taEmail: data.taEmail },
     );
-    return;
   }
 
   // 3. Ghi log
   logTaNotificationWorkflow(data, data.taEmail);
 
-  // 4. Thông báo kết quả
-  SpreadsheetApp.getUi().alert(
-    "Thành công 🎉",
-    `Đã gửi Notification Email trực tiếp cho TA (${data.taEmail}) về nhân sự ${data.fullName}!`,
-    SpreadsheetApp.getUi().ButtonSet.OK,
-  );
+  // 4. Trả kết quả cho tầng hiển thị
+  return {
+    ok: true,
+    message: `Đã gửi Notification Email trực tiếp cho TA (${data.taEmail}) về nhân sự ${data.fullName}!`,
+    sentTo: data.taEmail,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -129,6 +133,7 @@ function handleTaNotificationWorkflow(data) {
 /**
  * Tạo Draft Welcome Email cho Nhân sự mới kèm File PDF
  * @param {Object} data - Dữ liệu ứng viên đã chuẩn hóa
+ * @returns {{ ok: true, message: string, draftId: string, hasAttachment: boolean }}
  */
 function handleWelcomeEmailWorkflow(data) {
   // 1. Lấy thông tin PDF & Blob đính kèm
@@ -180,10 +185,11 @@ function handleWelcomeEmailWorkflow(data) {
   // 5. Ghi log
   logCandidateWorkflow(data, candidateDraft.getId());
 
-  // 6. Thông báo kết quả
-  SpreadsheetApp.getUi().alert(
-    "Thành công 🎉",
-    `Đã tạo bản nháp Welcome Email kèm File PDF cho ${data.fullName}!`,
-    SpreadsheetApp.getUi().ButtonSet.OK,
-  );
+  // 6. Trả kết quả cho tầng hiển thị
+  return {
+    ok: true,
+    message: `Đã tạo bản nháp Welcome Email kèm File PDF cho ${data.fullName}!`,
+    draftId: candidateDraft.getId(),
+    hasAttachment: emailAttachments.length > 0,
+  };
 }
