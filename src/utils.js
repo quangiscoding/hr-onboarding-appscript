@@ -84,6 +84,21 @@ function isStandardDevice(deviceRequestStr) {
 }
 
 /**
+ * Load file HTML từ thư mục email-templates và inject dữ liệu
+ * @param {string} templateName - Tên file html (vd: 'welcome-candidate-email')
+ * @param {Object} data - Payload truyền vào template
+ * @returns {string} Chuỗi HTML string đã render
+ */
+function renderHtmlTemplate(templateName, data) {
+  // Bỏ 'src/' ở đầu, chỉ giữ lại 'email-templates/'
+  const filePath = `email-templates/${templateName}`;
+  const template = HtmlService.createTemplateFromFile(filePath);
+
+  template.it = data;
+  return template.evaluate().getContent();
+}
+
+/**
  * Helper: Lấy File PDF + File ID trực tiếp dựa trên Employment Type và Onboarding Type
  * @param {string} employmentType - Loại hợp đồng (intern/probation)
  * @param {string} onboardingType - Địa điểm làm việc (danang/hcm/onsite)
