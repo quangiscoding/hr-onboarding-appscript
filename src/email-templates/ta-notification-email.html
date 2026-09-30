@@ -8,8 +8,7 @@
     margin: 0;
   "
 >
-  <p style="margin: 0 0 12px 0">Hi <?= it.taEmail || "bạn" ?>,</p>
-
+  <p style="margin: 0 0 12px 0">Hi <?= it.taUsername || "bạn" ?>,</p>
   <p style="margin: 0 0 16px 0">
     File
     <a
@@ -20,7 +19,6 @@
     >
     vừa có cập nhật mới: <?!= it.statusMessage ?>
   </p>
-
   <p style="margin: 0 0 16px 0">
     Bạn vui lòng kiểm tra thông tin trên Sheet, chọn dòng
     <strong><?= it.rowNumber ?></strong> và truy cập menu
@@ -28,7 +26,6 @@
     <strong>1. Gửi Welcome Email</strong> để tiến hành gửi mail chào mừng cho
     nhân sự mới nhé.
   </p>
-
   <table
     style="
       width: 100%;
@@ -47,7 +44,7 @@
     <tr>
       <td style="padding: 8px 0; color: #666666">Email cá nhân:</td>
       <td style="padding: 8px 0; font-weight: bold; color: #ef403e">
-        <?= it.personalEmail || "" ?>
+        <?= it.personalEmail || it.workingEmail || "" ?>
       </td>
     </tr>
     <tr>
@@ -69,7 +66,6 @@
       </td>
     </tr>
   </table>
-
   <div style="text-align: center; margin: 20px 0 16px 0">
     <a
       href="<?= it.rowLink ?>"
@@ -87,6 +83,5 @@
       >Mở Google Sheet (Dòng <?= it.rowNumber ?>)</a
     >
   </div>
-
   <p style="margin: 0">Cảm ơn bạn!</p>
 </div>
