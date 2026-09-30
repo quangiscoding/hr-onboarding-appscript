@@ -72,6 +72,10 @@ function getTaNotificationEmailTemplate(data) {
       ? toTitleCase(data.squad || "")
       : data.squad || "";
 
+  // Lấy username bỏ đuôi @domain (vd: nguyen.trt@kyanon.digital -> nguyen.trt)
+  const rawTa = data.taEmail || "bạn";
+  const taUsername = rawTa.includes("@") ? rawTa.split("@")[0] : rawTa;
+
   // 1. Kiểm tra trạng thái dữ liệu 2 cột
   const hasOkr = Boolean(
     data.okrFolderUrl && String(data.okrFolderUrl).trim() !== "",
@@ -101,6 +105,7 @@ function getTaNotificationEmailTemplate(data) {
 
   const payload = {
     ...data,
+    taUsername,
     positionTitle,
     squadTitle,
     statusMessage,

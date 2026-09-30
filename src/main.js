@@ -8,15 +8,18 @@
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu("🚀 Hera Onboarding Tools")
-    .addItem("1. Gửi Welcome Email (Dòng đang chọn)", "menuSendWelcomeEmail")
     .addItem(
-      "2. Gửi Notification cho TA (Dòng đang chọn)",
-      "menuSendTaNotification",
+      "1. Tạo Draft Welcome Email (Dòng đang chọn)",
+      "menuSendWelcomeEmail",
+    )
+    .addItem(
+      "2. Tạo Draft Offer Accepted (DevOps / HR / Line Manager)",
+      "menuSendDevOpsEmail",
     )
     .addSeparator()
     .addItem(
-      "3. Thông báo Offer Accepted (DevOps / HR / Line Manager)",
-      "menuSendDevOpsEmail",
+      "3. Gửi Notification cho TA (Dòng đang chọn)",
+      "menuSendTaNotification",
     )
     .addToUi();
 }
