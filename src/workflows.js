@@ -43,6 +43,7 @@ function handleOfferAcceptedWorkflow(data) {
       "",
       {
         htmlBody: itMail.htmlBody,
+        cc: "dat.truongcong@kyanon.digital", // 👈 Thêm CC vào đây
       },
     );
     createdDrafts.push({ type: "IT", id: itDraft.getId() });

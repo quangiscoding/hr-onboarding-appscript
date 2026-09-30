@@ -4,9 +4,9 @@
 
 const CONFIG = {
   RECIPIENTS: {
-    DEVOPS: "quang.nguyenminh@kyanon.digital",
-    HR: "quang.nguyenminh@kyanon.digital",
-    IT: "quang.nguyenminh@kyanon.digital",
+    DEVOPS: "tuan.le@kyanon.digital",
+    HR: "tuyen.tranthithanh@kyanon.digital",
+    IT: "trung.nguyen@kyanon.digital",
     PEOPLE_TEAM: "people@kyanon.digital",
   },
   GUIDE_PDF_MAP: {
