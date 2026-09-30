@@ -104,12 +104,6 @@ function executeWorkflowRunner(triggerType) {
     if (triggerType === "OFFER_ACCEPTED") handleOfferAcceptedWorkflow(data);
     if (triggerType === "WELCOME_EMAIL") handleWelcomeEmailWorkflow(data);
     if (triggerType === "TA_NOTIFICATION") handleTaNotificationWorkflow(data);
-
-    ui.alert(
-      "✅ Thành công!",
-      `Đã thực hiện xong luồng [${triggerType}] cho nhân sự ${data.fullName}!`,
-      ui.ButtonSet.OK,
-    );
   } catch (error) {
     Logger.log(
       `Lỗi trong quá trình xử lý Workflow Runner [${triggerType}]: ` +
