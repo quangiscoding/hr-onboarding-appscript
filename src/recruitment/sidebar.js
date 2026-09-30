@@ -15,7 +15,7 @@
 
 /** Mở sidebar (được gọi từ menu "Mở AI Introduction Generator") */
 function showSidebar() {
-  const html = HtmlService.createHtmlOutputFromFile("recruitment/sidebar")
+  const html = HtmlService.createHtmlOutputFromFile("recruitment/welcome-onboard")
     .setTitle("AI Recruitment — Welcome Onboard")
     .setWidth(320);
   SpreadsheetApp.getUi().showSidebar(html);
