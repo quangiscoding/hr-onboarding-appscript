@@ -43,10 +43,10 @@
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666">
-        <?= it.personalEmail ? "Email cá nhân:" : "Working email:" ?>
+        <?= it.workingEmail ? "Working email:" : "Email cá nhân:" ?>
       </td>
       <td style="padding: 8px 0; font-weight: bold; color: #ef403e">
-        <?= it.personalEmail || it.workingEmail || "" ?>
+        <?= it.workingEmail || it.personalEmail || "" ?>
       </td>
     </tr>
     <tr>
