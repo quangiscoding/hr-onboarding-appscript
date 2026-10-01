@@ -298,14 +298,35 @@ function uploadCandidatePhoto(photo, candidate) {
  * Lấy key miễn phí tại https://aistudio.google.com/apikey
  */
 function getGeminiApiKey_() {
-  const key =
-    PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
-  if (!key) {
+  return getGeminiApiKeys_()[0];
+}
+
+/**
+ * Đọc danh sách Gemini API keys để xoay vòng khi gặp rate limit (429).
+ * Cách cung cấp (chọn 1 trong 2, Apps Script → Project Settings → Script Properties):
+ *  1. Nhiều property: GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, ... (đọc đến khi trống)
+ *  2. Một property duy nhất: GEMINI_API_KEY chứa nhiều key cách nhau bằng dấu phẩy
+ * @returns {string[]} Danh sách key (ít nhất 1, nếu không sẽ throw)
+ */
+function getGeminiApiKeys_() {
+  const props = PropertiesService.getScriptProperties();
+  const keys = [];
+
+  // Cách 1: GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, ...
+  const first = props.getProperty("GEMINI_API_KEY");
+  if (first) keys.push(...first.split(",").map((k) => k.trim()).filter(Boolean));
+  for (let i = 2; i <= 10; i++) {
+    const k = props.getProperty(`GEMINI_API_KEY_${i}`);
+    if (k) keys.push(k.trim());
+    else break;
+  }
+
+  if (keys.length === 0) {
     throw new Error(
-      'Thiếu Script Property "GEMINI_API_KEY". Hãy vào Apps Script → Project Settings → Script Properties và thêm Gemini API key (lấy tại https://aistudio.google.com/apikey).',
+      'Thiếu Script Property "GEMINI_API_KEY". Hãy vào Apps Script → Project Settings → Script Properties và thêm Gemini API key (lấy tại https://aistudio.google.com/apikey). Có thể thêm nhiều key để xoay vòng khi rate limit: GEMINI_API_KEY_2, GEMINI_API_KEY_3, ... hoặc cùng 1 property cách nhau bằng dấu phẩy.',
     );
   }
-  return key;
+  return keys;
 }
 
 /**
@@ -494,6 +515,7 @@ function callGeminiSummarizeCv_(cvContent, candidate) {
     : [CONFIG.GEMINI.MODEL || "gemini-3.1-flash"]
   ).filter(Boolean);
   const delays = CONFIG.GEMINI.RETRY_DELAYS_MS || [];
+  const keys = getGeminiApiKeys_(); // xoay vòng khi gặp 429
   const errors = [];
 
   for (const model of models) {
@@ -505,21 +527,23 @@ function callGeminiSummarizeCv_(cvContent, candidate) {
         Utilities.sleep(delays[attempt - 1]);
       }
 
-      const result = callGeminiOnce_(model, promptParts);
+      // Xoay vòng key: mỗi attempt (kể cả lần đầu) dùng key kế tiếp trong danh sách
+      const key = keys[attempt % keys.length];
+      const result = callGeminiOnce_(model, promptParts, key);
       if (result.ok) return result.text;
 
       const { status, message } = result;
-      // 429 = rate limit -> retry cùng model; lỗi khác -> bỏ sang model kế
+      // 429 = rate limit -> retry với key kế tiếp; lỗi khác -> bỏ sang model kế
       if (status !== 429) {
-        errors.push(`${model}: ${message}`);
+        errors.push(`${model} [key #${(attempt % keys.length) + 1}]: ${message}`);
         break;
       }
-      errors.push(`${model} (lần ${attempt + 1}): ${message}`);
+      errors.push(`${model} [key #${(attempt % keys.length) + 1}] (lần ${attempt + 1}): ${message}`);
     }
   }
 
   throw new Error(
-    "Gemini API lỗi sau khi thử " + models.length + " model:\n" + errors.join("\n"),
+    "Gemini API lỗi sau khi thử " + models.length + " model × " + keys.length + " key:\n" + errors.join("\n"),
   );
 }
 
@@ -527,9 +551,9 @@ function callGeminiSummarizeCv_(cvContent, candidate) {
  * Gọi generateContent 1 lần với 1 model. Không retry ở đây.
  * @returns {Object} { ok: true, text } hoặc { ok: false, status, message }
  */
-function callGeminiOnce_(model, promptParts) {
+function callGeminiOnce_(model, promptParts, apiKey) {
   const response = UrlFetchApp.fetch(
-    `${CONFIG.GEMINI.BASE_URL}/models/${model}:generateContent?key=${getGeminiApiKey_()}`,
+    `${CONFIG.GEMINI.BASE_URL}/models/${model}:generateContent?key=${apiKey}`,
     {
       method: "post",
       contentType: "application/json",
