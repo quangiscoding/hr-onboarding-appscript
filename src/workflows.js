@@ -165,7 +165,7 @@ function handleWelcomeEmailWorkflow(data) {
   };
 
   // 6. Tạo Draft Welcome Email duy nhất
-  const recipientEmail = data.workingEmail || data.personalEmail;
+  const recipientEmail = data.personalEmail || data.workingEmail;
   const candidateDraft = GmailApp.createDraft(
     recipientEmail,
     candidateMail.subject,
