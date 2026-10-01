@@ -120,46 +120,6 @@
         font-weight: 500;
         cursor: pointer;
       }
-      /* Photo upload */
-      .photo-drop {
-        border: 2px dashed #dadce0;
-        border-radius: 8px;
-        padding: 10px;
-        text-align: center;
-        color: #5f6368;
-        cursor: pointer;
-        font-size: 12px;
-      }
-      .photo-drop:hover {
-        border-color: #ef403e;
-        color: #ef403e;
-      }
-      .photo-preview-wrap {
-        display: none;
-        margin-top: 8px;
-        text-align: center;
-        position: relative;
-      }
-      .photo-preview {
-        max-width: 100%;
-        max-height: 160px;
-        border-radius: 8px;
-        border: 1px solid #e8eaed;
-      }
-      .photo-remove {
-        position: absolute;
-        top: 4px;
-        right: 4px;
-        background: #202124cc;
-        color: #fff;
-        border: none;
-        border-radius: 50%;
-        width: 22px;
-        height: 22px;
-        cursor: pointer;
-        font-size: 12px;
-        line-height: 1;
-      }
       /* CV upload */
       .cv-file-name {
         font-size: 11.5px;
@@ -224,31 +184,6 @@
       <div class="section-title">Thông tin ứng viên (dòng đang chọn)</div>
       <div class="card" id="candidate-card"></div>
 
-      <div class="section-title">Ảnh ứng viên</div>
-      <div
-        class="photo-drop"
-        id="photo-drop"
-        onclick="document.getElementById('photo-input').click()"
-      >
-        📷 Bấm để chọn ảnh (JPG/PNG, tối đa 5MB)
-      </div>
-      <input
-        type="file"
-        id="photo-input"
-        accept="image/jpeg,image/png,image/webp"
-        onchange="handlePhotoSelect(this)"
-      />
-      <div class="photo-preview-wrap" id="photo-preview-wrap">
-        <img id="photo-preview" class="photo-preview" alt="preview" />
-        <button
-          class="photo-remove"
-          onclick="clearPhoto(event)"
-          title="Xóa ảnh"
-        >
-          ✕
-        </button>
-      </div>
-
       <div class="section-title">CV (cho AI tóm tắt)</div>
       <div class="card">
         <div id="cv-sheet-status">Đang kiểm tra link CV trên sheet...</div>
@@ -279,7 +214,8 @@
       <div class="hint">
         Nội dung này sẽ là phần <b>Introduction</b> trong bài đăng (markdown hỗ
         trợ <b>**bold**</b>, _italic_, emoji). Có thể bấm nút ✨ để AI soạn sẵn
-        rồi chỉnh tay.
+        rồi chỉnh tay. Sau khi Submit, hãy mở draft trên Outline để <b>chèn ảnh
+        ứng viên</b> trực tiếp trong bài nhé.
       </div>
 
       <button id="submit-btn" class="btn" onclick="handleSubmit()">
@@ -294,7 +230,6 @@
 
     <script>
       let currentCandidate = null;
-      let photoData = null; // { dataBase64, fileName, mimeType } | null
       let cvFileData = null; // CV upload từ máy (ưu tiên hơn CV trên sheet)
 
       function escapeHtml(str) {
@@ -335,38 +270,6 @@
 
       function clearStatus() {
         document.getElementById("status").className = "status";
-      }
-
-      /* ---------------- PHOTO ---------------- */
-      function handlePhotoSelect(input) {
-        const file = input.files && input.files[0];
-        if (!file) return;
-        if (file.size > 5 * 1024 * 1024) {
-          showStatus("error", "⚠️ Ảnh vượt quá 5MB. Hãy chọn ảnh nhỏ hơn.");
-          input.value = "";
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          const base64 = e.target.result.split(",")[1]; // bỏ prefix data:...;base64,
-          photoData = {
-            dataBase64: base64,
-            fileName: file.name,
-            mimeType: file.type,
-          };
-          document.getElementById("photo-preview").src = e.target.result;
-          document.getElementById("photo-preview-wrap").style.display = "block";
-          document.getElementById("photo-drop").style.display = "none";
-        };
-        reader.readAsDataURL(file);
-      }
-
-      function clearPhoto(event) {
-        if (event) event.stopPropagation();
-        photoData = null;
-        document.getElementById("photo-input").value = "";
-        document.getElementById("photo-preview-wrap").style.display = "none";
-        document.getElementById("photo-drop").style.display = "block";
       }
 
       /* ---------------- CV ---------------- */
@@ -466,7 +369,6 @@
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span>Đang tạo draft...';
         clearStatus();
-        if (photoData) showStatus("success", "Đang upload ảnh và tạo draft...");
 
         google.script.run
           .withSuccessHandler(function (res) {
@@ -497,7 +399,6 @@
           .submitIntroductionPost({
             introduction: introduction,
             candidate: currentCandidate,
-            photo: photoData,
           });
       }
 

@@ -9,7 +9,7 @@
  *  - submitIntroductionPost(): nút Submit -> tạo draft Outline
  *
  * Logic nội bộ nằm ở các file cùng thư mục:
- *  - recruitment/outline-api.js  (Outline documents.create + attachments upload)
+ *  - recruitment/outline-api.js  (Outline documents.create)
  *  - recruitment/cv-reader.js    (đọc & trích text CV: PDF/DOCX/GDoc/TXT)
  *  - recruitment/ai-providers.js (OpenRouter + Gemini providers, retry/fallback)
  *
@@ -136,7 +136,9 @@ function summarizeCvToIntro(formData) {
 
 /**
  * Nhận dữ liệu form từ sidebar, tạo draft trên Outline.
- * @param {Object} formData - { introduction, candidate, photo?: { dataBase64, fileName, mimeType } | null }
+ * Ảnh ứng viên KHÔNG upload qua tool — sau khi draft được tạo, người dùng
+ * tự chèn ảnh trực tiếp trên Outline.
+ * @param {Object} formData - { introduction, candidate }
  * @returns {Object} { ok, url?, error? }
  */
 function submitIntroductionPost(formData) {
@@ -145,7 +147,6 @@ function submitIntroductionPost(formData) {
       (formData && formData.introduction) || "",
     ).trim();
     const candidate = formData && formData.candidate;
-    const photo = formData && formData.photo;
 
     if (!introduction) {
       return { ok: false, error: "Introduction không được để trống." };
@@ -158,38 +159,15 @@ function submitIntroductionPost(formData) {
       };
     }
 
-    // 1. Nếu có ảnh: upload vào Outline trước để lấy URL nhúng vào bài
-    let photoMarkdownLine = "";
-    let photoWarning = "";
-    if (photo && photo.dataBase64) {
-      const uploadResult = uploadCandidatePhoto(photo, candidate);
-      if (uploadResult.ok) {
-        photoMarkdownLine = `![${candidate.fullName}](${uploadResult.url})`;
-        if (uploadResult.warning) {
-          photoWarning = `⚠️ ${uploadResult.warning}`;
-        }
-      } else {
-        // Ảnh lỗi không chặn việc tạo post — chỉ cảnh báo
-        photoWarning = `⚠️ Ảnh không upload được: ${uploadResult.error}`;
-        Logger.log(photoWarning);
-      }
-    }
+    // 1. Xây markdown của bài
+    const { title, text } = buildWelcomePostMarkdown(candidate, introduction);
 
-    // 2. Xây markdown (chèn ảnh lên đầu nếu có)
-    const { title, text: baseText } = buildWelcomePostMarkdown(
-      candidate,
-      introduction,
-    );
-    const text = photoMarkdownLine
-      ? `${photoMarkdownLine}\n\n${baseText}`
-      : baseText;
-
-    // 3. Tạo draft Outline
+    // 2. Tạo draft Outline
     const doc = callOutlineCreateDocument_(title, text);
 
     return {
       ok: true,
-      message: `Đã tạo draft "${title}" trên Outline!${photoWarning ? " " + photoWarning : ""}`,
+      message: `Đã tạo draft "${title}" trên Outline! Ảnh ứng viên hãy chèn trực tiếp trên Outline nhé.`,
       url: doc && doc.url ? doc.url : `${CONFIG.OUTLINE.BASE_URL}/drafts`,
     };
   } catch (error) {

@@ -80,15 +80,6 @@ const CONFIG = {
     RETRY_DELAYS_MS: [2000, 5000], // backoff giữa các lần retry khi gặp 429
   },
 
-  /**
-   * Upload ảnh ứng viên: gửi thẳng vào Outline qua attachments API
-   * (presigned S3), KHÔNG qua Drive — không cần quyền share anyone-with-link.
-   * MAX_SIZE_MB: giới hạn dung lượng ảnh cho phép từ sidebar.
-   */
-  PHOTO_UPLOAD: {
-    MAX_SIZE_MB: 5,
-  },
-
   /** Cấu hình tab log: tên sheet + header của từng luồng */
   LOG: {
     INTERNAL: {

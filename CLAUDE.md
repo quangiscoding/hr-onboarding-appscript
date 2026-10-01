@@ -25,7 +25,7 @@ src/
 │                          #   (PHẢI nằm ở gốc src/ — menu bind theo tên hàm)
 ├── core/                  # Không phụ thuộc nghiệp vụ, dùng chung bởi mọi module
 │   ├── config.js          #   CONFIG (RECIPIENTS, GUIDE_PDF_MAP, OFFICE_ADDRESS, OUTLINE, GEMINI,
-│   │                      #   PHOTO_UPLOAD, LOG) + COLS
+│   │                      #   LOG) + COLS
 │   ├── utils.js           #   Pure helpers + Sheet helpers + Template/Drive helpers
 │   └── ui-feedback.js     #   WorkflowError + notifySuccess/notifyWarning/notifyError/confirmAction
 │                          #   (điểm DUY NHẤT gọi getUi() ngoài main.js + recruitment)
@@ -98,11 +98,11 @@ src/
     - `showSidebar()`: menu entry.
     - `getSelectedCandidate()`: đọc dòng đang chọn qua `getHeaderColumnMap` (fullName, title, squad, lineManager, dateOfOnboard, cvUrl...). Cột CV đọc 3 lớp: rich-text link URL → formula HYPERLINK() → display value.
     - `summarizeCvToIntro(formData)`: đọc CV → AI → trả Introduction.
-    - `submitIntroductionPost(formData)`: upload ảnh (nếu có) + build markdown + tạo draft Outline.
-  - **`outline-api.js`**: `getOutlineApiToken_` (Script Property `OUTLINE_API_TOKEN`), `buildWelcomePostMarkdown` (First working day / Job Title / Line Manager / Introduction), `callOutlineCreateDocument_` (documents.create, publish:false → Drafts cá nhân), `uploadCandidatePhoto` (attachments.create presigned S3 — form fields trước, file CUỐI, không auth header; tự dựng multipart vì UrlFetchApp không có FormData).
+    - `submitIntroductionPost(formData)`: build markdown + tạo draft Outline (ảnh KHÔNG upload qua tool).
+  - **`outline-api.js`**: `getOutlineApiToken_` (Script Property `OUTLINE_API_TOKEN`), `buildWelcomePostMarkdown` (First working day / Job Title / Line Manager / Introduction), `callOutlineCreateDocument_` (documents.create, publish:false → Drafts cá nhân).
   - **`cv-reader.js`**: `readCvContent_` — ưu tiên file upload từ máy (blob trong bộ nhớ), fallback link/tên file cột CV (`extractDriveFileId_`, `findDriveFileIdByName_`). Trả `{kind: "pdf_inline", pdfBase64, fileName}` cho PDF hoặc `{kind: "text", text}` cho DOCX (unzip word/document.xml + strip XML — phải ép ContentType application/zip), GDoc (DocumentApp), TXT. .doc cũ bị từ chối với hướng dẫn rõ ràng.
   - **`ai-providers.js`**: `callGeminiSummarizeCv_` — duyệt `CONFIG.AI_PROVIDERS` theo thứ tự (mặc định `"openrouter"` → `"gemini"`), provider lỗi thì chuyển kế. Mỗi provider: xoay vòng API key (property chính + `_2..10`, hoặc 1 property nhiều key cách phẩy) + retry backoff `RETRY_DELAYS_MS` khi 429 + chuyển model trong MODELS khi lỗi khác. OpenRouter: OpenAI-compatible `/chat/completions`, PDF dạng `file` content part (base64 data URL). Gemini: `generateContent`, PDF dạng `inline_data` (Gemini 3.x KHÔNG nhận temperature/top_p/top_k).
-  - **Ảnh ứng viên:** ô upload trong sidebar (≤ `CONFIG.PHOTO_UPLOAD.MAX_SIZE_MB`, base64) → `uploadCandidatePhoto()` (outline-api.js) upload THẲNG vào Outline qua `attachments.create` (presigned S3 POST) → embed URL `attachments.redirect?id=` lên đầu bài markdown. KHÔNG dùng Drive — domain Workspace chặn share anyone-with-link nên ảnh trên Drive không render được trong Outline.
+  - **Ảnh ứng viên:** KHÔNG upload qua tool/sidebar — sau khi tạo draft, người dùng mở bài trên Outline và chèn ảnh trực tiếp trong editor.
   - **AI tóm tắt CV:** `summarizeCvToIntro()` (sidebar.js) → `readCvContent_` (cv-reader.js) → `callGeminiSummarizeCv_` (ai-providers.js) duyệt provider chain openrouter → gemini. Prompt tiếng Anh theo style bài mẫu, chỉ dùng facts từ CV.
   - **Script Properties (Apps Script → Project Settings):** `OUTLINE_API_TOKEN` (token Outline dạng `ol_api_...`); `OPENROUTER_API_KEY` (https://openrouter.ai/settings/keys, ưu tiên) và/hoặc `GEMINI_API_KEY` (https://aistudio.google.com/apikey, dự phòng) — đều hỗ trợ nhiều key xoay vòng. KHÔNG hardcode.
   - **OAuth scopes:** `drive` (full — cần để createFile upload ảnh + temp CV) và `documents` (DocumentApp đọc text GDoc) đã thêm vào `appsscript.json`; khi push lần đầu user sẽ được yêu cầu re-authorize.
