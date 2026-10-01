@@ -49,7 +49,7 @@ const CONFIG = {
    * Lấy key miễn phí tại https://aistudio.google.com/apikey
    */
   GEMINI: {
-    MODEL: "gemini-2.0-flash",
+    MODEL: "gemini-3.8-flash",
     BASE_URL: "https://generativelanguage.googleapis.com/v1beta",
   },
 
