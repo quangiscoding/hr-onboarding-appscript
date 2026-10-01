@@ -25,29 +25,29 @@ function getOrCreateLogSheet(sheetName, headers) {
 }
 
 /**
- * Ghi log cho Luồng Internal (Offer Accepted -> DevOps, HR, IT)
- * Cột: Timestamp | Fullname | Position | Request Type | Draft ID | Status
+ * Ghi log cho Luồng Internal (Offer Accepted -> gửi trực tiếp DevOps, HR, IT)
+ * Cột: Timestamp | Fullname | Position | Request Type | Sent To | Status
  */
-function logInternalWorkflow(data, drafts) {
+function logInternalWorkflow(data, sentEmails) {
   try {
     const headers = [
       "Timestamp",
       "Fullname",
       "Position",
       "Request Type",
-      "Draft ID",
+      "Sent To",
       "Status",
     ];
-    const sheet = getOrCreateLogSheet("Internal Draft Log", headers);
+    const sheet = getOrCreateLogSheet("Internal Email Log", headers);
 
-    drafts.forEach((draft) => {
+    sentEmails.forEach((sent) => {
       sheet.appendRow([
         new Date(), // Timestamp
         data.fullName, // Fullname
         toTitleCase(data.position), // Position
-        draft.type, // Request Type (DevOps / HR / IT)
-        draft.id, // Draft ID
-        "DRAFT_CREATED", // Status
+        sent.type, // Request Type (DevOps / HR / IT)
+        sent.to, // Sent To (email phòng ban)
+        "EMAIL_SENT", // Status
       ]);
     });
   } catch (error) {

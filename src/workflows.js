@@ -1,68 +1,85 @@
 /** ==========================================
- * WORKFLOWS.JS - QUẢN LÝ CÁC LUỒNG TẠO DRAFT EMAIL & GỬI EMAIL TRỰC TIẾP
+ * WORKFLOWS.JS - QUẢN LÝ CÁC LUỒNG GỬI EMAIL TRỰC TIẾP & TẠO DRAFT
  * ========================================== */
 
 /**
- * LUỒNG 1: Tạo bản nháp Email gửi cho các Phòng ban (DevOps, HR, IT)
+ * LUỒNG 1: Gửi Email TRỰC TIẾP cho các Phòng ban (DevOps, HR, IT)
  * @param {Object} data - Dữ liệu ứng viên đã chuẩn hóa
  */
 function handleOfferAcceptedWorkflow(data) {
-  const createdDrafts = [];
+  const sentEmails = [];
 
   // Đọc recipients động từ sheet Data (Role | Send to | CC)
   const devopsRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.DEVOPS);
   const hrRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.HR);
   const itRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.IT);
 
-  // 1. Tạo Draft gửi DevOps
+  // Helper gửi 1 email trực tiếp, lỗi thì dừng luồng + báo user
+  const sendDirect = (type, to, cc, mail) => {
+    try {
+      GmailApp.sendEmail(to, mail.subject, "", {
+        htmlBody: mail.htmlBody,
+        cc: cc || "",
+      });
+      sentEmails.push({ type: type, to: to });
+      return true;
+    } catch (error) {
+      Logger.log(`❌ Lỗi khi gửi email ${type}: ` + error.toString());
+      SpreadsheetApp.getUi().alert(
+        "Lỗi ❌",
+        `Không thể gửi email ${type} tới ${to}.\n\nChi tiết: ${error.message}`,
+        SpreadsheetApp.getUi().ButtonSet.OK,
+      );
+      return false;
+    }
+  };
+
+  // 1. Gửi thẳng DevOps
   const devopsMail = getDevOpsEmailTemplate(data);
-  const devopsDraft = GmailApp.createDraft(
-    devopsRecipients.to.join(","),
-    devopsMail.subject,
-    "",
-    {
-      htmlBody: devopsMail.htmlBody,
-      cc: devopsRecipients.cc.join(","),
-    },
-  );
-  createdDrafts.push({ type: "DevOps", id: devopsDraft.getId() });
+  if (
+    !sendDirect(
+      "DevOps",
+      devopsRecipients.to.join(","),
+      devopsRecipients.cc.join(","),
+      devopsMail,
+    )
+  )
+    return;
 
-  // 2. Tạo Draft gửi HR (Role "OKR" trong sheet Data)
+  // 2. Gửi thẳng HR (Role "OKR" trong sheet Data)
   const hrMail = getHREmailTemplate(data);
-  const hrDraft = GmailApp.createDraft(
-    hrRecipients.to.join(","),
-    hrMail.subject,
-    "",
-    {
-      htmlBody: hrMail.htmlBody,
-      cc: hrRecipients.cc.join(","),
-    },
-  );
-  createdDrafts.push({ type: "HR", id: hrDraft.getId() });
+  if (
+    !sendDirect(
+      "HR",
+      hrRecipients.to.join(","),
+      hrRecipients.cc.join(","),
+      hrMail,
+    )
+  )
+    return;
 
-  // 3. Tạo Draft gửi IT - Chỉ gửi khi Device Request chứa "as company standard"
+  // 3. Gửi thẳng IT - Chỉ gửi khi Device Request chứa "as company standard"
   const deviceRequested = isStandardDevice(data.deviceRequest);
   if (deviceRequested) {
     const itMail = getITEmailTemplate(data);
-    const itDraft = GmailApp.createDraft(
-      itRecipients.to.join(","),
-      itMail.subject,
-      "",
-      {
-        htmlBody: itMail.htmlBody,
-        cc: itRecipients.cc.join(","),
-      },
-    );
-    createdDrafts.push({ type: "IT", id: itDraft.getId() });
+    if (
+      !sendDirect(
+        "IT",
+        itRecipients.to.join(","),
+        itRecipients.cc.join(","),
+        itMail,
+      )
+    )
+      return;
   }
 
-  // 4. 📝 GHI LOG INTERNAL (Lưu từng Draft ID theo loại Request)
-  logInternalWorkflow(data, createdDrafts);
+  // 4. 📝 GHI LOG INTERNAL (Lưu người nhận theo loại Request)
+  logInternalWorkflow(data, sentEmails);
 
   // 5. Hiện Pop-up Alert thông báo giữa màn hình
   SpreadsheetApp.getUi().alert(
     "Thành công 🎉",
-    `Đã tạo thành công ${createdDrafts.length} bản nháp Email nhắc việc cho ${data.fullName}!`,
+    `Đã gửi thành công ${sentEmails.length} email nhắc việc cho ${data.fullName}!\n\nNgười nhận: ${sentEmails.map((e) => e.type).join(", ")}`,
     SpreadsheetApp.getUi().ButtonSet.OK,
   );
 }

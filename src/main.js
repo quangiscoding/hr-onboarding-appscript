@@ -13,7 +13,7 @@ function onOpen() {
       "menuSendWelcomeEmail",
     )
     .addItem(
-      "2. Tạo Draft Offer Accepted (DevOps / HR / Line Manager)",
+      "2. Gửi Email Offer Accepted (DevOps / HR / IT)",
       "menuSendDevOpsEmail",
     )
     .addSeparator()
@@ -25,21 +25,21 @@ function onOpen() {
 }
 
 /**
- * 1. Xử lý menu Gửi Welcome Email
+ * Xử lý menu Gửi Welcome Email
  */
 function menuSendWelcomeEmail() {
   executeWorkflowRunner("WELCOME_EMAIL");
 }
 
 /**
- * 2. Xử lý menu Gửi TA Notification
+ * Xử lý menu Gửi Notification cho TA
  */
 function menuSendTaNotification() {
   executeWorkflowRunner("TA_NOTIFICATION");
 }
 
 /**
- * 3. Xử lý menu Gửi Yêu cầu cho DevOps
+ * Xử lý menu Gửi Email cho các phòng ban (DevOps / HR / IT)
  */
 function menuSendDevOpsEmail() {
   executeWorkflowRunner("OFFER_ACCEPTED");

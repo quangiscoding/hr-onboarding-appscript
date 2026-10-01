@@ -33,14 +33,16 @@ Nếu hệ thống nhắc "Thiếu Alloc Code" thì cũng đừng lo: chưa có 
 
 ## 2. Nhắc việc các phòng ban (khi ứng viên nhận offer)
 
+> ⚠️ Luồng này **gửi thư đi luôn** (không có bản nháp để soát) — bạn yên tâm đã chọn đúng dòng trước khi chạy nhé.
+
 1. Chọn dòng nhân sự mới.
-2. Menu **🚀 Hera Onboarding Tools** → **2. Tạo Draft Offer Accepted**.
+2. Menu **🚀 Hera Onboarding Tools** → **2. Gửi Email Offer Accepted**.
 3. Chọn **Yes** để xác nhận.
-4. Trong **Gmail → Thư nháp**, bạn sẽ thấy các thư đã soạn sẵn:
-   - Thư cho **DevOps** — nhờ tạo email công ty cho nhân sự mới.
-   - Thư cho **HR** — nhờ tạo folder OKR.
-   - Thư cho **IT** — nhờ cấp máy (thư này chỉ xuất hiện khi nhân sự mới có xin máy).
-5. Bạn rà soát từng thư rồi gửi theo trình tự tùy bạn nhé.
+4. Email sẽ được gửi thẳng tới:
+   - **DevOps** — nhờ tạo email công ty cho nhân sự mới.
+   - **HR** — nhờ tạo folder OKR.
+   - **IT** — nhờ cấp máy (email này chỉ gửi khi nhân sự mới có xin máy, tức cột Device Request có cụm "as company standard").
+5. Xong! Hệ thống sẽ báo số email đã gửi. Mọi thư đều được ghi log vào tab *Internal Email Log* để bạn đối chiếu khi cần.
 
 ## 3. Thông báo tiến độ cho TA
 
