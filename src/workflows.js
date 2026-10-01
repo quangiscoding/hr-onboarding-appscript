@@ -161,7 +161,6 @@ function handleWelcomeEmailWorkflow(data) {
   );
   const ccList = [
     data.taEmail,
-    data.managerEmail,
     ...peopleTeamRecipients.to,
     ...peopleTeamRecipients.cc,
   ]
