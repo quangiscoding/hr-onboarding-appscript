@@ -236,19 +236,19 @@ function getGeminiApiKey_() {
 /**
  * Đọc nội dung CV: ưu tiên file Drive từ formData (upload),
  * fallback link CV trong cột CV của dòng đang chọn.
- * Trả về text (PDF được trích xuất bằng Drive API Advanced Service không cần —
- * dùng Utilities + DriveApp export text cho PDF/GDoc).
+ * @returns {Object}
+ *   - PDF:   { kind: "pdf_inline", pdfBase64, fileName } (gửi thẳng PDF base64 cho Gemini)
+ *   - Khác:  { kind: "text", text }
  */
 function readCvContent_(cvFileMeta, candidate) {
-  let file = null;
+  let blob = null;
+  let fileName = "cv";
 
-  // 1. CV upload trực tiếp từ sidebar (base64)
+  // 1. CV upload trực tiếp từ sidebar (base64) — dựng blob trong bộ nhớ, KHÔNG tạo file Drive
   if (cvFileMeta && cvFileMeta.dataBase64) {
     const bytes = Utilities.base64Decode(cvFileMeta.dataBase64);
-    const blob = Utilities.newBlob(bytes, cvFileMeta.mimeType || "application/pdf", cvFileMeta.fileName || "cv.pdf");
-    const tempFile = DriveApp.getRootFolder().createFile(blob);
-    tempFile.setTrashed(true); // chỉ dùng để trích xuất, xóa ngay
-    file = tempFile;
+    blob = Utilities.newBlob(bytes, cvFileMeta.mimeType || "application/pdf", cvFileMeta.fileName || "cv.pdf");
+    fileName = cvFileMeta.fileName || "cv.pdf";
   } else if (candidate && candidate.cvUrl) {
     // 2. Link CV trong cột CV của sheet
     let fileId = extractDriveFileId_(candidate.cvUrl);
@@ -261,35 +261,90 @@ function readCvContent_(cvFileMeta, candidate) {
         );
       }
     }
-    file = DriveApp.getFileById(fileId);
+    const file = DriveApp.getFileById(fileId);
+    blob = file.getBlob();
+    fileName = file.getName() || fileName;
   } else {
     throw new Error(
       "Không tìm thấy CV: cột CV trên sheet trống và bạn chưa upload file CV. Hãy upload CV hoặc điền link CV vào cột CV.",
     );
   }
 
-  // Trích text: Google Doc export trực tiếp; PDF dùng blob.getDataAsString (phải chuyển qua GDoc để đọc được text)
-  const mimeType = file.getMimeType();
-  let text = "";
-  if (mimeType === MimeType.GOOGLE_DOCS) {
-    text = DocumentApp.openById(file.getId()).getBody().getText();
-  } else if (mimeType === MimeType.PDF) {
-    // Chuyển PDF thành Google Doc tạm để trích text
-    const tempDocFile = DriveApp.getFileById(file.getId()).getAs(MimeType.GOOGLE_DOCS);
-    const tempDoc = DriveApp.getRootFolder().createFile(tempDocFile);
-    tempDoc.setTrashed(true);
-    text = DocumentApp.openById(tempDoc.getId()).getBody().getText();
-  } else if (mimeType === MimeType.MICROSOFT_WORD || /\.docx?$/i.test(file.getName() || "")) {
-    // DOCX/DOC: convert tạm sang Google Doc để trích text (blob gốc là binary)
-    const tempDocFile = file.getAs(MimeType.GOOGLE_DOCS);
-    const tempDoc = DriveApp.getRootFolder().createFile(tempDocFile);
-    tempDoc.setTrashed(true);
-    text = DocumentApp.openById(tempDoc.getId()).getBody().getText();
-  } else {
-    text = file.getBlob().getDataAsString("UTF-8");
+  const mimeType = blob.getContentType() || "";
+  const nameForDetect = fileName || "";
+
+  // PDF: gửi thẳng base64 cho Gemini (Gemini đọc PDF native, không cần convert sang GDoc)
+  if (mimeType === MimeType.PDF || /\.pdf$/i.test(nameForDetect)) {
+    return { kind: "pdf_inline", pdfBase64: Utilities.base64Encode(blob.getBytes()), fileName };
   }
 
-  return text;
+  // Google Docs: mở DocumentApp trực tiếp
+  if (mimeType === MimeType.GOOGLE_DOCS) {
+    const fileId = extractDriveFileId_(candidate && candidate.cvUrl) || findDriveFileIdByName_(nameForDetect);
+    let text = "";
+    try {
+      text = DocumentApp.openById(fileId).getBody().getText();
+    } catch (e) {
+      text = "";
+    }
+    if (text) return { kind: "text", text };
+  }
+
+  // DOCX (zip): giải nén lấy word/document.xml rồi strip tag XML
+  if (mimeType === MimeType.MICROSOFT_WORD || /\.docx$/i.test(nameForDetect)) {
+    return { kind: "text", text: extractTextFromDocx_(blob) };
+  }
+
+  // DOC cũ (binary): không đọc được — yêu cầu đổi định dạng
+  if (/\.doc$/i.test(nameForDetect) || mimeType === "application/msword") {
+    throw new Error(
+      'File CV là .doc cũ — script không đọc được. Hãy lưu lại thành .docx hoặc PDF rồi upload lại (hoặc upload PDF).',
+    );
+  }
+
+  // Plain text / các định dạng khác
+  const text = blob.getDataAsString("UTF-8");
+  if (!text || !/[a-zA-Z]/.test(text.slice(0, 500))) {
+    throw new Error(
+      "Không trích xuất được text từ file CV. Các định dạng hỗ trợ: PDF, DOCX, Google Docs, TXT.",
+    );
+  }
+  return { kind: "text", text };
+}
+
+/**
+ * Trích text từ file DOCX (một file zip chứa XML).
+ * Đọc word/document.xml, tách paragraph rồi strip tag XML.
+ */
+function extractTextFromDocx_(blob) {
+  let xml = null;
+  try {
+    const entries = Utilities.unzip(blob);
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i].getName() === "word/document.xml") {
+        xml = entries[i].getDataAsString("UTF-8");
+        break;
+      }
+    }
+  } catch (e) {
+    throw new Error("File DOCX hỏng hoặc không đọc được: " + e.message);
+  }
+  if (!xml) {
+    throw new Error('Không tìm thấy nội dung "word/document.xml" trong file DOCX.');
+  }
+
+  return xml
+    .replace(/<w:p[ >]/g, "\n<w:p ") // mỗi paragraph = 1 dòng
+    .replace(/<w:tab[^>]*\/>/g, "\t")
+    .replace(/<w:br[^>]*\/>/g, "\n")
+    .replace(/<[^>]+>/g, "") // strip toàn bộ tag còn lại
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**
@@ -324,30 +379,21 @@ function extractDriveFileId_(url) {
 }
 
 /**
- * Gọi Gemini API sinh phần Introduction từ nội dung CV.
- * @param {string} cvText - Nội dung CV
+ * Gọi Gemini API sinh phần Introduction từ CV.
+ * @param {Object} cvContent - Kết quả từ readCvContent_: { kind: "pdf_inline", pdfBase64 } hoặc { kind: "text", text }
  * @param {Object} candidate - Thông tin ứng viên để AI viết cho đúng ngữ cảnh
  * @returns {string} Phần Introduction tiếng Anh, văn phong giống các bài Welcome Onboard mẫu
  */
-function callGeminiSummarizeCv_(cvText, candidate) {
-  const prompt = [
-    "You are an HR teammate writing a short, warm 'Introduction' paragraph for a company-wide 'Welcome Onboard' post.",
-    "Write it in ENGLISH, 4-6 sentences, in the same style as these real examples:",
-    "",
-    'Example 1: "We are excited to welcome Ha Ngan as our HR Admin Intern! 🎉 Ngan is currently a final-year International Relations student at USSH. Through her active involvement in student organizations, particularly as an HR Team Leader for the International Exchange Club, she has built a solid foundation in coordination, teamwork, and administrative support. Ngan joins us with a highly proactive attitude, great attention to detail, and a strong eagerness to learn and experience real-world HR operations. We believe this internship will be a great stepping stone for her career, and she will bring a fresh, energetic vibe to our team. Welcome aboard, Ngan! 🚀"',
-    "",
-    "Requirements:",
-    "- Start with 'We are excited/delighted/thrilled to welcome <Ms./Mr.> <FirstName FullName> as our <Job Title>! 🎉'",
-    "- Highlight the most relevant experience/education/soft skills from the CV (2-3 highlights max, no bullet points)",
-    "- End with 'Welcome aboard, <FirstName>! 🚀'",
-    "- Use ONLY facts present in the CV below. Do NOT invent achievements, numbers or certifications.",
-    "- Output ONLY the paragraph text, no title, no markdown headers.",
-    "",
-    `Candidate info: Full name: ${candidate.fullName}. Job title: ${candidate.title || "N/A"}. Squad: ${candidate.squad || "N/A"}. Employment type: ${candidate.employmentType || "N/A"}.`,
-    "",
-    "CV content:",
-    cvText.slice(0, 15000),
-  ].join("\n");
+function callGeminiSummarizeCv_(cvContent, candidate) {
+  const promptParts = [{ text: buildGeminiPrompt_(candidate) }];
+
+  if (cvContent.kind === "pdf_inline") {
+    promptParts.push({
+      inline_data: { mime_type: "application/pdf", data: cvContent.pdfBase64 },
+    });
+  } else {
+    promptParts[0].text += "\n\nCV content:\n" + cvContent.text.slice(0, 15000);
+  }
 
   const response = UrlFetchApp.fetch(
     `${CONFIG.GEMINI.BASE_URL}/models/${CONFIG.GEMINI.MODEL}:generateContent?key=${getGeminiApiKey_()}`,
@@ -355,7 +401,7 @@ function callGeminiSummarizeCv_(cvText, candidate) {
       method: "post",
       contentType: "application/json",
       payload: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts: promptParts }],
         generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
       }),
       muteHttpExceptions: true,
@@ -373,6 +419,29 @@ function callGeminiSummarizeCv_(cvText, candidate) {
   const text = parts && parts.map((p) => p.text || "").join("").trim();
   if (!text) throw new Error("Gemini trả về nội dung rỗng.");
   return text;
+}
+
+/**
+ * Dựng prompt tiếng Anh theo style bài Welcome Onboard mẫu.
+ * @param {Object} candidate
+ * @returns {string} Prompt text
+ */
+function buildGeminiPrompt_(candidate) {
+  return [
+    "You are an HR teammate writing a short, warm 'Introduction' paragraph for a company-wide 'Welcome Onboard' post.",
+    "Write it in ENGLISH, 4-6 sentences, in the same style as these real examples:",
+    "",
+    'Example 1: "We are excited to welcome Ha Ngan as our HR Admin Intern! 🎉 Ngan is currently a final-year International Relations student at USSH. Through her active involvement in student organizations, particularly as an HR Team Leader for the International Exchange Club, she has built a solid foundation in coordination, teamwork, and administrative support. Ngan joins us with a highly proactive attitude, great attention to detail, and a strong eagerness to learn and experience real-world HR operations. We believe this internship will be a great stepping stone for her career, and she will bring a fresh, energetic vibe to our team. Welcome aboard, Ngan! 🚀"',
+    "",
+    "Requirements:",
+    "- Start with 'We are excited/delighted/thrilled to welcome <Ms./Mr.> <FirstName FullName> as our <Job Title>! 🎉'",
+    "- Highlight the most relevant experience/education/soft skills from the CV (2-3 highlights max, no bullet points)",
+    "- End with 'Welcome aboard, <FirstName>! 🚀'",
+    "- Use ONLY facts present in the CV below. Do NOT invent achievements, numbers or certifications.",
+    "- Output ONLY the paragraph text, no title, no markdown headers.",
+    "",
+    `Candidate info: Full name: ${candidate.fullName}. Job title: ${candidate.title || "N/A"}. Squad: ${candidate.squad || "N/A"}. Employment type: ${candidate.employmentType || "N/A"}.`,
+  ].join("\n");
 }
 
 /**
