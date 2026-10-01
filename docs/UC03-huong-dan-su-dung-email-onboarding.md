@@ -1,69 +1,67 @@
-# Hướng dẫn gửi Email Onboarding (menu 🚀 Hera Onboarding Tools)
+# Gửi Email Onboarding với menu 🚀 Hera Onboarding Tools
 
-Tài liệu này dành cho TA / HR sử dụng hàng ngày. Chỉ cần làm theo từng bước, không cần biết code.
-
----
-
-## Chuẩn bị trước khi bấm menu
-
-1. Mở Google Sheet *Hera | On-boarding List*.
-2. **Click vào 1 ô trong dòng của nhân sự** cần xử lý (nhớ kỹ: phải là dòng có người, đừng click vào dòng tiêu đề).
-3. Kiểm tra các cột đã điền đủ chưa:
-
-| Thông tin | Khi nào cần |
-|---|---|
-| Họ tên, Chức vụ, Squad | Luôn luôn |
-| **Alloc Code** | Bắt buộc khi tạo Welcome Email. Có Alloc Code = nhân sự mới đã có email công ty |
-| **Email cá nhân** | Cần cho Welcome Email (nơi gửi thư chào mừng) |
-| **TA In Charge** | Cần cho email thông báo TA — điền tên đăng nhập Kyanon (vd: `my.tran`) |
-| Employment Type, Onboarding Type, Ngày Onboard | Cần cho Welcome Email (chọn đúng file PDF và địa chỉ văn phòng) |
-| Device Request | Chỉ cần khi nhân sự mới xin máy công ty (phải có chữ "as company standard") |
-
-> Danh sách người nhận email các phòng ban (DevOps, HR, IT, People Team) do quản trị viên chỉnh trong sheet **Data** — người dùng không cần đụng tới.
+Tài liệu này dành cho các bạn TA / HR sử dụng hàng ngày. Làm theo từng bước là được, không cần quan tâm kỹ thuật bên dưới.
 
 ---
 
-## Cách 1 — Tạo thư chào mừng cho nhân sự mới
+## Trước khi bắt đầu
 
-1. Chọn dòng nhân sự mới.
-2. Menu **🚀 Hera Onboarding Tools** → **1. Tạo Draft Welcome Email**.
-3. Bấm **Yes** để xác nhận.
-4. Mở **Gmail → Thư nháp (Drafts)**, bạn sẽ thấy thư chào mừng đã soạn sẵn, kèm file PDF hướng dẫn.
-5. Kiểm tra và sửa phần **vị trí bàn làm việc** (thư để chỗ này trống để bạn tự điền), rồi bấm **Gửi**.
+Trước khi chạy menu, mình gợi ý bạn lướt qua dòng nhân sự cần xử lý xem các thông tin sau đã sẵn sàng chưa — sẽ đỡ phải chạy lại:
 
-> Lưu ý: nếu báo "Thiếu Alloc Code" → chưa có Alloc Code thì **dùng Email cá nhân** để nhận thư: điền Email cá nhân vào cột tương ứng rồi chạy lại.
+- **Họ tên, Chức vụ, Squad** — thông tin cơ bản.
+- **Alloc Code** — cần cho thư chào mừng. Khi cột này đã có giá trị nghĩa là nhân sự mới đã có email công ty.
+- **Email cá nhân** — nơi nhận thư chào mừng (khi chưa có Alloc Code thì thư sẽ gửi qua đây).
+- **TA In Charge** — cần cho email thông báo TA, điền tên đăng nhập Kyanon (ví dụ `my.tran`).
+- **Employment Type, Onboarding Type, Ngày Onboard** — hệ thống dựa vào đây để chọn file PDF và địa chỉ văn phòng phù hợp.
+- **Device Request** — nếu nhân sự mới có xin máy công ty, cột này nên có cụm "as company standard".
 
-## Cách 2 — Nhắc việc các phòng ban (sau khi ứng viên nhận offer)
+Danh sách người nhận email các phòng ban (DevOps, HR, IT, People Team) nằm trong sheet **Data** — phần này quản trị viên lo giúp bạn rồi, không cần đụng tới.
+
+À, một điều nhỏ: khi thao tác trên sheet, bạn click vào **1 ô trong dòng của nhân sự mới** nhé (tránh dòng tiêu đề), rồi menu mới hiểu bạn đang làm việc với ai.
+
+---
+
+## 1. Tạo thư chào mừng cho nhân sự mới
+
+1. Chọn dòng nhân sự mới trên sheet.
+2. Vào menu **🚀 Hera Onboarding Tools** → **1. Tạo Draft Welcome Email**.
+3. Hệ thống hỏi xác nhận, bạn chọn **Yes** nhé.
+4. Thư chào mừng sẽ nằm trong **Gmail → Thư nháp** của bạn, kèm sẵn file PDF hướng dẫn.
+5. Trong thư có một chỗ **vị trí bàn làm việc** được tô vàng để bạn tự điền — điền xong, lướt qua lần cuối rồi bấm Gửi là xong.
+
+Nếu hệ thống nhắc "Thiếu Alloc Code" thì cũng đừng lo: chưa có Alloc Code bạn vẫn gửi được thư qua **email cá nhân** của nhân sự mới — điền email cá nhân vào cột tương ứng rồi chạy lại là được.
+
+## 2. Nhắc việc các phòng ban (khi ứng viên nhận offer)
 
 1. Chọn dòng nhân sự mới.
 2. Menu **🚀 Hera Onboarding Tools** → **2. Tạo Draft Offer Accepted**.
-3. Bấm **Yes** để xác nhận.
-4. Vào **Gmail → Thư nháp**, bạn sẽ thấy:
-   - Thư cho **DevOps** — yêu cầu tạo email công ty.
-   - Thư cho **HR** — yêu cầu tạo folder OKR.
-   - Thư cho **IT** — yêu cầu cấp máy (**chỉ xuất hiện nếu** cột Device Request có "as company standard").
-5. Kiểm tra từng thư rồi bấm **Gửi**.
+3. Chọn **Yes** để xác nhận.
+4. Trong **Gmail → Thư nháp**, bạn sẽ thấy các thư đã soạn sẵn:
+   - Thư cho **DevOps** — nhờ tạo email công ty cho nhân sự mới.
+   - Thư cho **HR** — nhờ tạo folder OKR.
+   - Thư cho **IT** — nhờ cấp máy (thư này chỉ xuất hiện khi nhân sự mới có xin máy).
+5. Bạn rà soát từng thư rồi gửi theo trình tự tùy bạn nhé.
 
-## Cách 3 — Thông báo tiến độ cho TA
+## 3. Thông báo tiến độ cho TA
 
 1. Chọn dòng nhân sự mới.
 2. Menu **🚀 Hera Onboarding Tools** → **3. Gửi Notification cho TA**.
-3. Bấm **Yes** để xác nhận — thư sẽ **gửi luôn**, không có bước soát lại.
-4. TA In Charge nhận email thông báo. Nội dung tự cập nhật theo tiến độ:
+3. Chọn **Yes** để xác nhận — thư sẽ gửi đi ngay sau đó, nên bạn yên tâm đã chọn đúng dòng trước khi bấm nhé.
+4. TA In Charge sẽ nhận được email thông báo, nội dung tự cập nhật theo tiến độ:
    - Đã có **Alloc Code** → thư báo "Working Email đã được tạo" kèm email công ty của nhân sự mới.
    - Chưa có Alloc Code → thư hiển thị **email cá nhân** của nhân sự mới.
 
 ---
 
-## Nếu gặp lỗi
+## Nếu gặp chút trục trặc
 
-| Báo lỗi | Cách xử lý |
+| Hệ thống báo | Bạn có thể thử |
 |---|---|
-| "Vui lòng chọn một dòng..." | Click lại vào 1 ô **trong dòng nhân sự** rồi mở menu lại |
-| "Thiếu Alloc Code!" | Điền Alloc Code, hoặc chỉ dùng Email cá nhân (xem Cách 1) |
+| "Vui lòng chọn một dòng..." | Click lại vào 1 ô trong dòng nhân sự rồi mở menu lại nha |
+| "Thiếu Alloc Code!" | Điền Alloc Code, hoặc dùng email cá nhân như mục 1 đã nói |
 | "Thiếu TA In Charge!" | Điền tên đăng nhập Kyanon của TA vào cột TA In Charge |
-| "Invalid email..." | Ô trong sheet **Data** đang dán sai dạng — báo quản trị viên sửa lại thành tên đăng nhập/email dạng chữ thường |
+| "Invalid email..." | Ô trong sheet **Data** có vẻ dán sai dạng — nhắn quản trị viên sửa lại thành tên đăng nhập/email dạng chữ thường giúp bạn |
 | Menu không hiện ra | Refresh lại trang Google Sheet, đợi vài giây rồi thử lại |
-| Hệ thống hỏi xin quyền | Bấm **Allow / Cho phép** — chỉ cần làm 1 lần |
+| Hệ thống hỏi xin quyền | Bấm **Allow / Cho phép** — chỉ cần làm 1 lần thôi ạ |
 
-Mọi lượt chạy đều được ghi lại tự động vào các tab log cuối file, không cần ghi tay.
+Mỗi lượt chạy hệ thống đều tự ghi lại vào các tab log cuối file nên bạn không cần ghi chép gì thêm đâu. Chúc bạn onboard nhân sự mới thật suôn sẻ! 🎉
