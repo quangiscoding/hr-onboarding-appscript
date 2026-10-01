@@ -279,6 +279,12 @@ function readCvContent_(cvFileMeta, candidate) {
     const tempDoc = DriveApp.getRootFolder().createFile(tempDocFile);
     tempDoc.setTrashed(true);
     text = DocumentApp.openById(tempDoc.getId()).getBody().getText();
+  } else if (mimeType === MimeType.MICROSOFT_WORD || /\.docx?$/i.test(file.getName() || "")) {
+    // DOCX/DOC: convert tạm sang Google Doc để trích text (blob gốc là binary)
+    const tempDocFile = file.getAs(MimeType.GOOGLE_DOCS);
+    const tempDoc = DriveApp.getRootFolder().createFile(tempDocFile);
+    tempDoc.setTrashed(true);
+    text = DocumentApp.openById(tempDoc.getId()).getBody().getText();
   } else {
     text = file.getBlob().getDataAsString("UTF-8");
   }
