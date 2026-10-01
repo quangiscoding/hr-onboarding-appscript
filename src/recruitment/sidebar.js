@@ -402,7 +402,8 @@ function callGeminiSummarizeCv_(cvContent, candidate) {
       contentType: "application/json",
       payload: JSON.stringify({
         contents: [{ parts: promptParts }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+        // Lưu ý: Gemini 3.x từ chối temperature/top_p/top_k trong generateContent
+        generationConfig: {},
       }),
       muteHttpExceptions: true,
     },
