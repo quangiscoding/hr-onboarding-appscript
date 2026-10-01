@@ -41,6 +41,21 @@ function getSelectedCandidate() {
       return col ? String(sheet.getRange(rowIndex, col).getDisplayValue()).trim() : "";
     };
 
+    // Cột CV: cell thường chứa HYPERLINK (text hiển thị là tên file, URL nằm trong link).
+    // Ưu tiên: hyperlink của cell -> URL trong formula HYPERLINK() -> giá trị hiển thị.
+    let cvUrl = "";
+    if (colMap[COLS.CV]) {
+      const cvCell = sheet.getRange(rowIndex, colMap[COLS.CV]);
+      const richText = cvCell.getRichTextValue();
+      cvUrl = (richText && richText.getLinkUrl()) || "";
+      if (!cvUrl) {
+        const formula = cvCell.getFormula() || "";
+        const m = formula.match(/HYPERLINK\(\s*"([^"]+)"/i);
+        if (m) cvUrl = m[1];
+      }
+      if (!cvUrl) cvUrl = String(cvCell.getDisplayValue()).trim();
+    }
+
     const candidate = {
       rowNumber: rowIndex,
       fullName: readCol(COLS.FULL_NAME),
@@ -55,7 +70,7 @@ function getSelectedCandidate() {
       workingEmail: readCol(COLS.WORKING_EMAIL),
       personalEmail: readCol(COLS.PERSONAL_EMAIL),
       phoneNumber: readCol("phonenumber"),
-      cvUrl: readCol(COLS.CV),
+      cvUrl: cvUrl,
     };
 
     if (!candidate.fullName) {
@@ -236,9 +251,15 @@ function readCvContent_(cvFileMeta, candidate) {
     file = tempFile;
   } else if (candidate && candidate.cvUrl) {
     // 2. Link CV trong cột CV của sheet
-    const fileId = extractDriveFileId_(candidate.cvUrl);
+    let fileId = extractDriveFileId_(candidate.cvUrl);
     if (!fileId) {
-      throw new Error(`Không đọc được File ID từ link CV: ${candidate.cvUrl}`);
+      // Cột CV chỉ chứa TÊN FILE (không phải link) -> tìm file trong Drive theo tên
+      fileId = findDriveFileIdByName_(candidate.cvUrl);
+      if (!fileId) {
+        throw new Error(
+          `Cột CV không chứa link Drive hợp lệ và không tìm thấy file nào tên "${candidate.cvUrl}" trong Drive của bạn. Hãy dán link Drive của CV vào cột CV hoặc upload file từ máy.`,
+        );
+      }
     }
     file = DriveApp.getFileById(fileId);
   } else {
@@ -263,6 +284,20 @@ function readCvContent_(cvFileMeta, candidate) {
   }
 
   return text;
+}
+
+/**
+ * Tìm file trong Drive theo TÊN (khi cột CV chỉ chứa tên file, không phải link).
+ * Trả về File ID của kết quả khớp đầu tiên, hoặc null nếu không thấy.
+ */
+function findDriveFileIdByName_(name) {
+  if (!name) return null;
+  const escaped = String(name).replace(/'/g, "\\'");
+  const it = DriveApp.searchFiles(`title contains '${escaped}' and trashed = false`);
+  while (it.hasNext()) {
+    return it.next().getId(); // lấy kết quả khớp đầu tiên
+  }
+  return null;
 }
 
 /** Trích Drive File ID từ nhiều dạng link Drive phổ biến */
