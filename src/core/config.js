@@ -48,8 +48,11 @@ const CONFIG = {
    * Lấy key miễn phí tại https://aistudio.google.com/apikey
    */
   GEMINI: {
-    MODEL: "gemini-3.5-flash",
+    // Thử lần lượt theo thứ tự: model chính bị rate limit (429) hoặc bị ngừng (404)
+    // sẽ tự chuyển sang model dự phòng tiếp theo.
+    MODELS: ["gemini-3.1-flash", "gemini-3.8-flash", "gemini-3.7-flash"],
     BASE_URL: "https://generativelanguage.googleapis.com/v1beta",
+    RETRY_DELAYS_MS: [2000, 5000], // backoff giữa các lần retry khi gặp 429
   },
 
   /**

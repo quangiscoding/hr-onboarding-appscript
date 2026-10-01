@@ -472,6 +472,8 @@ function extractDriveFileId_(url) {
 
 /**
  * Gọi Gemini API sinh phần Introduction từ CV.
+ * Với mỗi model trong CONFIG.GEMINI.MODELS: retry theo RETRY_DELAYS_MS khi gặp
+ * 429 (rate limit); hết retries hoặc lỗi 404 (model ngừng) thì chuyển model kế.
  * @param {Object} cvContent - Kết quả từ readCvContent_: { kind: "pdf_inline", pdfBase64 } hoặc { kind: "text", text }
  * @param {Object} candidate - Thông tin ứng viên để AI viết cho đúng ngữ cảnh
  * @returns {string} Phần Introduction tiếng Anh, văn phong giống các bài Welcome Onboard mẫu
@@ -487,8 +489,47 @@ function callGeminiSummarizeCv_(cvContent, candidate) {
     promptParts[0].text += "\n\nCV content:\n" + cvContent.text.slice(0, 15000);
   }
 
+  const models = (CONFIG.GEMINI.MODELS && CONFIG.GEMINI.MODELS.length
+    ? CONFIG.GEMINI.MODELS
+    : [CONFIG.GEMINI.MODEL || "gemini-3.1-flash"]
+  ).filter(Boolean);
+  const delays = CONFIG.GEMINI.RETRY_DELAYS_MS || [];
+  const errors = [];
+
+  for (const model of models) {
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
+      if (attempt > 0) {
+        Logger.log(
+          `⏳ Gemini ${model}: rate limit, thử lại sau ${delays[attempt - 1]}ms (lần ${attempt}/${delays.length})`,
+        );
+        Utilities.sleep(delays[attempt - 1]);
+      }
+
+      const result = callGeminiOnce_(model, promptParts);
+      if (result.ok) return result.text;
+
+      const { status, message } = result;
+      // 429 = rate limit -> retry cùng model; lỗi khác -> bỏ sang model kế
+      if (status !== 429) {
+        errors.push(`${model}: ${message}`);
+        break;
+      }
+      errors.push(`${model} (lần ${attempt + 1}): ${message}`);
+    }
+  }
+
+  throw new Error(
+    "Gemini API lỗi sau khi thử " + models.length + " model:\n" + errors.join("\n"),
+  );
+}
+
+/**
+ * Gọi generateContent 1 lần với 1 model. Không retry ở đây.
+ * @returns {Object} { ok: true, text } hoặc { ok: false, status, message }
+ */
+function callGeminiOnce_(model, promptParts) {
   const response = UrlFetchApp.fetch(
-    `${CONFIG.GEMINI.BASE_URL}/models/${CONFIG.GEMINI.MODEL}:generateContent?key=${getGeminiApiKey_()}`,
+    `${CONFIG.GEMINI.BASE_URL}/models/${model}:generateContent?key=${getGeminiApiKey_()}`,
     {
       method: "post",
       contentType: "application/json",
@@ -508,7 +549,7 @@ function callGeminiSummarizeCv_(cvContent, candidate) {
       body.error && body.error.message
         ? body.error.message
         : response.getContentText();
-    throw new Error(`Gemini API lỗi (HTTP ${statusCode}): ${errMsg}`);
+    return { ok: false, status: statusCode, message: errMsg };
   }
 
   const parts = body.candidates[0].content && body.candidates[0].content.parts;
@@ -518,8 +559,10 @@ function callGeminiSummarizeCv_(cvContent, candidate) {
       .map((p) => p.text || "")
       .join("")
       .trim();
-  if (!text) throw new Error("Gemini trả về nội dung rỗng.");
-  return text;
+  if (!text) {
+    return { ok: false, status: statusCode, message: "Gemini trả về nội dung rỗng." };
+  }
+  return { ok: true, text: text };
 }
 
 /**
