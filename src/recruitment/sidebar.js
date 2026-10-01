@@ -26,7 +26,7 @@ function showSidebar() {
     "recruitment/welcome-onboard",
   )
     .setTitle("AI Recruitment — Welcome Onboard")
-    .setWidth(320);
+    .setWidth(420);
   SpreadsheetApp.getUi().showSidebar(html);
 }
 

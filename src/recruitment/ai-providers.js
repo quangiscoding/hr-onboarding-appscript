@@ -27,12 +27,8 @@ function callGeminiSummarizeCv_(cvContent, candidate) {
 
   for (const provider of providers) {
     try {
-      if (provider === "openrouter") {
-        return callOpenRouter_(cvContent, prompt);
-      }
-      if (provider === "gemini") {
-        return callGeminiProvider_(cvContent, prompt);
-      }
+      if (provider === "openrouter") return callOpenRouter_(cvContent, prompt);
+      if (provider === "gemini") return callGeminiProvider_(cvContent, prompt);
       errors.push(`Không biết provider "${provider}" — bỏ qua.`);
     } catch (e) {
       errors.push(`[${provider}] ${e.message}`);
@@ -88,12 +84,14 @@ function callOpenRouter_(cvContent, prompt) {
       },
     });
   } else {
-    contentParts[0].text += "\n\nCV content:\n" + cvContent.text.slice(0, 15000);
+    contentParts[0].text +=
+      "\n\nCV content:\n" + cvContent.text.slice(0, 15000);
   }
 
-  const models = (CONFIG.OPENROUTER.MODELS && CONFIG.OPENROUTER.MODELS.length
-    ? CONFIG.OPENROUTER.MODELS
-    : ["google/gemini-2.5-flash"]
+  const models = (
+    CONFIG.OPENROUTER.MODELS && CONFIG.OPENROUTER.MODELS.length
+      ? CONFIG.OPENROUTER.MODELS
+      : ["google/gemini-2.5-flash"]
   ).filter(Boolean);
   const delays = CONFIG.GEMINI.RETRY_DELAYS_MS || [];
   const keys = getOpenRouterApiKeys_();
@@ -114,15 +112,24 @@ function callOpenRouter_(cvContent, prompt) {
 
       const { status, message } = result;
       if (status !== 429) {
-        errors.push(`${model} [key #${(attempt % keys.length) + 1}]: ${message}`);
+        errors.push(
+          `${model} [key #${(attempt % keys.length) + 1}]: ${message}`,
+        );
         break;
       }
-      errors.push(`${model} [key #${(attempt % keys.length) + 1}] (lần ${attempt + 1}): ${message}`);
+      errors.push(
+        `${model} [key #${(attempt % keys.length) + 1}] (lần ${attempt + 1}): ${message}`,
+      );
     }
   }
 
   throw new Error(
-    "OpenRouter lỗi sau khi thử " + models.length + " model × " + keys.length + " key:\n" + errors.join("\n"),
+    "OpenRouter lỗi sau khi thử " +
+      models.length +
+      " model × " +
+      keys.length +
+      " key:\n" +
+      errors.join("\n"),
   );
 }
 
@@ -131,19 +138,22 @@ function callOpenRouter_(cvContent, prompt) {
  * @returns {Object} { ok: true, text } hoặc { ok: false, status, message }
  */
 function callOpenRouterOnce_(model, contentParts, apiKey) {
-  const response = UrlFetchApp.fetch(`${CONFIG.OPENROUTER.BASE_URL}/chat/completions`, {
-    method: "post",
-    contentType: "application/json",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
+  const response = UrlFetchApp.fetch(
+    `${CONFIG.OPENROUTER.BASE_URL}/chat/completions`,
+    {
+      method: "post",
+      contentType: "application/json",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      payload: JSON.stringify({
+        model: model,
+        messages: [{ role: "user", content: contentParts }],
+        max_tokens: 1024,
+      }),
+      muteHttpExceptions: true,
     },
-    payload: JSON.stringify({
-      model: model,
-      messages: [{ role: "user", content: contentParts }],
-      max_tokens: 1024,
-    }),
-    muteHttpExceptions: true,
-  });
+  );
 
   const statusCode = response.getResponseCode();
   const body = JSON.parse(response.getContentText() || "{}");
@@ -155,9 +165,15 @@ function callOpenRouterOnce_(model, contentParts, apiKey) {
     return { ok: false, status: statusCode, message: errMsg };
   }
 
-  const text = String(body.choices[0].message && body.choices[0].message.content || "").trim();
+  const text = String(
+    (body.choices[0].message && body.choices[0].message.content) || "",
+  ).trim();
   if (!text) {
-    return { ok: false, status: statusCode, message: "OpenRouter trả về nội dung rỗng." };
+    return {
+      ok: false,
+      status: statusCode,
+      message: "OpenRouter trả về nội dung rỗng.",
+    };
   }
   return { ok: true, text: text };
 }
@@ -172,7 +188,13 @@ function getOpenRouterApiKeys_() {
   const props = PropertiesService.getScriptProperties();
   const keys = [];
   const first = props.getProperty("OPENROUTER_API_KEY");
-  if (first) keys.push(...first.split(",").map((k) => k.trim()).filter(Boolean));
+  if (first)
+    keys.push(
+      ...first
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean),
+    );
   for (let i = 2; i <= 10; i++) {
     const k = props.getProperty(`OPENROUTER_API_KEY_${i}`);
     if (k) keys.push(k.trim());
@@ -205,9 +227,10 @@ function callGeminiProvider_(cvContent, prompt) {
     promptParts[0].text += "\n\nCV content:\n" + cvContent.text.slice(0, 15000);
   }
 
-  const models = (CONFIG.GEMINI.MODELS && CONFIG.GEMINI.MODELS.length
-    ? CONFIG.GEMINI.MODELS
-    : [CONFIG.GEMINI.MODEL || "gemini-3.1-flash"]
+  const models = (
+    CONFIG.GEMINI.MODELS && CONFIG.GEMINI.MODELS.length
+      ? CONFIG.GEMINI.MODELS
+      : [CONFIG.GEMINI.MODEL || "gemini-3.1-flash"]
   ).filter(Boolean);
   const delays = CONFIG.GEMINI.RETRY_DELAYS_MS || [];
   const keys = getGeminiApiKeys_(); // xoay vòng khi gặp 429
@@ -230,15 +253,24 @@ function callGeminiProvider_(cvContent, prompt) {
       const { status, message } = result;
       // 429 = rate limit -> retry với key kế tiếp; lỗi khác -> bỏ sang model kế
       if (status !== 429) {
-        errors.push(`${model} [key #${(attempt % keys.length) + 1}]: ${message}`);
+        errors.push(
+          `${model} [key #${(attempt % keys.length) + 1}]: ${message}`,
+        );
         break;
       }
-      errors.push(`${model} [key #${(attempt % keys.length) + 1}] (lần ${attempt + 1}): ${message}`);
+      errors.push(
+        `${model} [key #${(attempt % keys.length) + 1}] (lần ${attempt + 1}): ${message}`,
+      );
     }
   }
 
   throw new Error(
-    "Gemini API lỗi sau khi thử " + models.length + " model × " + keys.length + " key:\n" + errors.join("\n"),
+    "Gemini API lỗi sau khi thử " +
+      models.length +
+      " model × " +
+      keys.length +
+      " key:\n" +
+      errors.join("\n"),
   );
 }
 
@@ -279,7 +311,11 @@ function callGeminiOnce_(model, promptParts, apiKey) {
       .join("")
       .trim();
   if (!text) {
-    return { ok: false, status: statusCode, message: "Gemini trả về nội dung rỗng." };
+    return {
+      ok: false,
+      status: statusCode,
+      message: "Gemini trả về nội dung rỗng.",
+    };
   }
   return { ok: true, text: text };
 }
@@ -304,7 +340,13 @@ function getGeminiApiKeys_() {
 
   // Cách 1: GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, ...
   const first = props.getProperty("GEMINI_API_KEY");
-  if (first) keys.push(...first.split(",").map((k) => k.trim()).filter(Boolean));
+  if (first)
+    keys.push(
+      ...first
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean),
+    );
   for (let i = 2; i <= 10; i++) {
     const k = props.getProperty(`GEMINI_API_KEY_${i}`);
     if (k) keys.push(k.trim());

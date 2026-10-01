@@ -151,7 +151,8 @@ function uploadCandidatePhoto(photo, candidate) {
     const { uploadUrl, form, attachment } = createBody.data;
 
     // 2. POST multipart lên S3: toàn bộ form fields trước, file blob CUỐI, KHÔNG auth header
-    const boundary = "-------gasOutline" + Utilities.getUuid().replace(/-/g, "");
+    const boundary =
+      "-------gasOutline" + Utilities.getUuid().replace(/-/g, "");
     let prefix = "";
     for (const [key, value] of Object.entries(form || {})) {
       prefix += `--${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`;
