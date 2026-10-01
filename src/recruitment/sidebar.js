@@ -326,6 +326,8 @@ function readCvContent_(cvFileMeta, candidate) {
 function extractTextFromDocx_(blob) {
   let xml = null;
   try {
+    // Utilities.unzip yêu cầu ContentType = application/zip — docx mang MIME Word riêng nên phải ép lại
+    blob.setContentType("application/zip");
     const entries = Utilities.unzip(blob);
     for (let i = 0; i < entries.length; i++) {
       if (entries[i].getName() === "word/document.xml") {
