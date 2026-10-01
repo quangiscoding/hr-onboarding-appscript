@@ -202,13 +202,20 @@ function uploadCandidatePhoto(photo, candidate) {
       : DriveApp.getRootFolder();
     const file = folder.createFile(blob);
 
-    // Cho phép bất kỳ ai có link xem được ảnh (Outline render ảnh qua URL công khai)
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    // Cho phép bất kỳ ai có link xem được ảnh (Outline render ảnh qua URL công khai).
+    // Bọc riêng: Workspace domain có thể chặn share ra ngoài — không được làm sập upload.
+    let sharingWarning = "";
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (shareError) {
+      sharingWarning = 'Không đặt được quyền "anyone with link" (domain có thể chặn share ngoài) — ảnh sẽ không hiện trong Outline.';
+      Logger.log("⚠️ setSharing lỗi: " + shareError.toString());
+    }
 
-    // URL xem trực tiếp nội dung ảnh (không phải trang preview Drive)
-    const directUrl = `https://drive.google.com/uc?export=view&id=${file.getId()}`;
+    // URL render trực tiếp nội dung ảnh (ổn định hơn uc?export=view — redirect về CDN lh3)
+    const directUrl = `https://lh3.googleusercontent.com/d/${file.getId()}`;
 
-    return { ok: true, fileId: file.getId(), url: directUrl };
+    return { ok: true, fileId: file.getId(), url: directUrl, warning: sharingWarning };
   } catch (error) {
     Logger.log("❌ uploadCandidatePhoto lỗi: " + error.toString());
     return { ok: false, error: error.message || error.toString() };
@@ -496,6 +503,9 @@ function submitIntroductionPost(formData) {
       const uploadResult = uploadCandidatePhoto(photo, candidate);
       if (uploadResult.ok) {
         photoMarkdownLine = `![${candidate.fullName}](${uploadResult.url})`;
+        if (uploadResult.warning) {
+          photoWarning = `⚠️ ${uploadResult.warning}`;
+        }
       } else {
         // Ảnh lỗi không chặn việc tạo post — chỉ cảnh báo
         photoWarning = `⚠️ Ảnh không upload được: ${uploadResult.error}`;
