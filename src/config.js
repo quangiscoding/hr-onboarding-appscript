@@ -3,11 +3,14 @@
  * ========================================== */
 
 const CONFIG = {
-  RECIPIENTS: {
-    DEVOPS: "tuan.le@kyanon.digital",
-    HR: "tuyen.tranthithanh@kyanon.digital",
-    IT: "trung.nguyen@kyanon.digital",
-    PEOPLE_TEAM: "people@kyanon.digital",
+  // Tên sheet chứa bảng cấu hình động (Role | Send to | CC)
+  DATA_SHEET_NAME: "Data",
+  // Tên các Role tra cứu trong cột "Role" của sheet Data
+  RECIPIENT_ROLES: {
+    DEVOPS: "DevOps",
+    HR: "OKR",
+    IT: "IT Support",
+    PEOPLE_TEAM: "People Team",
   },
   GUIDE_PDF_MAP: {
     intern_danang: "1soQu_zY8ZWrKwu3MqA7TGgEQibWQgXht",
