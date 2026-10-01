@@ -45,9 +45,11 @@ const CONFIG = {
   /**
    * AI provider cho việc tóm tắt CV — thử theo thứ tự, provider đầu lỗi
    * (rate limit, key thiếu, API lỗi...) sẽ tự chuyển sang provider kế.
+   * Lưu ý: OpenRouter yêu cầu tài khoản có tối thiểu $0.50 credit mới gửi
+   * được file đính kèm (PDF) — chưa nạp tiền thì nên để "gemini" trước.
    * Chọn: "openrouter" | "gemini"
    */
-  AI_PROVIDERS: ["openrouter", "gemini"],
+  AI_PROVIDERS: ["gemini", "openrouter"],
 
   /**
    * OpenRouter (ưu tiên dùng — 1 API key thống nhất cho mọi model, free tier
@@ -65,9 +67,15 @@ const CONFIG = {
    * Lấy key miễn phí tại https://aistudio.google.com/apikey
    */
   GEMINI: {
-    // Thử lần lượt theo thứ tự: model chính bị rate limit (429) hoặc bị ngừng (404)
-    // sẽ tự chuyển sang model dự phòng tiếp theo.
-    MODELS: ["gemini-3.1-flash", "gemini-3.8-flash", "gemini-3.7-flash"],
+    // Thử lần lượt theo thứ tự: model chính bị rate limit (429), quá tải (503)
+    // hoặc không tồn tại (404) sẽ tự chuyển sang model dự phòng tiếp theo.
+    // "gemini-flash-latest": alias tự trỏ model flash mới nhất, "gemini-2.5-flash": ổn định nhất.
+    MODELS: [
+      "gemini-flash-latest",
+      "gemini-2.5-flash",
+      "gemini-3.8-flash",
+      "gemini-3.7-flash",
+    ],
     BASE_URL: "https://generativelanguage.googleapis.com/v1beta",
     RETRY_DELAYS_MS: [2000, 5000], // backoff giữa các lần retry khi gặp 429
   },
