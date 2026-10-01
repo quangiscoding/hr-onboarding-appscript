@@ -55,6 +55,20 @@
       }
       .btn:hover { background: #d93836; }
       .btn:disabled { background: #bdc1c6; cursor: not-allowed; }
+      .btn-ai {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ef403e;
+        border-radius: 6px;
+        background: #fff;
+        color: #ef403e;
+        font-weight: 600;
+        font-size: 12.5px;
+        cursor: pointer;
+        margin-top: 6px;
+      }
+      .btn-ai:hover { background: #fef1f0; }
+      .btn-ai:disabled { border-color: #bdc1c6; color: #bdc1c6; background: #fff; cursor: not-allowed; }
       .btn-secondary {
         width: 100%;
         margin-top: 6px;
@@ -65,6 +79,44 @@
         color: #1a73e8;
         font-weight: 500;
         cursor: pointer;
+      }
+      /* Photo upload */
+      .photo-drop {
+        border: 2px dashed #dadce0;
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+        color: #5f6368;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .photo-drop:hover { border-color: #ef403e; color: #ef403e; }
+      .photo-preview-wrap { display: none; margin-top: 8px; text-align: center; position: relative; }
+      .photo-preview {
+        max-width: 100%;
+        max-height: 160px;
+        border-radius: 8px;
+        border: 1px solid #e8eaed;
+      }
+      .photo-remove {
+        position: absolute;
+        top: 4px; right: 4px;
+        background: #202124cc;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 22px; height: 22px;
+        cursor: pointer;
+        font-size: 12px;
+        line-height: 1;
+      }
+      /* CV upload */
+      .cv-file-name {
+        font-size: 11.5px;
+        color: #137333;
+        margin-top: 4px;
+        display: none;
+        word-break: break-all;
       }
       .status {
         display: none;
@@ -80,7 +132,7 @@
       .spinner {
         display: inline-block;
         width: 12px; height: 12px;
-        border: 2px solid #fff;
+        border: 2px solid currentColor;
         border-top-color: transparent;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
@@ -88,7 +140,7 @@
         margin-right: 6px;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
-      .empty { color: #b3261e; margin-top: 12px; }
+      input[type="file"] { display: none; }
     </style>
   </head>
   <body>
@@ -102,6 +154,29 @@
       <div class="section-title">Thông tin ứng viên (dòng đang chọn)</div>
       <div class="card" id="candidate-card"></div>
 
+      <div class="section-title">Ảnh ứng viên</div>
+      <div class="photo-drop" id="photo-drop" onclick="document.getElementById('photo-input').click()">
+        📷 Bấm để chọn ảnh (JPG/PNG, tối đa 5MB)
+      </div>
+      <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" onchange="handlePhotoSelect(this)" />
+      <div class="photo-preview-wrap" id="photo-preview-wrap">
+        <img id="photo-preview" class="photo-preview" alt="preview" />
+        <button class="photo-remove" onclick="clearPhoto(event)" title="Xóa ảnh">✕</button>
+      </div>
+
+      <div class="section-title">CV (cho AI tóm tắt)</div>
+      <div class="card">
+        <div id="cv-sheet-status">Đang kiểm tra link CV trên sheet...</div>
+        <div class="cv-file-name" id="cv-file-name"></div>
+        <button class="btn-secondary" style="margin-top: 6px" onclick="document.getElementById('cv-input').click()">
+          ⬆️ Upload CV khác từ máy (PDF/Doc)
+        </button>
+        <input type="file" id="cv-input" accept="application/pdf,.doc,.docx,.txt" onchange="handleCvSelect(this)" />
+      </div>
+      <button id="ai-btn" class="btn-ai" onclick="handleAiSummarize()">
+        ✨ AI tóm tắt CV → soạn Introduction
+      </button>
+
       <div class="section-title">Introduction</div>
       <textarea
         id="introduction"
@@ -109,7 +184,7 @@
       ></textarea>
       <div class="hint">
         Nội dung này sẽ là phần <b>Introduction</b> trong bài đăng (markdown hỗ trợ
-        <b>**bold**</b>, _italic_, emoji).
+        <b>**bold**</b>, _italic_, emoji). Có thể bấm nút ✨ để AI soạn sẵn rồi chỉnh tay.
       </div>
 
       <button id="submit-btn" class="btn" onclick="handleSubmit()">Submit → Tạo draft trên Outline</button>
@@ -120,6 +195,8 @@
 
     <script>
       let currentCandidate = null;
+      let photoData = null; // { dataBase64, fileName, mimeType } | null
+      let cvFileData = null; // CV upload từ máy (ưu tiên hơn CV trên sheet)
 
       function escapeHtml(str) {
         const div = document.createElement("div");
@@ -157,55 +234,116 @@
         el.innerHTML = html;
       }
 
-      function setLoading(loading) {
-        const btn = document.getElementById("submit-btn");
-        btn.disabled = loading;
-        btn.innerHTML = loading
-          ? '<span class="spinner"></span>Đang tạo draft...'
-          : "Submit → Tạo draft trên Outline";
+      function clearStatus() {
+        document.getElementById("status").className = "status";
       }
 
-      function loadCandidate() {
+      /* ---------------- PHOTO ---------------- */
+      function handlePhotoSelect(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+          showStatus("error", "⚠️ Ảnh vượt quá 5MB. Hãy chọn ảnh nhỏ hơn.");
+          input.value = "";
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const base64 = e.target.result.split(",")[1]; // bỏ prefix data:...;base64,
+          photoData = { dataBase64: base64, fileName: file.name, mimeType: file.type };
+          document.getElementById("photo-preview").src = e.target.result;
+          document.getElementById("photo-preview-wrap").style.display = "block";
+          document.getElementById("photo-drop").style.display = "none";
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function clearPhoto(event) {
+        if (event) event.stopPropagation();
+        photoData = null;
+        document.getElementById("photo-input").value = "";
+        document.getElementById("photo-preview-wrap").style.display = "none";
+        document.getElementById("photo-drop").style.display = "block";
+      }
+
+      /* ---------------- CV ---------------- */
+      function handleCvSelect(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+          showStatus("error", "⚠️ File CV vượt quá 10MB.");
+          input.value = "";
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const base64 = e.target.result.split(",")[1];
+          cvFileData = { dataBase64: base64, fileName: file.name, mimeType: file.type };
+          const el = document.getElementById("cv-file-name");
+          el.style.display = "block";
+          el.textContent = "📄 Đã chọn file: " + file.name + " (sẽ dùng file này thay CV trên sheet)";
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function updateCvSheetStatus(candidate) {
+        const el = document.getElementById("cv-sheet-status");
+        if (candidate.cvUrl) {
+          el.innerHTML = "✅ CV trên sheet: <i>" + escapeHtml(truncate(candidate.cvUrl, 60)) + "</i>";
+        } else {
+          el.innerHTML = "⚠️ Cột CV trên sheet trống — hãy upload CV từ máy để dùng AI.";
+        }
+      }
+
+      function truncate(str, n) {
+        return str.length > n ? str.slice(0, n) + "..." : str;
+      }
+
+      /* ---------------- AI SUMMARIZE ---------------- */
+      function handleAiSummarize() {
+        if (!currentCandidate) return;
+        const btn = document.getElementById("ai-btn");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>AI đang đọc CV...';
+        clearStatus();
+
         google.script.run
           .withSuccessHandler(function (res) {
-            document.getElementById("loading").style.display = "none";
-            if (!res || !res.ok) {
-              const box = document.getElementById("error-box");
-              box.style.display = "block";
-              box.textContent = (res && res.error) || "Không đọc được dữ liệu.";
-              return;
+            btn.disabled = false;
+            btn.innerHTML = "✨ AI tóm tắt CV → soạn Introduction";
+            if (res && res.ok) {
+              document.getElementById("introduction").value = res.introduction;
+              showStatus("success", "✨ AI đã soạn Introduction. Bạn có thể chỉnh tay trước khi Submit.");
+            } else {
+              showStatus("error", "❌ " + escapeHtml((res && res.error) || "Lỗi không xác định."));
             }
-            currentCandidate = res.candidate;
-            renderCandidate(res.candidate);
-            document.getElementById("main").style.display = "block";
           })
           .withFailureHandler(function (err) {
-            document.getElementById("loading").style.display = "none";
-            const box = document.getElementById("error-box");
-            box.style.display = "block";
-            box.textContent = "Lỗi: " + err.message;
+            btn.disabled = false;
+            btn.innerHTML = "✨ AI tóm tắt CV → soạn Introduction";
+            showStatus("error", "❌ Lỗi: " + escapeHtml(err.message));
           })
-          .getSelectedCandidate();
+          .summarizeCvToIntro({ candidate: currentCandidate, cvFile: cvFileData });
       }
 
-      function reloadCandidate() {
-        document.getElementById("status").className = "status";
-        loadCandidate();
-      }
-
+      /* ---------------- SUBMIT ---------------- */
       function handleSubmit() {
         const introduction = document.getElementById("introduction").value.trim();
         if (!introduction) {
-          showStatus("error", "⚠️ Vui lòng nhập nội dung Introduction.");
+          showStatus("error", "⚠️ Vui lòng nhập nội dung Introduction (hoặc bấm ✨ để AI soạn).");
           return;
         }
 
-        setLoading(true);
-        showStatus("success", "Đang gửi tới Outline...");
+        const btn = document.getElementById("submit-btn");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Đang tạo draft...';
+        clearStatus();
+        if (photoData) showStatus("success", "Đang upload ảnh và tạo draft...");
 
         google.script.run
           .withSuccessHandler(function (res) {
-            setLoading(false);
+            btn.disabled = false;
+            btn.innerHTML = "Submit → Tạo draft trên Outline";
             if (res && res.ok) {
               showStatus(
                 "success",
@@ -219,13 +357,47 @@
             }
           })
           .withFailureHandler(function (err) {
-            setLoading(false);
+            btn.disabled = false;
+            btn.innerHTML = "Submit → Tạo draft trên Outline";
             showStatus("error", "❌ Lỗi: " + escapeHtml(err.message));
           })
-          .submitIntroductionPost({ introduction: introduction, candidate: currentCandidate });
+          .submitIntroductionPost({
+            introduction: introduction,
+            candidate: currentCandidate,
+            photo: photoData,
+          });
       }
 
-      // Khởi tạo khi sidebar mở
+      /* ---------------- INIT ---------------- */
+      function loadCandidate() {
+        google.script.run
+          .withSuccessHandler(function (res) {
+            document.getElementById("loading").style.display = "none";
+            if (!res || !res.ok) {
+              const box = document.getElementById("error-box");
+              box.style.display = "block";
+              box.textContent = (res && res.error) || "Không đọc được dữ liệu.";
+              return;
+            }
+            currentCandidate = res.candidate;
+            renderCandidate(res.candidate);
+            updateCvSheetStatus(res.candidate);
+            document.getElementById("main").style.display = "block";
+          })
+          .withFailureHandler(function (err) {
+            document.getElementById("loading").style.display = "none";
+            const box = document.getElementById("error-box");
+            box.style.display = "block";
+            box.textContent = "Lỗi: " + err.message;
+          })
+          .getSelectedCandidate();
+      }
+
+      function reloadCandidate() {
+        clearStatus();
+        loadCandidate();
+      }
+
       loadCandidate();
     </script>
   </body>

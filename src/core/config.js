@@ -43,6 +43,25 @@ const CONFIG = {
     // COLLECTION_ID: "", // chỉ cần khi PUBLISH = true
   },
 
+  /**
+   * Google Gemini (AI tóm tắt CV cho phần Introduction)
+   * ⚠️ API key đặt Script Property "GEMINI_API_KEY" — KHÔNG hardcode.
+   * Lấy key miễn phí tại https://aistudio.google.com/apikey
+   */
+  GEMINI: {
+    MODEL: "gemini-2.0-flash",
+    BASE_URL: "https://generativelanguage.googleapis.com/v1beta",
+  },
+
+  /**
+   * Upload ảnh ứng viên: lưu vào Drive folder này rồi embed vào bài Outline.
+   * FOLDER_ID: ID của Google Drive folder chứa ảnh nhân sự (để trống = lưu vào root của My Drive).
+   */
+  PHOTO_UPLOAD: {
+    FOLDER_ID: "",
+    MAX_SIZE_MB: 5,
+  },
+
   /** Cấu hình tab log: tên sheet + header của từng luồng */
   LOG: {
     INTERNAL: {
@@ -85,6 +104,7 @@ const CONFIG = {
 // Key = normalizeHeaderKey(<tên header trên Sheet>) -> đảm bảo khớp sheet thật.
 const COLS = {
   FULL_NAME: normalizeHeaderKey("Full Name"),
+  ACCENTLESS_FULL_NAME: normalizeHeaderKey("Accentless Full Name"),
   LEVEL: normalizeHeaderKey("Level"),
   EMPLOYMENT_TYPE: normalizeHeaderKey("Employment Type"),
   TITLE: normalizeHeaderKey("Title"),
@@ -97,6 +117,7 @@ const COLS = {
   ONBOARDING_TYPE: normalizeHeaderKey("Onboarding Type"),
   WORKING_EMAIL: normalizeHeaderKey("Working Email"),
   PERSONAL_EMAIL: normalizeHeaderKey("Personal Email"),
+  CV: normalizeHeaderKey("CV"),
   LINK_FOLDER_OKRS: normalizeHeaderKey("Link Folder OKRs"),
   REMARKS: normalizeHeaderKey("Remarks\n(update by Atlas)"),
   ALLOC_CODE: normalizeHeaderKey("Alloc Code\n(update by Atlas)"),

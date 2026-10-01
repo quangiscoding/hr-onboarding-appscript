@@ -24,18 +24,22 @@ src/
 ├── main.js                # CONTROLLER: onOpen (menu) + WORKFLOW_REGISTRY + executeWorkflowRunner
 │                          #   (PHẢI nằm ở gốc src/ — menu bind theo tên hàm)
 ├── core/                  # Không phụ thuộc nghiệp vụ, dùng chung bởi mọi module
-│   ├── config.js          #   CONFIG (RECIPIENTS, GUIDE_PDF_MAP, OFFICE_ADDRESS, LOG) + COLS
+│   ├── config.js          #   CONFIG (RECIPIENTS, GUIDE_PDF_MAP, OFFICE_ADDRESS, OUTLINE, GEMINI,
+│   │                      #   PHOTO_UPLOAD, LOG) + COLS
 │   ├── utils.js           #   Pure helpers + Sheet helpers + Template/Drive helpers
 │   └── ui-feedback.js     #   WorkflowError + notifySuccess/notifyWarning/notifyError/confirmAction
-│                          #   (điểm DUY NHẤT gọi getUi() ngoài main.js)
+│                          #   (điểm DUY NHẤT gọi getUi() ngoài main.js + recruitment)
 ├── onboarding/            # Module 1: Onboarding Email Automation
 │   ├── normalize-input.js #   getNormalizedInput: sheet row -> JSON payload chuẩn
 │   ├── workflows.js       #   3 hàm handle*Workflow: return {ok, message,...} / throw WorkflowError
 │   ├── email-templates.js #   5 hàm get*EmailTemplate -> { subject, htmlBody }
 │   ├── email-templates/   #   5 file .html
 │   └── logger.js          #   appendWorkflowLog + 3 hàm log*Workflow -> tab sheet
-├── recruitment/
-│   └── sidebar.js         # Stub showSidebar — module AI Recruitment làm sau (Phase 5)
+├── recruitment/           # Module 2: AI Recruitment — Welcome Onboard Generator
+│   ├── sidebar.js         #   Server: getSelectedCandidate, uploadCandidatePhoto,
+│   │                      #   summarizeCvToIntro (Gemini), submitIntroductionPost (Outline)
+│   └── welcome-onboard.html # Sidebar UI (tên file PHẢI là welcome-onboard.html —
+│                           #   trùng tên remote với sidebar.js sẽ gây lỗi clasp push)
 └── legacy/
     └── custom-functions.js # @customfunction cho sheet formula (specificDays, convertVn2...)
 ```
@@ -81,7 +85,13 @@ src/
 
 - **`legacy/custom-functions.js`** — các hàm `@customfunction` dùng trực tiếp trong công thức sheet, **KHÔNG ĐƯỢC ĐỔI TÊN**: `specificDays(dayName, monthName, year)`, `removeAccent(text)`, `convertVn2FirstLastName(text, removeAccentFlag)`, `convertVn2FirstFullname(text, removeAccentFlag)`, `convertFName2EmailAddress(text)`.
 
-- **`recruitment/sidebar.js` + `sidebar.html`**: module AI Recruitment — sidebar "Welcome Onboard Generator": đọc dòng đang chọn (`getSelectedCandidate`) → người dùng soạn Introduction → Submit → gọi Outline API `documents.create` (`publish:false` → draft nằm ở mục Drafts cá nhân của tài khoản token). **API token bắt buộc đặt trong Script Property `OUTLINE_API_TOKEN`** (Apps Script → Project Settings → Script Properties), KHÔNG hardcode.
+- **`recruitment/sidebar.js` + `recruitment/welcome-onboard.html`** — module AI Recruitment, sidebar "Welcome Onboard Generator" (mở từ menu "🚀 AI Recruitment"):
+  - **Đọc ứng viên:** `getSelectedCandidate()` đọc dòng đang chọn qua `getHeaderColumnMap` (fullName, title, squad, lineManager, dateOfOnboard, cvUrl...).
+  - **Ảnh ứng viên:** ô upload trong sidebar (≤5MB, base64) → `uploadCandidatePhoto()` lưu vào Drive folder `CONFIG.PHOTO_UPLOAD.FOLDER_ID` (trống = root), set sharing ANYONE_WITH_LINK/VIEW, embed `https://drive.google.com/uc?export=view&id=<fileId>` lên đầu bài markdown.
+  - **AI tóm tắt CV (Gemini):** `summarizeCvToIntro()` đọc CV (ưu tiên file upload từ máy ≤10MB, fallback link cột CV qua `extractDriveFileId_`) → trích text (GDoc mở DocumentApp trực tiếp; PDF convert tạm qua GDoc rồi trash) → `callGeminiSummarizeCv_` gọi Gemini `generateContent` (model `CONFIG.GEMINI.MODEL`), prompt tiếng Anh theo style bài mẫu, chỉ dùng facts từ CV → trả paragraph điền vào textarea Introduction.
+  - **Submit:** `submitIntroductionPost()` upload ảnh (nếu có) + `buildWelcomePostMarkdown` (First working day / Job Title / Line Manager / Introduction) → `callOutlineCreateDocument_` POST `documents.create` (`publish:false` → draft nằm ở Drafts cá nhân của tài khoản token).
+  - **Script Properties bắt buộc (Apps Script → Project Settings):** `OUTLINE_API_TOKEN` (token Outline dạng `ol_api_...`) và `GEMINI_API_KEY` (lấy tại https://aistudio.google.com/apikey). KHÔNG hardcode hai giá trị này.
+  - **OAuth scopes:** `drive` (full — cần để createFile upload ảnh + temp CV) và `documents` (DocumentApp đọc text GDoc) đã thêm vào `appsscript.json`; khi push lần đầu user sẽ được yêu cầu re-authorize.
 - **`core/ui-feedback.js`**: class `WorkflowError(code, userMessage, details)` + `notifySuccess/notifyWarning/notifyError/confirmAction`. Workflow chỉ return kết quả / throw WorkflowError; main.js gọi các hàm này để hiển thị (Phase 1).
 
 ---
@@ -123,5 +133,5 @@ src/
 2. **Defensive Programming:** Luôn dùng `clean()` cho chuỗi so sánh; bọc thao tác gọi dịch vụ ngoài (DriveApp, GmailApp) trong `try...catch`; log phải fail-safe.
 3. **Không phá contract hiện có:** Không đổi tên `onOpen`, các hàm `menu*`, các `handle*Workflow`, các `get*EmailTemplate`, và các `@customfunction` trong `legacy-utils.js` (menu/formula bind theo string tên hàm).
 4. **Không tái引入 onEdit:** các cột checkbox trigger đã bị gỡ khỏi sheet; flow hiện tại 100% qua Custom Menu.
-5. **UI Feedback:** thông báo kết quả bằng `SpreadsheetApp.getUi().alert()` cuối mỗi workflow. (Lộ trình chuyển sang layer `core/ui-feedback.js`: xem Phase 1 của `docs/refactor-plan.md`.)
+5. **UI Feedback:** các luồng onboarding báo kết quả qua `core/ui-feedback.js`; sidebar recruitment tự quản UI qua google.script.run (return `{ok, ...}`/`{ok:false, error}`).
 6. **Khi thêm module mới** (vd AI Recruitment): đặt file trong thư mục riêng (`src/recruitment/`), KHÔNG import chéo với `onboarding`, tái dùng `utils.js`/`config.js`. Chi tiết kiến trúc đích: mục 2 của `docs/refactor-plan.md`.
