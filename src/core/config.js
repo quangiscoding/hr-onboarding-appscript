@@ -43,7 +43,24 @@ const CONFIG = {
   },
 
   /**
-   * Google Gemini (AI tóm tắt CV cho phần Introduction)
+   * AI provider cho việc tóm tắt CV — thử theo thứ tự, provider đầu lỗi
+   * (rate limit, key thiếu, API lỗi...) sẽ tự chuyển sang provider kế.
+   * Chọn: "openrouter" | "gemini"
+   */
+  AI_PROVIDERS: ["openrouter", "gemini"],
+
+  /**
+   * OpenRouter (ưu tiên dùng — 1 API key thống nhất cho mọi model, free tier
+   * rộng hơn). ⚠️ Key đặt Script Property "OPENROUTER_API_KEY" — KHÔNG hardcode.
+   * Lấy key tại https://openrouter.ai/settings/keys
+   */
+  OPENROUTER: {
+    BASE_URL: "https://openrouter.ai/api/v1",
+    MODELS: ["google/gemini-2.5-flash"],
+  },
+
+  /**
+   * Google Gemini (AI provider dự phòng)
    * ⚠️ API key đặt Script Property "GEMINI_API_KEY" — KHÔNG hardcode.
    * Lấy key miễn phí tại https://aistudio.google.com/apikey
    */

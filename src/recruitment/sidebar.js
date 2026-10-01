@@ -492,15 +492,43 @@ function extractDriveFileId_(url) {
 }
 
 /**
- * Gọi Gemini API sinh phần Introduction từ CV.
- * Với mỗi model trong CONFIG.GEMINI.MODELS: retry theo RETRY_DELAYS_MS khi gặp
- * 429 (rate limit); hết retries hoặc lỗi 404 (model ngừng) thì chuyển model kế.
+ * Gọi AI sinh phần Introduction từ CV.
+ * Provider thử theo thứ tự trong CONFIG.AI_PROVIDERS (mặc định: openrouter trước,
+ * gemini dự phòng). Trong mỗi provider: xoay vòng key + retry backoff khi 429,
+ * chuyển model khi 404.
  * @param {Object} cvContent - Kết quả từ readCvContent_: { kind: "pdf_inline", pdfBase64 } hoặc { kind: "text", text }
  * @param {Object} candidate - Thông tin ứng viên để AI viết cho đúng ngữ cảnh
  * @returns {string} Phần Introduction tiếng Anh, văn phong giống các bài Welcome Onboard mẫu
  */
 function callGeminiSummarizeCv_(cvContent, candidate) {
-  const promptParts = [{ text: buildGeminiPrompt_(candidate) }];
+  const prompt = buildGeminiPrompt_(candidate);
+  const providers = CONFIG.AI_PROVIDERS || ["gemini"];
+  const errors = [];
+
+  for (const provider of providers) {
+    try {
+      if (provider === "openrouter") {
+        return callOpenRouter_(cvContent, prompt);
+      }
+      if (provider === "gemini") {
+        return callGeminiProvider_(cvContent, prompt);
+      }
+      errors.push(`Không biết provider "${provider}" — bỏ qua.`);
+    } catch (e) {
+      errors.push(`[${provider}] ${e.message}`);
+      Logger.log(`⚠️ Provider ${provider} lỗi, thử provider kế: ${e.message}`);
+    }
+  }
+
+  throw new Error("Tất cả AI provider đều lỗi:\n" + errors.join("\n"));
+}
+
+/**
+ * Provider GEMINI: với mỗi model trong CONFIG.GEMINI.MODELS — xoay vòng key và
+ * retry theo RETRY_DELAYS_MS khi gặp 429; lỗi khác thì chuyển model kế.
+ */
+function callGeminiProvider_(cvContent, prompt) {
+  const promptParts = [{ text: prompt }];
 
   if (cvContent.kind === "pdf_inline") {
     promptParts.push({
@@ -545,6 +573,122 @@ function callGeminiSummarizeCv_(cvContent, candidate) {
   throw new Error(
     "Gemini API lỗi sau khi thử " + models.length + " model × " + keys.length + " key:\n" + errors.join("\n"),
   );
+}
+
+/**
+ * Provider OPENROUTER: OpenAI-compatible chat completions, PDF gửi dạng file
+ * content part (base64 data URL). Xoay vòng OPENROUTER_API_KEY(S) khi 429,
+ * thử lần lượt CONFIG.OPENROUTER.MODELS.
+ * @returns {string} Introduction text
+ */
+function callOpenRouter_(cvContent, prompt) {
+  const contentParts = [{ type: "text", text: prompt }];
+
+  if (cvContent.kind === "pdf_inline") {
+    contentParts.push({
+      type: "file",
+      file: {
+        filename: cvContent.fileName || "cv.pdf",
+        file_data: `data:application/pdf;base64,${cvContent.pdfBase64}`,
+      },
+    });
+  } else {
+    contentParts[0].text += "\n\nCV content:\n" + cvContent.text.slice(0, 15000);
+  }
+
+  const models = (CONFIG.OPENROUTER.MODELS && CONFIG.OPENROUTER.MODELS.length
+    ? CONFIG.OPENROUTER.MODELS
+    : ["google/gemini-2.5-flash"]
+  ).filter(Boolean);
+  const delays = CONFIG.GEMINI.RETRY_DELAYS_MS || [];
+  const keys = getOpenRouterApiKeys_();
+  const errors = [];
+
+  for (const model of models) {
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
+      if (attempt > 0) {
+        Logger.log(
+          `⏳ OpenRouter ${model}: rate limit, thử lại sau ${delays[attempt - 1]}ms (lần ${attempt}/${delays.length})`,
+        );
+        Utilities.sleep(delays[attempt - 1]);
+      }
+
+      const key = keys[attempt % keys.length];
+      const result = callOpenRouterOnce_(model, contentParts, key);
+      if (result.ok) return result.text;
+
+      const { status, message } = result;
+      if (status !== 429) {
+        errors.push(`${model} [key #${(attempt % keys.length) + 1}]: ${message}`);
+        break;
+      }
+      errors.push(`${model} [key #${(attempt % keys.length) + 1}] (lần ${attempt + 1}): ${message}`);
+    }
+  }
+
+  throw new Error(
+    "OpenRouter lỗi sau khi thử " + models.length + " model × " + keys.length + " key:\n" + errors.join("\n"),
+  );
+}
+
+/**
+ * Gọi OpenRouter chat completions 1 lần. Không retry ở đây.
+ * @returns {Object} { ok: true, text } hoặc { ok: false, status, message }
+ */
+function callOpenRouterOnce_(model, contentParts, apiKey) {
+  const response = UrlFetchApp.fetch(`${CONFIG.OPENROUTER.BASE_URL}/chat/completions`, {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+    payload: JSON.stringify({
+      model: model,
+      messages: [{ role: "user", content: contentParts }],
+      max_tokens: 1024,
+    }),
+    muteHttpExceptions: true,
+  });
+
+  const statusCode = response.getResponseCode();
+  const body = JSON.parse(response.getContentText() || "{}");
+  if (statusCode !== 200 || !body.choices || !body.choices[0]) {
+    const errMsg =
+      body.error && body.error.message
+        ? body.error.message
+        : response.getContentText();
+    return { ok: false, status: statusCode, message: errMsg };
+  }
+
+  const text = String(body.choices[0].message && body.choices[0].message.content || "").trim();
+  if (!text) {
+    return { ok: false, status: statusCode, message: "OpenRouter trả về nội dung rỗng." };
+  }
+  return { ok: true, text: text };
+}
+
+/**
+ * Đọc danh sách OpenRouter API keys để xoay vòng khi rate limit.
+ * Cách cung cấp (Script Properties): OPENROUTER_API_KEY (có thể chứa nhiều key
+ * cách nhau bằng dấu phẩy) và/hoặc OPENROUTER_API_KEY_2..10.
+ * @returns {string[]}
+ */
+function getOpenRouterApiKeys_() {
+  const props = PropertiesService.getScriptProperties();
+  const keys = [];
+  const first = props.getProperty("OPENROUTER_API_KEY");
+  if (first) keys.push(...first.split(",").map((k) => k.trim()).filter(Boolean));
+  for (let i = 2; i <= 10; i++) {
+    const k = props.getProperty(`OPENROUTER_API_KEY_${i}`);
+    if (k) keys.push(k.trim());
+    else break;
+  }
+  if (keys.length === 0) {
+    throw new Error(
+      'Thiếu Script Property "OPENROUTER_API_KEY". Lấy key tại https://openrouter.ai/settings/keys (miễn phí, có quota free model hằng ngày).',
+    );
+  }
+  return keys;
 }
 
 /**
