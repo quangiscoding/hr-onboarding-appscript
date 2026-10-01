@@ -17,67 +17,71 @@
 /* ------------------------------------------------------------------ */
 
 /**
- * Tạo Gmail Draft và trả về { type, id } để ghi log.
+ * Gửi 1 email TRỰC TIẾP qua GmailApp.
  * @param {string} to
  * @param {Object} mail - { subject, htmlBody }
- * @param {string} type - Nhãn loại draft (DevOps / HR / IT)
+ * @param {string} [cc] - Danh sách CC cách nhau bởi dấu phẩy
  */
-function createLabeledDraft(to, mail, type) {
-  const draft = GmailApp.createDraft(to, mail.subject, "", {
+function sendDirectEmail_(to, mail, cc) {
+  GmailApp.sendEmail(to, mail.subject, "", {
     htmlBody: mail.htmlBody,
+    cc: cc || "",
   });
-  return { type, id: draft.getId() };
 }
 
 /* ------------------------------------------------------------------ */
-/* LUỒNG 1: OFFER ACCEPTED -> DRAFT CHO DEVOPS / HR / IT               */
+/* LUỒNG 1: OFFER ACCEPTED -> GỬI THẲNG CHO DEVOPS / HR / IT           */
 /* ------------------------------------------------------------------ */
 
 /**
- * Tạo bản nháp Email gửi cho các Phòng ban (DevOps, HR, IT)
+ * Gửi Email TRỰC TIẾP cho các Phòng ban (DevOps, HR, IT) — không tạo draft.
  * @param {Object} data - Dữ liệu ứng viên đã chuẩn hóa
- * @returns {{ ok: true, message: string, drafts: Array<{type: string, id: string}> }}
+ * @returns {{ ok: true, message: string, sent: Array<{type: string, to: string}> }}
+ * @throws {WorkflowError} SEND_FAILED khi gửi bất kỳ email nào thất bại
  */
 function handleOfferAcceptedWorkflow(data) {
-  const createdDrafts = [];
+  const sentEmails = [];
 
-  // 1. Draft gửi DevOps
-  createdDrafts.push(
-    createLabeledDraft(
-      CONFIG.RECIPIENTS.DEVOPS,
-      getDevOpsEmailTemplate(data),
-      "DevOps",
-    ),
-  );
+  // Đọc recipients động từ sheet Data (Role | Send to | CC)
+  const devopsRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.DEVOPS);
+  const hrRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.HR);
+  const itRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.IT);
 
-  // 2. Draft gửi HR
-  createdDrafts.push(
-    createLabeledDraft(
-      CONFIG.RECIPIENTS.HR,
-      getHREmailTemplate(data),
-      "HR",
-    ),
-  );
+  // Helper: gửi 1 email, lỗi nghiệp vụ thì quăng WorkflowError để tầng gọi hiển thị
+  const sendTo = (type, recipients, mail) => {
+    const to = recipients.to.join(",");
+    try {
+      sendDirectEmail_(to, mail, recipients.cc.join(","));
+      sentEmails.push({ type, to });
+    } catch (error) {
+      Logger.log(`❌ Lỗi khi gửi email ${type}: ` + error.toString());
+      throw new WorkflowError(
+        "SEND_FAILED",
+        `Không thể gửi email ${type} tới ${to}. Các email sau đó đã bị dừng.`,
+        { originalError: error.message, type },
+      );
+    }
+  };
 
-  // 3. Draft gửi IT - chỉ khi Device Request là "as company standard"
+  // 1. Gửi thẳng DevOps
+  sendTo("DevOps", devopsRecipients, getDevOpsEmailTemplate(data));
+
+  // 2. Gửi thẳng HR (Role "OKR" trong sheet Data)
+  sendTo("HR", hrRecipients, getHREmailTemplate(data));
+
+  // 3. Gửi thẳng IT - chỉ khi Device Request là "as company standard"
   if (isStandardDevice(data.deviceRequest)) {
-    createdDrafts.push(
-      createLabeledDraft(
-        CONFIG.RECIPIENTS.IT,
-        getITEmailTemplate(data),
-        "IT",
-      ),
-    );
+    sendTo("IT", itRecipients, getITEmailTemplate(data));
   }
 
   // 4. Ghi log
-  logInternalWorkflow(data, createdDrafts);
+  logInternalWorkflow(data, sentEmails);
 
   // 5. Trả kết quả cho tầng hiển thị
   return {
     ok: true,
-    message: `Đã tạo thành công ${createdDrafts.length} bản nháp Email nhắc việc cho ${data.fullName}!`,
-    drafts: createdDrafts,
+    message: `Đã gửi thành công ${sentEmails.length} email nhắc việc cho ${data.fullName}!\n\nNgười nhận: ${sentEmails.map((e) => e.type).join(", ")}`,
+    sent: sentEmails,
   };
 }
 
@@ -160,11 +164,14 @@ function handleWelcomeEmailWorkflow(data) {
     );
   }
 
-  // 3. Danh sách CC (TA in charge, Line Manager, People Team)
+  // 3. Danh sách CC (TA in charge, People Team - đọc động từ sheet Data)
+  const peopleTeamRecipients = getRecipientsByRole(
+    CONFIG.RECIPIENT_ROLES.PEOPLE_TEAM,
+  );
   const ccList = [
     data.taEmail,
-    data.managerEmail,
-    CONFIG.RECIPIENTS.PEOPLE_TEAM,
+    ...peopleTeamRecipients.to,
+    ...peopleTeamRecipients.cc,
   ]
     .filter(Boolean)
     .join(",");

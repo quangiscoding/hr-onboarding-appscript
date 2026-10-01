@@ -6,12 +6,15 @@
  */
 
 const CONFIG = {
-  /** Người nhận mặc định của các luồng email nội bộ */
-  RECIPIENTS: {
-    DEVOPS: "quang.nguyenminh@kyanon.digital",
-    HR: "quang.nguyenminh@kyanon.digital",
-    IT: "quang.nguyenminh@kyanon.digital",
-    PEOPLE_TEAM: "people@kyanon.digital",
+  /** Tên sheet chứa bảng cấu hình động (Role | Send to | CC) */
+  DATA_SHEET_NAME: "Data",
+
+  /** Tên các Role tra cứu trong cột "Role" của sheet Data */
+  RECIPIENT_ROLES: {
+    DEVOPS: "DevOps",
+    HR: "OKR",
+    IT: "IT Support",
+    PEOPLE_TEAM: "People Team",
   },
 
   /** File PDF hướng dẫn onboarding: tra theo `${employmentType}_${location}` */
@@ -83,13 +86,13 @@ const CONFIG = {
   /** Cấu hình tab log: tên sheet + header của từng luồng */
   LOG: {
     INTERNAL: {
-      SHEET_NAME: "Internal Draft Log",
+      SHEET_NAME: "Internal Email Log",
       HEADERS: [
         "Timestamp",
         "Fullname",
         "Position",
         "Request Type",
-        "Draft ID",
+        "Sent To",
         "Status",
       ],
     },

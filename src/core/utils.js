@@ -85,6 +85,101 @@ function toEmailUsername(email, fallback = "") {
 }
 
 /* ------------------------------------------------------------------ */
+/* RECIPIENT HELPERS - danh sách người nhận email (sheet Data)          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Tách 1 ô thành danh sách email Kyanon.
+ * Ô có thể chứa 1 hoặc nhiều Alloc Code / email, ngăn cách bởi dấu phẩy,
+ * chấm phẩy hoặc xuống dòng.
+ * @param {string} raw - Giá trị ô (vd: "tuan.le" hoặc "tuan.le, nhi.tran")
+ * @returns {string[]} Mảng email đã chuẩn hóa (đã thêm @kyanon.digital nếu là Alloc Code)
+ */
+function getEmailList_(raw) {
+  if (!raw) return [];
+  return String(raw)
+    .split(/[,;\n]+/)
+    .map((part) => formatKyanonEmail(part))
+    .filter(Boolean);
+}
+
+/**
+ * Đọc bảng phân công recipient (Role | Send to | CC) từ sheet cấu hình
+ * (CONFIG.DATA_SHEET_NAME). Tìm header động (không phụ thuộc tọa độ
+ * cột/dòng), trả về map theo role đã normalizeHeaderKey.
+ * @returns {Object} { devops: { to: [...], cc: [...] }, okr: {...}, ... }
+ */
+function getRecipientsMap() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.DATA_SHEET_NAME);
+  if (!sheet) {
+    throw new Error(
+      `Không tìm thấy sheet "${CONFIG.DATA_SHEET_NAME}" để đọc danh sách recipient!`,
+    );
+  }
+
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return {};
+
+  const values = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+
+  // 1. Tìm dòng header chứa cột "Role" (quét động, không hardcode vị trí)
+  let headerRowIdx = -1;
+  let roleCol = -1;
+  let sendToCol = -1;
+  let ccCol = -1;
+
+  for (let r = 0; r < Math.min(values.length, 20); r++) {
+    const rowKeys = values[r].map(normalizeHeaderKey);
+    const rIdx = rowKeys.indexOf(normalizeHeaderKey("Role"));
+    if (rIdx !== -1) {
+      headerRowIdx = r;
+      roleCol = rIdx;
+      sendToCol = rowKeys.indexOf(normalizeHeaderKey("Send to"));
+      ccCol = rowKeys.indexOf(normalizeHeaderKey("CC"));
+      break;
+    }
+  }
+
+  if (headerRowIdx === -1) {
+    throw new Error(
+      `Không tìm thấy cột "Role" trong sheet "${CONFIG.DATA_SHEET_NAME}"!`,
+    );
+  }
+
+  // 2. Duyệt các dòng bên dưới header, gom Send to / CC theo Role
+  const map = {};
+  for (let r = headerRowIdx + 1; r < values.length; r++) {
+    const role = clean(values[r][roleCol]);
+    if (!role) continue;
+
+    const key = normalizeHeaderKey(role);
+    if (!map[key]) map[key] = { to: [], cc: [] };
+
+    if (sendToCol >= 0) {
+      map[key].to = map[key].to.concat(getEmailList_(values[r][sendToCol]));
+    }
+    if (ccCol >= 0) {
+      map[key].cc = map[key].cc.concat(getEmailList_(values[r][ccCol]));
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Lấy recipients cho 1 role cụ thể từ sheet Data.
+ * @param {string} roleName - Tên role trong cột "Role" (vd: "DevOps", "IT Support", "OKR", "People Team")
+ * @returns {{ to: string[], cc: string[] }} Mảng email nhận chính + CC
+ */
+function getRecipientsByRole(roleName) {
+  const map = getRecipientsMap();
+  const key = normalizeHeaderKey(roleName);
+  return map[key] || { to: [], cc: [] };
+}
+
+/* ------------------------------------------------------------------ */
 /* SHEET HELPERS - tiện ích thao tác trên Google Sheet                 */
 /* ------------------------------------------------------------------ */
 

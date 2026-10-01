@@ -83,10 +83,6 @@ function getTaNotificationEmailTemplate(data) {
 function getWelcomeCandidateEmailTemplate(data, guidePreviewUrl) {
   const positionTitle = toTitleCase(data.position || "");
   const squadTitle = toTitleCase(data.squad || "");
-  const formattedSquad =
-    squadTitle && positionTitle
-      ? `${squadTitle} (${positionTitle} Team)`
-      : squadTitle || positionTitle;
 
   // Địa chỉ văn phòng theo Onboarding Type
   const onboardType = clean(data.onboardingType);
@@ -98,11 +94,14 @@ function getWelcomeCandidateEmailTemplate(data, guidePreviewUrl) {
   }
 
   const payload = buildTemplatePayload(data, {
-    formattedSquad,
     officeAddress,
     guidePreviewUrl,
   });
 
-  const subject = `Welcome to Kyanon Digital: Essential Onboarding Steps for ${positionTitle}_${formattedSquad}`;
+  // Ghép subject: "... for <Chức danh>_<Squad>" (bỏ Squad nếu rỗng để tránh đuôi "_")
+  const subjectDetail = squadTitle
+    ? `${positionTitle}_${squadTitle}`
+    : positionTitle;
+  const subject = `Welcome to Kyanon Digital: Essential Onboarding Steps for ${subjectDetail}`;
   return { subject, htmlBody: renderHtmlTemplate("welcome-candidate-email", payload) };
 }

@@ -15,7 +15,7 @@ const WORKFLOW_REGISTRY = {
     run: (data) => handleWelcomeEmailWorkflow(data),
   },
   OFFER_ACCEPTED: {
-    label: "Tạo Draft Offer Accepted",
+    label: "Gửi Email Offer Accepted",
     validate: () => null,
     run: (data) => handleOfferAcceptedWorkflow(data),
   },
@@ -35,7 +35,7 @@ function onOpen() {
       "menuSendWelcomeEmail",
     )
     .addItem(
-      "2. Tạo Draft Offer Accepted (DevOps / HR / Line Manager)",
+      "2. Gửi Email Offer Accepted (DevOps / HR / IT)",
       "menuSendDevOpsEmail",
     )
     .addSeparator()
@@ -54,7 +54,7 @@ function menuSendWelcomeEmail() {
   executeWorkflowRunner("WELCOME_EMAIL");
 }
 
-/** 2. Menu: Tạo Draft Offer Accepted */
+/** 2. Menu: Gửi Email Offer Accepted */
 function menuSendDevOpsEmail() {
   executeWorkflowRunner("OFFER_ACCEPTED");
 }

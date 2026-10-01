@@ -44,18 +44,18 @@ function appendWorkflowLog(config, values) {
 }
 
 /**
- * Ghi log luồng Internal (Offer Accepted -> DevOps, HR, IT)
+ * Ghi log luồng Internal (Offer Accepted -> gửi trực tiếp DevOps, HR, IT)
  * @param {Object} data
- * @param {Array<{type: string, id: string}>} drafts
+ * @param {Array<{type: string, to: string}>} sentEmails
  */
-function logInternalWorkflow(data, drafts) {
-  drafts.forEach((draft) => {
+function logInternalWorkflow(data, sentEmails) {
+  sentEmails.forEach((sent) => {
     appendWorkflowLog(CONFIG.LOG.INTERNAL, [
       data.fullName,
       toTitleCase(data.position),
-      draft.type,
-      draft.id,
-      "DRAFT_CREATED",
+      sent.type,
+      sent.to,
+      "EMAIL_SENT",
     ]);
   });
 }
