@@ -126,6 +126,10 @@ function getWelcomeCandidateEmailTemplate(data, guidePreviewUrl) {
     typeof toTitleCase === "function"
       ? toTitleCase(data.squad || "")
       : data.squad || "";
+  const formattedSquad =
+    squadTitle && positionTitle
+      ? `${squadTitle} (${positionTitle} Team)`
+      : squadTitle || positionTitle;
 
   let officeAddress =
     "Floor 2, Room 2.6, 294-296 Truong Sa, Cau Kieu Ward, Ho Chi Minh City";
@@ -141,15 +145,12 @@ function getWelcomeCandidateEmailTemplate(data, guidePreviewUrl) {
     ...data,
     positionTitle,
     squadTitle,
+    formattedSquad,
     officeAddress,
     guidePreviewUrl,
   };
 
-  // Ghép subject: "... for <Chức danh>_<Squad>" (bỏ Squad nếu rỗng để tránh đuôi "_")
-  const subjectDetail = squadTitle
-    ? `${positionTitle}_${squadTitle}`
-    : positionTitle;
-  const subject = `Welcome to Kyanon Digital: Essential Onboarding Steps for ${subjectDetail}`;
+  const subject = `Welcome to Kyanon Digital: Essential Onboarding Steps for ${positionTitle}_${formattedSquad}`;
   const htmlBody = renderHtmlTemplate("welcome-candidate-email", payload);
 
   return { subject, htmlBody };
