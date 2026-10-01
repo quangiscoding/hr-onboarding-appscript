@@ -36,8 +36,15 @@ src/
 │   ├── email-templates/   #   5 file .html
 │   └── logger.js          #   appendWorkflowLog + 3 hàm log*Workflow -> tab sheet
 ├── recruitment/           # Module 2: AI Recruitment — Welcome Onboard Generator
-│   ├── sidebar.js         #   Server: getSelectedCandidate, uploadCandidatePhoto,
-│   │                      #   summarizeCvToIntro (Gemini), submitIntroductionPost (Outline)
+│   ├── sidebar.js         #   CONTROLLER: các hàm public bind qua google.script.run/menu
+│   │                      #   (showSidebar, getSelectedCandidate, summarizeCvToIntro,
+│   │                      #   submitIntroductionPost) — KHÔNG ĐỔI TÊN
+│   ├── outline-api.js     #   Outline client: documents.create, attachments.create
+│   │                      #   (presigned S3 upload ảnh), buildWelcomePostMarkdown
+│   ├── cv-reader.js       #   Đọc & trích text CV: PDF (inline base64), DOCX (unzip XML),
+│   │                      #   GDoc (DocumentApp), TXT; tìm file Drive theo link/tên
+│   ├── ai-providers.js    #   Lời gọi AI: provider chain CONFIG.AI_PROVIDERS (openrouter →
+│   │                      #   gemini), xoay vòng key + retry backoff khi 429, model fallback
 │   └── welcome-onboard.html # Sidebar UI (tên file PHẢI là welcome-onboard.html —
 │                           #   trùng tên remote với sidebar.js sẽ gây lỗi clasp push)
 └── legacy/
@@ -85,12 +92,19 @@ src/
 
 - **`legacy/custom-functions.js`** — các hàm `@customfunction` dùng trực tiếp trong công thức sheet, **KHÔNG ĐƯỢC ĐỔI TÊN**: `specificDays(dayName, monthName, year)`, `removeAccent(text)`, `convertVn2FirstLastName(text, removeAccentFlag)`, `convertVn2FirstFullname(text, removeAccentFlag)`, `convertFName2EmailAddress(text)`.
 
-- **`recruitment/sidebar.js` + `recruitment/welcome-onboard.html`** — module AI Recruitment, sidebar "Welcome Onboard Generator" (mở từ menu "🚀 AI Recruitment"):
-  - **Đọc ứng viên:** `getSelectedCandidate()` đọc dòng đang chọn qua `getHeaderColumnMap` (fullName, title, squad, lineManager, dateOfOnboard, cvUrl...).
-  - **Ảnh ứng viên:** ô upload trong sidebar (≤ `CONFIG.PHOTO_UPLOAD.MAX_SIZE_MB`, base64) → `uploadCandidatePhoto()` upload THẲNG vào Outline qua `attachments.create` (presigned S3 POST: form fields trước, file blob cuối, không auth header) → embed URL `attachments.redirect?id=` lên đầu bài markdown. KHÔNG dùng Drive — domain Workspace chặn share anyone-with-link nên ảnh trên Drive không render được trong Outline. Lưu ý GAS: phải tự dựng multipart body (boundary + Utilities.mergeBytes) vì UrlFetchApp không hỗ trợ FormData.
-  - **AI tóm tắt CV (Gemini):** `summarizeCvToIntro()` đọc CV (ưu tiên file upload từ máy ≤10MB, fallback link cột CV qua `extractDriveFileId_`) → trích text (GDoc mở DocumentApp trực tiếp; PDF convert tạm qua GDoc rồi trash) → `callGeminiSummarizeCv_` gọi Gemini `generateContent` (model `CONFIG.GEMINI.MODEL`), prompt tiếng Anh theo style bài mẫu, chỉ dùng facts từ CV → trả paragraph điền vào textarea Introduction.
-  - **Submit:** `submitIntroductionPost()` upload ảnh (nếu có) + `buildWelcomePostMarkdown` (First working day / Job Title / Line Manager / Introduction) → `callOutlineCreateDocument_` POST `documents.create` (`publish:false` → draft nằm ở Drafts cá nhân của tài khoản token).
-  - **Script Properties bắt buộc (Apps Script → Project Settings):** `OUTLINE_API_TOKEN` (token Outline dạng `ol_api_...`) và `GEMINI_API_KEY` (lấy tại https://aistudio.google.com/apikey). KHÔNG hardcode hai giá trị này.
+- **`recruitment/`** — module AI Recruitment, sidebar "Welcome Onboard Generator" (mở từ menu "🚀 AI Recruitment"). Tách 4 file JS theo trách nhiệm (GAS global namespace nên không import — chỉ quy ước tổ chức):
+
+  - **`sidebar.js`** (controller mỏng, chỉ hàm public — KHÔNG ĐỔI TÊN vì bind theo string):
+    - `showSidebar()`: menu entry.
+    - `getSelectedCandidate()`: đọc dòng đang chọn qua `getHeaderColumnMap` (fullName, title, squad, lineManager, dateOfOnboard, cvUrl...). Cột CV đọc 3 lớp: rich-text link URL → formula HYPERLINK() → display value.
+    - `summarizeCvToIntro(formData)`: đọc CV → AI → trả Introduction.
+    - `submitIntroductionPost(formData)`: upload ảnh (nếu có) + build markdown + tạo draft Outline.
+  - **`outline-api.js`**: `getOutlineApiToken_` (Script Property `OUTLINE_API_TOKEN`), `buildWelcomePostMarkdown` (First working day / Job Title / Line Manager / Introduction), `callOutlineCreateDocument_` (documents.create, publish:false → Drafts cá nhân), `uploadCandidatePhoto` (attachments.create presigned S3 — form fields trước, file CUỐI, không auth header; tự dựng multipart vì UrlFetchApp không có FormData).
+  - **`cv-reader.js`**: `readCvContent_` — ưu tiên file upload từ máy (blob trong bộ nhớ), fallback link/tên file cột CV (`extractDriveFileId_`, `findDriveFileIdByName_`). Trả `{kind: "pdf_inline", pdfBase64, fileName}` cho PDF hoặc `{kind: "text", text}` cho DOCX (unzip word/document.xml + strip XML — phải ép ContentType application/zip), GDoc (DocumentApp), TXT. .doc cũ bị từ chối với hướng dẫn rõ ràng.
+  - **`ai-providers.js`**: `callGeminiSummarizeCv_` — duyệt `CONFIG.AI_PROVIDERS` theo thứ tự (mặc định `"openrouter"` → `"gemini"`), provider lỗi thì chuyển kế. Mỗi provider: xoay vòng API key (property chính + `_2..10`, hoặc 1 property nhiều key cách phẩy) + retry backoff `RETRY_DELAYS_MS` khi 429 + chuyển model trong MODELS khi lỗi khác. OpenRouter: OpenAI-compatible `/chat/completions`, PDF dạng `file` content part (base64 data URL). Gemini: `generateContent`, PDF dạng `inline_data` (Gemini 3.x KHÔNG nhận temperature/top_p/top_k).
+  - **Ảnh ứng viên:** ô upload trong sidebar (≤ `CONFIG.PHOTO_UPLOAD.MAX_SIZE_MB`, base64) → `uploadCandidatePhoto()` (outline-api.js) upload THẲNG vào Outline qua `attachments.create` (presigned S3 POST) → embed URL `attachments.redirect?id=` lên đầu bài markdown. KHÔNG dùng Drive — domain Workspace chặn share anyone-with-link nên ảnh trên Drive không render được trong Outline.
+  - **AI tóm tắt CV:** `summarizeCvToIntro()` (sidebar.js) → `readCvContent_` (cv-reader.js) → `callGeminiSummarizeCv_` (ai-providers.js) duyệt provider chain openrouter → gemini. Prompt tiếng Anh theo style bài mẫu, chỉ dùng facts từ CV.
+  - **Script Properties (Apps Script → Project Settings):** `OUTLINE_API_TOKEN` (token Outline dạng `ol_api_...`); `OPENROUTER_API_KEY` (https://openrouter.ai/settings/keys, ưu tiên) và/hoặc `GEMINI_API_KEY` (https://aistudio.google.com/apikey, dự phòng) — đều hỗ trợ nhiều key xoay vòng. KHÔNG hardcode.
   - **OAuth scopes:** `drive` (full — cần để createFile upload ảnh + temp CV) và `documents` (DocumentApp đọc text GDoc) đã thêm vào `appsscript.json`; khi push lần đầu user sẽ được yêu cầu re-authorize.
 - **`core/ui-feedback.js`**: class `WorkflowError(code, userMessage, details)` + `notifySuccess/notifyWarning/notifyError/confirmAction`. Workflow chỉ return kết quả / throw WorkflowError; main.js gọi các hàm này để hiển thị (Phase 1).
 
