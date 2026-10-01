@@ -9,33 +9,26 @@
 function handleOfferAcceptedWorkflow(data) {
   const createdDrafts = [];
 
-  // Đọc recipients động từ sheet Data (Role | Send to | CC)
-  const devopsRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.DEVOPS);
-  const hrRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.HR);
-  const itRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.IT);
-
   // 1. Tạo Draft gửi DevOps
   const devopsMail = getDevOpsEmailTemplate(data);
   const devopsDraft = GmailApp.createDraft(
-    devopsRecipients.to.join(","),
+    CONFIG.RECIPIENTS.DEVOPS,
     devopsMail.subject,
     "",
     {
       htmlBody: devopsMail.htmlBody,
-      cc: devopsRecipients.cc.join(","),
     },
   );
   createdDrafts.push({ type: "DevOps", id: devopsDraft.getId() });
 
-  // 2. Tạo Draft gửi HR (Role "OKR" trong sheet Data)
+  // 2. Tạo Draft gửi HR
   const hrMail = getHREmailTemplate(data);
   const hrDraft = GmailApp.createDraft(
-    hrRecipients.to.join(","),
+    CONFIG.RECIPIENTS.HR,
     hrMail.subject,
     "",
     {
       htmlBody: hrMail.htmlBody,
-      cc: hrRecipients.cc.join(","),
     },
   );
   createdDrafts.push({ type: "HR", id: hrDraft.getId() });
@@ -45,12 +38,12 @@ function handleOfferAcceptedWorkflow(data) {
   if (deviceRequested) {
     const itMail = getITEmailTemplate(data);
     const itDraft = GmailApp.createDraft(
-      itRecipients.to.join(","),
+      CONFIG.RECIPIENTS.IT,
       itMail.subject,
       "",
       {
         htmlBody: itMail.htmlBody,
-        cc: itRecipients.cc.join(","),
+        cc: "dat.truongcong@kyanon.digital", // 👈 Thêm CC vào đây
       },
     );
     createdDrafts.push({ type: "IT", id: itDraft.getId() });
@@ -155,15 +148,11 @@ function handleWelcomeEmailWorkflow(data) {
     );
   }
 
-  // 4. Danh sách CC (TA in charge, Line Manager, People Team - đọc động từ sheet Data)
-  const peopleTeamRecipients = getRecipientsByRole(
-    CONFIG.RECIPIENT_ROLES.PEOPLE_TEAM,
-  );
+  // 4. Danh sách CC (TA in charge, Line Manager, People Team)
   const ccList = [
     data.taEmail,
     data.managerEmail,
-    ...peopleTeamRecipients.to,
-    ...peopleTeamRecipients.cc,
+    CONFIG.RECIPIENTS.PEOPLE_TEAM,
   ]
     .filter(Boolean)
     .join(",");
