@@ -27,8 +27,7 @@ const CONFIG = {
     DEFAULT:
       "Floor 2, Room 2.6, 294-296 Truong Sa, Cau Kieu Ward, Ho Chi Minh City",
     DANANG: "Floor 3, 433-435 Nguyen Huu Tho, Cam Le, Da Nang",
-    HOA_CAU:
-      "Floor 1, Room 1.2, 09 Hoa Cau, Cau Kieu Ward, Ho Chi Minh City",
+    HOA_CAU: "Floor 1, Room 1.2, 09 Hoa Cau, Cau Kieu Ward, Ho Chi Minh City",
   },
 
   /**
@@ -49,16 +48,16 @@ const CONFIG = {
    * Lấy key miễn phí tại https://aistudio.google.com/apikey
    */
   GEMINI: {
-    MODEL: "gemini-3.8-flash",
+    MODEL: "gemini-3.5-flash",
     BASE_URL: "https://generativelanguage.googleapis.com/v1beta",
   },
 
   /**
-   * Upload ảnh ứng viên: lưu vào Drive folder này rồi embed vào bài Outline.
-   * FOLDER_ID: ID của Google Drive folder chứa ảnh nhân sự (để trống = lưu vào root của My Drive).
+   * Upload ảnh ứng viên: gửi thẳng vào Outline qua attachments API
+   * (presigned S3), KHÔNG qua Drive — không cần quyền share anyone-with-link.
+   * MAX_SIZE_MB: giới hạn dung lượng ảnh cho phép từ sidebar.
    */
   PHOTO_UPLOAD: {
-    FOLDER_ID: "",
     MAX_SIZE_MB: 5,
   },
 
@@ -98,7 +97,7 @@ const CONFIG = {
       ],
     },
   },
-}
+};
 
 // Từ điển Key đã được chuẩn hóa qua normalizeHeaderKey()
 // Key = normalizeHeaderKey(<tên header trên Sheet>) -> đảm bảo khớp sheet thật.

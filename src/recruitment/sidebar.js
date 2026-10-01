@@ -15,7 +15,9 @@
 
 /** Mở sidebar (được gọi từ menu "Mở AI Introduction Generator") */
 function showSidebar() {
-  const html = HtmlService.createHtmlOutputFromFile("recruitment/welcome-onboard")
+  const html = HtmlService.createHtmlOutputFromFile(
+    "recruitment/welcome-onboard",
+  )
     .setTitle("AI Recruitment — Welcome Onboard")
     .setWidth(320);
   SpreadsheetApp.getUi().showSidebar(html);
@@ -31,14 +33,19 @@ function getSelectedCandidate() {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     const activeRange = sheet.getActiveRange();
     if (!activeRange || activeRange.getRow() < 2) {
-      return { ok: false, error: "Hãy chọn trước một dòng nhân sự trên Sheet rồi mở lại sidebar." };
+      return {
+        ok: false,
+        error: "Hãy chọn trước một dòng nhân sự trên Sheet rồi mở lại sidebar.",
+      };
     }
 
     const rowIndex = activeRange.getRow();
     const colMap = getHeaderColumnMap(sheet);
     const readCol = (key) => {
       const col = colMap[key];
-      return col ? String(sheet.getRange(rowIndex, col).getDisplayValue()).trim() : "";
+      return col
+        ? String(sheet.getRange(rowIndex, col).getDisplayValue()).trim()
+        : "";
     };
 
     // Cột CV: cell thường chứa HYPERLINK (text hiển thị là tên file, URL nằm trong link).
@@ -74,7 +81,10 @@ function getSelectedCandidate() {
     };
 
     if (!candidate.fullName) {
-      return { ok: false, error: `Dòng ${rowIndex} không có Full Name. Hãy chọn đúng dòng nhân sự.` };
+      return {
+        ok: false,
+        error: `Dòng ${rowIndex} không có Full Name. Hãy chọn đúng dòng nhân sự.`,
+      };
     }
 
     return { ok: true, candidate };
@@ -94,7 +104,8 @@ function getSelectedCandidate() {
  * Không hardcode token trong code để tránh leak qua git.
  */
 function getOutlineApiToken_() {
-  const token = PropertiesService.getScriptProperties().getProperty("OUTLINE_API_TOKEN");
+  const token =
+    PropertiesService.getScriptProperties().getProperty("OUTLINE_API_TOKEN");
   if (!token) {
     throw new Error(
       'Thiếu Script Property "OUTLINE_API_TOKEN". Hãy vào Apps Script → Project Settings → Script Properties và thêm token Outline (dạng ol_api_...).',
@@ -148,33 +159,44 @@ function callOutlineCreateDocument_(title, text) {
     payload.collectionId = CONFIG.OUTLINE.COLLECTION_ID;
   }
 
-  const response = UrlFetchApp.fetch(`${CONFIG.OUTLINE.BASE_URL}/api/documents.create`, {
-    method: "post",
-    contentType: "application/json",
-    headers: { Authorization: `Bearer ${getOutlineApiToken_()}` },
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true,
-  });
+  const response = UrlFetchApp.fetch(
+    `${CONFIG.OUTLINE.BASE_URL}/api/documents.create`,
+    {
+      method: "post",
+      contentType: "application/json",
+      headers: { Authorization: `Bearer ${getOutlineApiToken_()}` },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true,
+    },
+  );
 
   const statusCode = response.getResponseCode();
   const body = JSON.parse(response.getContentText() || "{}");
 
   if (statusCode !== 200 || body.ok !== true) {
-    throw new Error(`Outline API lỗi (HTTP ${statusCode}): ${body.error || response.getContentText()}`);
+    throw new Error(
+      `Outline API lỗi (HTTP ${statusCode}): ${body.error || response.getContentText()}`,
+    );
   }
   return body.data;
 }
 
 /* ------------------------------------------------------------------ */
-/* PHOTO UPLOAD (lưu vào Drive, trả về URL để embed vào Outline)       */
+/* PHOTO UPLOAD (upload thẳng vào Outline qua attachments API)          */
 /* ------------------------------------------------------------------ */
 
 /**
- * Lưu ảnh ứng viên (base64 từ sidebar) vào Drive folder cấu hình trong
- * CONFIG.PHOTO_UPLOAD.FOLDER_ID, đặt tên theo tên ứng viên.
+ * Upload ảnh ứng viên thẳng vào Outline qua attachments.create (presigned S3),
+ * KHÔNG qua Drive — tránh phụ thuộc quyền share "anyone with link" mà domain
+ * Workspace có thể chặn. URL trả về là attachments.redirect (chỉ người có quyền
+ * xem Outline mới thấy ảnh, ảnh nằm trong wiki).
+ *
+ * Flow: attachments.create (JSON, Bearer) -> presigned POST form -> upload bytes
+ * lên S3 (form fields trước, file CUỐI, không auth header).
+ *
  * @param {Object} photo - { dataBase64: string, fileName: string, mimeType: string }
  * @param {Object} candidate - để đặt tên file theo ứng viên
- * @returns {Object} { ok, fileId?, url?, error? } — url là link xem trực tiếp ảnh
+ * @returns {Object} { ok, id?, url?, error? }
  */
 function uploadCandidatePhoto(photo, candidate) {
   try {
@@ -190,32 +212,77 @@ function uploadCandidatePhoto(photo, candidate) {
         error: `Ảnh vượt quá giới hạn ${CONFIG.PHOTO_UPLOAD.MAX_SIZE_MB}MB. Hãy chọn ảnh nhỏ hơn.`,
       };
     }
-    const blob = Utilities.newBlob(bytes, photo.mimeType || "image/jpeg", photo.fileName || "photo.jpg");
 
-    // Đặt tên file chuẩn theo ứng viên: photo_<accentlessFullName>.<ext>
+    const contentType = photo.mimeType || "image/jpeg";
     const ext = (photo.fileName || "photo.jpg").split(".").pop() || "jpg";
-    const baseName = candidate && candidate.accentlessFullName ? candidate.accentlessFullName.replace(/\s+/g, "-") : "candidate";
-    blob.setName(`welcome-photo-${baseName}.${ext}`);
+    const baseName =
+      candidate && candidate.accentlessFullName
+        ? candidate.accentlessFullName.replace(/\s+/g, "-")
+        : "candidate";
+    const fileName = `welcome-photo-${baseName}.${ext}`;
 
-    const folder = CONFIG.PHOTO_UPLOAD.FOLDER_ID
-      ? DriveApp.getFolderById(CONFIG.PHOTO_UPLOAD.FOLDER_ID)
-      : DriveApp.getRootFolder();
-    const file = folder.createFile(blob);
+    // 1. attachments.create -> nhận presigned S3 POST (uploadUrl + form fields)
+    const createResponse = UrlFetchApp.fetch(
+      `${CONFIG.OUTLINE.BASE_URL}/api/attachments.create`,
+      {
+        method: "post",
+        contentType: "application/json",
+        headers: { Authorization: `Bearer ${getOutlineApiToken_()}` },
+        payload: JSON.stringify({
+          name: fileName,
+          contentType: contentType,
+          size: bytes.length,
+          preset: "documentAttachment",
+        }),
+        muteHttpExceptions: true,
+      },
+    );
+    const createBody = JSON.parse(createResponse.getContentText() || "{}");
+    if (createResponse.getResponseCode() !== 200 || createBody.ok !== true) {
+      throw new Error(
+        `Outline attachments.create lỗi: ${createBody.error || createResponse.getContentText()}`,
+      );
+    }
+    const { uploadUrl, form, attachment } = createBody.data;
 
-    // Cho phép bất kỳ ai có link xem được ảnh (Outline render ảnh qua URL công khai).
-    // Bọc riêng: Workspace domain có thể chặn share ra ngoài — không được làm sập upload.
-    let sharingWarning = "";
-    try {
-      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    } catch (shareError) {
-      sharingWarning = 'Không đặt được quyền "anyone with link" (domain có thể chặn share ngoài) — ảnh sẽ không hiện trong Outline.';
-      Logger.log("⚠️ setSharing lỗi: " + shareError.toString());
+    // 2. POST multipart lên S3: toàn bộ form fields trước, file blob CUỐI, KHÔNG auth header
+    const boundary = "-------gasOutline" + Utilities.getUuid().replace(/-/g, "");
+    let prefix = "";
+    for (const [key, value] of Object.entries(form || {})) {
+      prefix += `--${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`;
+    }
+    prefix += `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: ${contentType}\r\n\r\n`;
+    const suffix = `\r\n--${boundary}--\r\n`;
+
+    const payloadBytes = Utilities.mergeBytes([
+      Utilities.newBlob(prefix).getBytes(),
+      bytes,
+      Utilities.newBlob(suffix).getBytes(),
+    ]);
+
+    const uploadResponse = UrlFetchApp.fetch(uploadUrl, {
+      method: "post",
+      contentType: `multipart/form-data; boundary=${boundary}`,
+      payload: payloadBytes,
+      muteHttpExceptions: true,
+    });
+    if (uploadResponse.getResponseCode() >= 300) {
+      throw new Error(
+        `Upload ảnh lên storage lỗi (HTTP ${uploadResponse.getResponseCode()}): ${uploadResponse.getContentText().slice(0, 200)}`,
+      );
     }
 
-    // URL render trực tiếp nội dung ảnh (ổn định hơn uc?export=view — redirect về CDN lh3)
-    const directUrl = `https://lh3.googleusercontent.com/d/${file.getId()}`;
+    // 3. attachment.url là đường dẫn tương đối (/api/attachments.redirect?id=...) -> ghép origin
+    let url;
+    if (attachment && attachment.url) {
+      url = /^https?:\/\//.test(attachment.url)
+        ? attachment.url
+        : `${CONFIG.OUTLINE.BASE_URL}${attachment.url}`;
+    } else {
+      url = `${CONFIG.OUTLINE.BASE_URL}/api/attachments.redirect?id=${attachment.id}`;
+    }
 
-    return { ok: true, fileId: file.getId(), url: directUrl, warning: sharingWarning };
+    return { ok: true, id: attachment.id, url: url };
   } catch (error) {
     Logger.log("❌ uploadCandidatePhoto lỗi: " + error.toString());
     return { ok: false, error: error.message || error.toString() };
@@ -231,7 +298,8 @@ function uploadCandidatePhoto(photo, candidate) {
  * Lấy key miễn phí tại https://aistudio.google.com/apikey
  */
 function getGeminiApiKey_() {
-  const key = PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
+  const key =
+    PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
   if (!key) {
     throw new Error(
       'Thiếu Script Property "GEMINI_API_KEY". Hãy vào Apps Script → Project Settings → Script Properties và thêm Gemini API key (lấy tại https://aistudio.google.com/apikey).',
@@ -254,7 +322,11 @@ function readCvContent_(cvFileMeta, candidate) {
   // 1. CV upload trực tiếp từ sidebar (base64) — dựng blob trong bộ nhớ, KHÔNG tạo file Drive
   if (cvFileMeta && cvFileMeta.dataBase64) {
     const bytes = Utilities.base64Decode(cvFileMeta.dataBase64);
-    blob = Utilities.newBlob(bytes, cvFileMeta.mimeType || "application/pdf", cvFileMeta.fileName || "cv.pdf");
+    blob = Utilities.newBlob(
+      bytes,
+      cvFileMeta.mimeType || "application/pdf",
+      cvFileMeta.fileName || "cv.pdf",
+    );
     fileName = cvFileMeta.fileName || "cv.pdf";
   } else if (candidate && candidate.cvUrl) {
     // 2. Link CV trong cột CV của sheet
@@ -282,12 +354,18 @@ function readCvContent_(cvFileMeta, candidate) {
 
   // PDF: gửi thẳng base64 cho Gemini (Gemini đọc PDF native, không cần convert sang GDoc)
   if (mimeType === MimeType.PDF || /\.pdf$/i.test(nameForDetect)) {
-    return { kind: "pdf_inline", pdfBase64: Utilities.base64Encode(blob.getBytes()), fileName };
+    return {
+      kind: "pdf_inline",
+      pdfBase64: Utilities.base64Encode(blob.getBytes()),
+      fileName,
+    };
   }
 
   // Google Docs: mở DocumentApp trực tiếp
   if (mimeType === MimeType.GOOGLE_DOCS) {
-    const fileId = extractDriveFileId_(candidate && candidate.cvUrl) || findDriveFileIdByName_(nameForDetect);
+    const fileId =
+      extractDriveFileId_(candidate && candidate.cvUrl) ||
+      findDriveFileIdByName_(nameForDetect);
     let text = "";
     try {
       text = DocumentApp.openById(fileId).getBody().getText();
@@ -305,7 +383,7 @@ function readCvContent_(cvFileMeta, candidate) {
   // DOC cũ (binary): không đọc được — yêu cầu đổi định dạng
   if (/\.doc$/i.test(nameForDetect) || mimeType === "application/msword") {
     throw new Error(
-      'File CV là .doc cũ — script không đọc được. Hãy lưu lại thành .docx hoặc PDF rồi upload lại (hoặc upload PDF).',
+      "File CV là .doc cũ — script không đọc được. Hãy lưu lại thành .docx hoặc PDF rồi upload lại (hoặc upload PDF).",
     );
   }
 
@@ -339,7 +417,9 @@ function extractTextFromDocx_(blob) {
     throw new Error("File DOCX hỏng hoặc không đọc được: " + e.message);
   }
   if (!xml) {
-    throw new Error('Không tìm thấy nội dung "word/document.xml" trong file DOCX.');
+    throw new Error(
+      'Không tìm thấy nội dung "word/document.xml" trong file DOCX.',
+    );
   }
 
   return xml
@@ -363,7 +443,9 @@ function extractTextFromDocx_(blob) {
 function findDriveFileIdByName_(name) {
   if (!name) return null;
   const escaped = String(name).replace(/'/g, "\\'");
-  const it = DriveApp.searchFiles(`title contains '${escaped}' and trashed = false`);
+  const it = DriveApp.searchFiles(
+    `title contains '${escaped}' and trashed = false`,
+  );
   while (it.hasNext()) {
     return it.next().getId(); // lấy kết quả khớp đầu tiên
   }
@@ -383,7 +465,8 @@ function extractDriveFileId_(url) {
     if (m) return m[1];
   }
   // Trả về nguyên chuỗi nếu nó tự là File ID (dạng uuid)
-  if (/^[a-zA-Z0-9_-]{20,}$/.test(String(url).trim())) return String(url).trim();
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(String(url).trim()))
+    return String(url).trim();
   return null;
 }
 
@@ -421,12 +504,20 @@ function callGeminiSummarizeCv_(cvContent, candidate) {
   const statusCode = response.getResponseCode();
   const body = JSON.parse(response.getContentText() || "{}");
   if (statusCode !== 200 || !body.candidates || !body.candidates[0]) {
-    const errMsg = body.error && body.error.message ? body.error.message : response.getContentText();
+    const errMsg =
+      body.error && body.error.message
+        ? body.error.message
+        : response.getContentText();
     throw new Error(`Gemini API lỗi (HTTP ${statusCode}): ${errMsg}`);
   }
 
   const parts = body.candidates[0].content && body.candidates[0].content.parts;
-  const text = parts && parts.map((p) => p.text || "").join("").trim();
+  const text =
+    parts &&
+    parts
+      .map((p) => p.text || "")
+      .join("")
+      .trim();
   if (!text) throw new Error("Gemini trả về nội dung rỗng.");
   return text;
 }
@@ -463,7 +554,10 @@ function summarizeCvToIntro(formData) {
   try {
     const candidate = formData && formData.candidate;
     if (!candidate || !candidate.fullName) {
-      return { ok: false, error: "Thiếu thông tin ứng viên. Hãy chọn lại dòng và mở lại sidebar." };
+      return {
+        ok: false,
+        error: "Thiếu thông tin ứng viên. Hãy chọn lại dòng và mở lại sidebar.",
+      };
     }
 
     const cvText = readCvContent_(formData && formData.cvFile, candidate);
@@ -487,7 +581,9 @@ function summarizeCvToIntro(formData) {
  */
 function submitIntroductionPost(formData) {
   try {
-    const introduction = String(formData && formData.introduction || "").trim();
+    const introduction = String(
+      (formData && formData.introduction) || "",
+    ).trim();
     const candidate = formData && formData.candidate;
     const photo = formData && formData.photo;
 
@@ -495,7 +591,11 @@ function submitIntroductionPost(formData) {
       return { ok: false, error: "Introduction không được để trống." };
     }
     if (!candidate || !candidate.fullName) {
-      return { ok: false, error: "Thiếu thông tin ứng viên. Hãy đóng sidebar, chọn lại dòng và mở lại." };
+      return {
+        ok: false,
+        error:
+          "Thiếu thông tin ứng viên. Hãy đóng sidebar, chọn lại dòng và mở lại.",
+      };
     }
 
     // 1. Nếu có ảnh: upload lên Drive trước để lấy URL nhúng vào bài
@@ -516,8 +616,13 @@ function submitIntroductionPost(formData) {
     }
 
     // 2. Xây markdown (chèn ảnh lên đầu nếu có)
-    const { title, text: baseText } = buildWelcomePostMarkdown(candidate, introduction);
-    const text = photoMarkdownLine ? `${photoMarkdownLine}\n\n${baseText}` : baseText;
+    const { title, text: baseText } = buildWelcomePostMarkdown(
+      candidate,
+      introduction,
+    );
+    const text = photoMarkdownLine
+      ? `${photoMarkdownLine}\n\n${baseText}`
+      : baseText;
 
     // 3. Tạo draft Outline
     const doc = callOutlineCreateDocument_(title, text);
