@@ -43,10 +43,10 @@
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666">
-        <?= it.workingEmail ? "Working email:" : "Email cá nhân:" ?>
+        <?= it.allocCode ? "Working Email:" : "Email cá nhân:" ?>
       </td>
       <td style="padding: 8px 0; font-weight: bold; color: #ef403e">
-        <?= it.workingEmail || it.personalEmail || "" ?>
+        <?= it.allocCode ? it.workingEmail || "" : it.personalEmail || "" ?>
       </td>
     </tr>
     <tr>
