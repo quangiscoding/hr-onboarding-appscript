@@ -11,7 +11,8 @@
         font-size: 13px;
         color: #202124;
         margin: 0;
-        padding: 12px;
+        padding: 6px;
+        max-width: 100%;
       }
       h2 {
         font-size: 15px;
@@ -137,7 +138,7 @@
         word-break: break-word;
       }
       .status.error {
-        display: block;
+        display: none;
         background: #fce8e6;
         color: #b3261e;
       }
@@ -178,7 +179,7 @@
     </div>
 
     <div id="loading">Đang đọc dữ liệu ứng viên từ dòng đang chọn...</div>
-    <div id="error-box" class="status error"></div>
+    <div id="error-box" class="status"></div>
 
     <div id="main" style="display: none">
       <div class="section-title">Thông tin ứng viên (dòng đang chọn)</div>
@@ -214,8 +215,8 @@
       <div class="hint">
         Nội dung này sẽ là phần <b>Introduction</b> trong bài đăng (markdown hỗ
         trợ <b>**bold**</b>, _italic_, emoji). Có thể bấm nút ✨ để AI soạn sẵn
-        rồi chỉnh tay. Sau khi Submit, hãy mở draft trên Outline để <b>chèn ảnh
-        ứng viên</b> trực tiếp trong bài nhé.
+        rồi chỉnh tay. Sau khi Submit, hãy mở draft trên Outline để
+        <b>chèn ảnh ứng viên</b> trực tiếp trong bài nhé.
       </div>
 
       <button id="submit-btn" class="btn" onclick="handleSubmit()">
@@ -303,7 +304,7 @@
         const el = document.getElementById("cv-sheet-status");
         if (candidate.cvUrl) {
           el.innerHTML =
-            "✅ CV trên sheet: <i>" +
+            '✅ CV trên sheet: <i style="word-break: break-all; overflow-wrap: anywhere; display: inline-block;">' +
             escapeHtml(truncate(candidate.cvUrl, 60)) +
             "</i>";
         } else {
