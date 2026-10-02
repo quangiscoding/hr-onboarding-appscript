@@ -48,11 +48,9 @@ const CONFIG = {
   /**
    * AI provider cho việc tóm tắt CV — thử theo thứ tự, provider đầu lỗi
    * (rate limit, key thiếu, API lỗi...) sẽ tự chuyển sang provider kế.
-   * Lưu ý: OpenRouter yêu cầu tài khoản có tối thiểu $0.50 credit mới gửi
-   * được file đính kèm (PDF) — chưa nạp tiền thì nên để "gemini" trước.
    * Chọn: "openrouter" | "gemini"
    */
-  AI_PROVIDERS: ["gemini", "openrouter"],
+  AI_PROVIDERS: ["openrouter", "gemini"],
 
   /**
    * OpenRouter (ưu tiên dùng — 1 API key thống nhất cho mọi model, free tier
