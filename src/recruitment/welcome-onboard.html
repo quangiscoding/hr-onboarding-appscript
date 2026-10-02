@@ -11,13 +11,12 @@
         font-size: 13px;
         color: #202124;
         margin: 0;
-        padding: 6px;
+        padding: 8px 10px;
         max-width: 100%;
       }
       h2 {
         font-size: 15px;
         margin: 0 0 4px;
-        color: #ef403e;
       }
       .subtitle {
         color: #5f6368;
@@ -30,27 +29,34 @@
         text-transform: uppercase;
         letter-spacing: 0.4px;
         color: #5f6368;
-        margin: 14px 0 6px;
+        margin: 14px 0;
       }
       .card {
-        background: #f8f9fa;
+        background: #fff; /* Đổi nền trắng cho sạch */
         border: 1px solid #e8eaed;
-        border-radius: 8px;
         padding: 8px 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Thêm bóng mờ nhẹ */
       }
       .field {
         display: flex;
-        margin: 3px 0;
-        gap: 6px;
+        flex-direction: column; /* Đặt label nằm trên, value nằm dưới */
+        padding: 5px 0;
+        border-bottom: 1px solid #f1f3f4; /* Đường gạch nhạt phân cách */
+      }
+      .field:last-child {
+        border-bottom: none; /* Dòng cuối không cần gạch */
       }
       .field .label {
-        flex: 0 0 96px;
-        color: #5f6368;
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        color: #80868b;
+        margin-bottom: 2px;
       }
       .field .value {
-        flex: 1;
+        font-size: 12.5px;
         font-weight: 500;
-        word-break: break-word;
+        color: #202124;
       }
       textarea {
         width: 100%;
@@ -170,6 +176,19 @@
       input[type="file"] {
         display: none;
       }
+      /* 1. Ẩn thanh cuộn trên Chrome, Safari, Edge và Google Apps Script Sidebar (Webkit) */
+      ::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+      }
+
+      /* 2. Ẩn thanh cuộn trên Firefox và IE/Legacy Edge */
+      html,
+      body {
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE / Edge cũ */
+      }
     </style>
   </head>
   <body>
@@ -182,13 +201,23 @@
     <div id="error-box" class="status"></div>
 
     <div id="main" style="display: none">
-      <div class="section-title">Thông tin ứng viên (dòng đang chọn)</div>
-      <div class="card" id="candidate-card"></div>
+      <div>
+        <div class="section-title">Thông tin ứng viên (dòng đang chọn)</div>
+        <div class="card" id="candidate-card"></div>
+      </div>
 
-      <div class="section-title">CV (cho AI tóm tắt)</div>
-      <div class="card">
-        <div id="cv-sheet-status">Đang kiểm tra link CV trên sheet...</div>
-        <div class="cv-file-name" id="cv-file-name"></div>
+      <div>
+        <div class="section-title">CV (cho AI tóm tắt)</div>
+        <div class="card">
+          <div id="cv-sheet-status">Đang kiểm tra link CV trên sheet...</div>
+          <div class="cv-file-name" id="cv-file-name"></div>
+          <input
+            type="file"
+            id="cv-input"
+            accept="application/pdf,.doc,.docx,.txt"
+            onchange="handleCvSelect(this)"
+          />
+        </div>
         <button
           class="btn-secondary"
           style="margin-top: 6px"
@@ -196,16 +225,10 @@
         >
           ⬆️ Upload CV khác từ máy (PDF/Doc)
         </button>
-        <input
-          type="file"
-          id="cv-input"
-          accept="application/pdf,.doc,.docx,.txt"
-          onchange="handleCvSelect(this)"
-        />
+        <button id="ai-btn" class="btn-ai" onclick="handleAiSummarize()">
+          ✨ AI tóm tắt CV → soạn Introduction
+        </button>
       </div>
-      <button id="ai-btn" class="btn-ai" onclick="handleAiSummarize()">
-        ✨ AI tóm tắt CV → soạn Introduction
-      </button>
 
       <div class="section-title">Introduction</div>
       <textarea

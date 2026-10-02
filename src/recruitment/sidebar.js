@@ -81,7 +81,7 @@ function getSelectedCandidate() {
       lineManager: readCol(COLS.LINE_MANAGER),
       taInCharge: readCol(COLS.TA_IN_CHARGE),
       dateOfOnboard: readCol(COLS.DATE_ONBOARD),
-      workingEmail: readCol(COLS.WORKING_EMAIL),
+      workingEmail: formatKyanonEmail(readCol(COLS.ALLOC_CODE)),
       personalEmail: readCol(COLS.PERSONAL_EMAIL),
       phoneNumber: readCol("phonenumber"),
       cvUrl: cvUrl,
