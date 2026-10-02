@@ -209,7 +209,7 @@ function getHeaderColumnMap(sheet) {
  * @returns {string} Chuỗi HTML string đã render
  */
 function renderHtmlTemplate(templateName, data) {
-  const filePath = `email-templates/${templateName}`;
+  const filePath = `onboarding/email-templates/${templateName}`;
   const template = HtmlService.createTemplateFromFile(filePath);
 
   template.it = data;
