@@ -29,6 +29,7 @@ const WORKFLOW_REGISTRY = {
 /** Tự động tạo Custom Menu trên Google Sheets khi mở file */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
+
   ui.createMenu("🚀 Hera Onboarding Tools")
     .addItem(
       "1. Tạo Draft Welcome Email (Dòng đang chọn)",
@@ -44,8 +45,11 @@ function onOpen() {
       "menuSendTaNotification",
     )
     .addToUi();
+
   ui.createMenu("🚀 AI Recruitment")
-    .addItem("Mở AI Introduction Generator", "showSidebar")
+    .addItem("1. Mở AI Introduction Generator", "showSidebar")
+    .addSeparator()
+    .addItem("2. Cài đặt Outline API Token cá nhân", "promptSetupOutlineToken")
     .addToUi();
 }
 

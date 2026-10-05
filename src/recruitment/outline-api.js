@@ -12,15 +12,63 @@
  * (Apps Script → Project Settings → Script Properties).
  * Không hardcode token trong code để tránh leak qua git.
  */
-function getOutlineApiToken_() {
-  const token =
-    PropertiesService.getScriptProperties().getProperty("OUTLINE_API_TOKEN");
-  if (!token) {
-    throw new Error(
-      'Thiếu Script Property "OUTLINE_API_TOKEN". Hãy vào Apps Script → Project Settings → Script Properties và thêm token Outline (dạng ol_api_...).',
+
+/**
+ * Mở popup prompt để người dùng nhập Outline API Token cá nhân.
+ * Token này được lưu riêng vào UserProperties của tài khoản Google đó.
+ */
+function promptSetupOutlineToken() {
+  const ui = SpreadsheetApp.getUi();
+  const userProps = PropertiesService.getUserProperties();
+  const currentToken = userProps.getProperty("OUTLINE_API_TOKEN") || "";
+
+  // Tạo thông báo hướng dẫn người dùng
+  let msg =
+    "Nhập API Token cá nhân Outline của bạn để tạo bài draft dưới tên bạn.";
+  if (currentToken) {
+    // Masking bớt token cũ để đảm bảo bảo mật
+    const masked =
+      currentToken.substring(0, 8) +
+      "..." +
+      currentToken.substring(currentToken.length - 4);
+    msg += `\n\n(Token hiện tại: ${masked})`;
+  }
+
+  const result = ui.prompt(
+    "🔑 Cài đặt Outline API Token",
+    msg,
+    ui.ButtonSet.OK_CANCEL,
+  );
+
+  if (result.getSelectedButton() === ui.Button.OK) {
+    const newToken = result.getResponseText().trim();
+    if (!newToken) {
+      ui.alert("⚠️ Bạn chưa nhập token. Cài đặt không thay đổi.");
+      return;
+    }
+
+    userProps.setProperty("OUTLINE_API_TOKEN", newToken);
+    ui.alert(
+      "✅ Đã lưu Outline API Token cá nhân thành công!\nTừ giờ bài draft sẽ được tạo trực tiếp trên tài khoản Outline của bạn.",
     );
   }
-  return token;
+}
+
+/**
+ * Đọc Outline API Token.
+ * Ưu tiên 1: UserProperties (Token cá nhân do từng HR nhập qua popup)
+ * Ưu tiên 2: ScriptProperties (Token fallback dùng chung)
+ */
+function getOutlineApiToken_() {
+  const userToken =
+    PropertiesService.getUserProperties().getProperty("OUTLINE_API_TOKEN");
+  if (userToken && userToken.trim()) {
+    return userToken.trim();
+  }
+
+  throw new Error(
+    "Bạn chưa cài đặt Outline API Token cá nhân! Hãy vào menu '🚀 AI Recruitment' -> '2. Cài đặt Outline API Token cá nhân' để nhập key.",
+  );
 }
 
 /**
