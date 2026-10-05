@@ -45,7 +45,7 @@ function buildWelcomePostMarkdown(candidate, introduction) {
     `**Introduction:** ${introduction.trim()}`,
     "",
     `_Squad/Unit: ${squad || "N/A"} | Employment Type: ${candidate.employmentType || "N/A"} | Level: ${candidate.level || "N/A"}_`,
-  ].join("\n");
+  ].join("\n\n");
 
   return { title, text };
 }
