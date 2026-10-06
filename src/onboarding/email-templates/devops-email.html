@@ -8,31 +8,35 @@
     margin: 0;
   "
 >
-  <p style="margin: 0 0 12px 0">Hi anh Tuấn,</p>
+  <p style="margin: 0 0 12px 0">Hi IT Ops Team,</p>
   <p style="margin: 0 0 16px 0">
-    Sắp tới bên mình có nhân sự mới sẽ Onboard vào ngày
-    <strong><?= it.startDate || "" ?></strong>, nhờ anh hỗ trợ tạo giúp em tài
-    khoản Email công ty trên file
+    Nhờ team hỗ trợ cấp email công ty cho nhân sự mới onboard ngày
+    <strong><?= it.startDate ?></strong> tại dòng
+    <strong><?= it.rowNumber ?></strong> file
     <a
       href="<?= it.rowLink ?>"
       target="_blank"
       style="color: #0d6efd; font-weight: bold; text-decoration: underline"
       >Hera | On-boarding List</a
-    >
-    (dòng <strong><?= it.rowNumber ?></strong>) ạ.
+    >:
   </p>
-  <p style="margin: 0 0 16px 0">
-    <strong>Sau khi tạo xong email, nhờ anh thông báo đến TA bằng cách:</strong>
-    Chọn dòng <strong><?= it.rowNumber ?></strong> &rarr; truy cập menu
-    <strong>&#128640; Hera Onboarding Tools</strong> &rarr; chọn
-    <strong>2. Gửi Notification cho TA</strong> để hệ thống tự động gửi thông
-    báo đến TA phụ trách giúp em nhé.
+  <p style="margin: 0 0 8px 0">
+    Sau khi tạo email xong, nhờ team gửi thông báo đến TA theo các bước:
   </p>
+  <ul style="margin: 0 0 16px 0; padding-left: 20px; color: #333333">
+    <li>
+      Chọn dòng <strong><?= it.rowNumber ?></strong>
+    </li>
+    <li>
+      Vào menu <strong>Hera Onboarding Tools</strong> &rarr; chọn
+      <strong>3. Gửi Notification cho TA</strong>
+    </li>
+  </ul>
   <table
     style="
       width: 100%;
       border-collapse: collapse;
-      margin: 0 0 20px 0;
+      margin: 0 0 16px 0;
       border-top: 2px solid #ef403e;
       border-bottom: 1px solid #eeeeee;
     "
@@ -40,19 +44,21 @@
     <tr>
       <td style="padding: 8px 0; color: #666666; width: 130px">Họ và tên:</td>
       <td style="padding: 8px 0; font-weight: bold; color: #111111">
-        <?= it.fullName || "" ?>
+        <?= it.fullName ?>
       </td>
     </tr>
     <tr>
-      <td style="padding: 8px 0; color: #666666">Email cá nhân:</td>
+      <td style="padding: 8px 0; color: #666666">
+        <?= it.workingEmail ? "Working email:" : "Email cá nhân:" ?>
+      </td>
       <td style="padding: 8px 0; font-weight: bold; color: #ef403e">
-        <?= it.personalEmail || it.workingEmail || "" ?>
+        <?= it.workingEmail || it.personalEmail || "" ?>
       </td>
     </tr>
     <tr>
       <td style="padding: 8px 0; color: #666666">Ngày Onboard:</td>
       <td style="padding: 8px 0; font-weight: bold; color: #111111">
-        <?= it.startDate || "" ?>
+        <?= it.startDate ?>
       </td>
     </tr>
     <tr>
@@ -85,5 +91,5 @@
       >Mở Google Sheet (Dòng <?= it.rowNumber ?>)</a
     >
   </div>
-  <p style="margin: 0">Em cảm ơn anh!</p>
+  <p style="margin: 0">Em cảm ơn team!</p>
 </div>
