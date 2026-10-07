@@ -76,7 +76,10 @@ function getTaNotificationEmailTemplate(data) {
   const payload = buildTemplatePayload(data, { taUsername, statusMessage });
 
   const subject = `[Cập nhật Onboarding] ${subjectDetail} - ${data.fullName || ""} (Dòng ${data.rowNumber})`;
-  return { subject, htmlBody: renderHtmlTemplate("ta-notification-email", payload) };
+  return {
+    subject,
+    htmlBody: renderHtmlTemplate("ta-notification-email", payload),
+  };
 }
 
 /** Draft Welcome Email cho ứng viên (kèm PDF hướng dẫn) */
@@ -103,5 +106,8 @@ function getWelcomeCandidateEmailTemplate(data, guidePreviewUrl) {
     ? `${positionTitle}_${squadTitle}`
     : positionTitle;
   const subject = `Welcome to Kyanon Digital: Essential Onboarding Steps for ${subjectDetail}`;
-  return { subject, htmlBody: renderHtmlTemplate("welcome-candidate-email", payload) };
+  return {
+    subject,
+    htmlBody: renderHtmlTemplate("welcome-candidate-email", payload),
+  };
 }

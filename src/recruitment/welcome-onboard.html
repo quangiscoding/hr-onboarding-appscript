@@ -393,6 +393,29 @@
       let currentCandidate = null;
       let cvFileData = null;
 
+      /* ---------------- HELPER ĐỔI TÊN THÀNH "TEN HO" ---------------- */
+      function formatShortName(fullName) {
+        if (!fullName) return "";
+
+        // 1. Loại bỏ dấu tiếng Việt
+        const accentless = fullName
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/đ/g, "d")
+          .replace(/Đ/g, "D")
+          .trim();
+
+        // 2. Tách từ
+        const parts = accentless.split(/\s+/);
+        if (parts.length === 1) return parts[0].toUpperCase();
+
+        const ho = parts[0]; // Họ (Tran)
+        const ten = parts[parts.length - 1]; // Tên (Anh)
+
+        // Kết hợp thành "ANH TRAN"
+        return `${ten} ${ho}`.toUpperCase();
+      }
+
       /* ---------------- XỬ LÝ CANVAS CĂN CHỈNH ÁNH ---------------- */
       const canvas = document.getElementById("welcomeCanvas");
       const ctx = canvas.getContext("2d");
@@ -486,7 +509,8 @@
 
         // LAYER 3: Dải đen & Chữ Thông Tin Nhân Sự (lấy tự động từ Sheet)
         if (currentCandidate) {
-          const name = (currentCandidate.fullName || "").toUpperCase();
+          // Chuyển "Trần Thị Tú Anh" -> "ANH TRAN"
+          const name = formatShortName(currentCandidate.fullName);
           const position = currentCandidate.title || "";
           const squad = currentCandidate.squad || "";
 
@@ -499,10 +523,8 @@
           ctx.fillStyle = "#FFFFFF";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-
           ctx.font = "bold 48px sans-serif";
           ctx.fillText(name, 500, 690);
-
           ctx.font = "bold 36px sans-serif";
           ctx.fillText(position, 500, 775);
           ctx.fillText(squad, 500, 830);
