@@ -92,6 +92,7 @@ const CONFIG = {
         "Request Type",
         "Sent To",
         "Status",
+        "Error Details", // Cột mới
       ],
     },
     TA_NOTIFICATION: {
@@ -103,6 +104,7 @@ const CONFIG = {
         "Alloc Code",
         "Sent To",
         "Status",
+        "Error Details", // Cột mới
       ],
     },
     CANDIDATE: {
@@ -114,6 +116,7 @@ const CONFIG = {
         "Alloc Code",
         "Draft ID",
         "Status",
+        "Error Details", // Cột mới
       ],
     },
   },

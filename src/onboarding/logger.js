@@ -1,17 +1,15 @@
 /** ==========================================
  * LOGGER.JS - GHI LOG WORKFLOW VÀO TAB BẢNG TÍNH
- * ==========================================
- * Mỗi luồng có 1 tab log riêng, cấu hình tập trung trong CONFIG.LOG.
- * Ghi log là side-effect: luôn fail-safe (không làm crash workflow).
- */
+ * ========================================== */
 
-/**
- * Lấy tab log theo tên. Nếu chưa có thì TỰ ĐỘNG TẠO MỚI + format header.
- */
 function getOrCreateLogSheet(sheetName, headers) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(sheetName);
+  if (!ss) {
+    Logger.log("❌ Không tìm thấy Active Spreadsheet.");
+    return null;
+  }
 
+  let sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
     if (headers && headers.length > 0) {
@@ -23,65 +21,96 @@ function getOrCreateLogSheet(sheetName, headers) {
       sheet.setFrozenRows(1);
     }
   }
-
   return sheet;
 }
 
-/**
- * Generic writer: append 1 bản ghi vào tab log.
- * @param {Object} config - Phần tử của CONFIG.LOG (SHEET_NAME, HEADERS)
- * @param {Array} values - Mảng giá trị, thứ tự khớp HEADERS
- */
 function appendWorkflowLog(config, values) {
   try {
+    if (!config || !config.SHEET_NAME) return;
     const sheet = getOrCreateLogSheet(config.SHEET_NAME, config.HEADERS);
-    sheet.appendRow([new Date(), ...values]);
+    if (sheet) {
+      sheet.appendRow([new Date(), ...values]);
+    }
   } catch (error) {
     Logger.log(
-      `❌ Lỗi ghi log vào tab "${config.SHEET_NAME}": ` + error.message,
+      `❌ Lỗi ghi log vào tab "${config?.SHEET_NAME}": ` + error.message,
     );
   }
 }
 
+function safeTitleCase_(str) {
+  if (!str) return "";
+  return typeof toTitleCase === "function" ? toTitleCase(str) : String(str);
+}
+
 /**
- * Ghi log luồng Internal (Offer Accepted -> gửi trực tiếp DevOps, HR, IT)
- * @param {Object} data
- * @param {Array<{type: string, to: string}>} sentEmails
+ * Ghi log luồng Internal Email
  */
-function logInternalWorkflow(data, sentEmails) {
+function logInternalWorkflow(
+  data,
+  sentEmails,
+  status = "EMAIL_SENT",
+  errorDetail = "",
+) {
+  if (!Array.isArray(sentEmails) || sentEmails.length === 0) {
+    // Trường hợp chưa gửi được mail nào đã fail
+    appendWorkflowLog(CONFIG.LOG.INTERNAL, [
+      data?.fullName || "",
+      safeTitleCase_(data?.position),
+      "N/A",
+      "N/A",
+      status,
+      errorDetail,
+    ]);
+    return;
+  }
+
   sentEmails.forEach((sent) => {
     appendWorkflowLog(CONFIG.LOG.INTERNAL, [
-      data.fullName,
-      toTitleCase(data.position),
-      sent.type,
-      sent.to,
-      "EMAIL_SENT",
+      data?.fullName || "",
+      safeTitleCase_(data?.position),
+      sent.type || "",
+      sent.to || "",
+      status,
+      errorDetail,
     ]);
   });
 }
 
 /**
- * Ghi log luồng TA Notification (gửi trực tiếp)
+ * Ghi log luồng TA Notification
  */
-function logTaNotificationWorkflow(data, sentTo) {
+function logTaNotificationWorkflow(
+  data,
+  sentTo,
+  status = "EMAIL_SENT",
+  errorDetail = "",
+) {
   appendWorkflowLog(CONFIG.LOG.TA_NOTIFICATION, [
-    data.fullName,
-    toTitleCase(data.position),
-    data.allocCode,
-    sentTo,
-    "EMAIL_SENT",
+    data?.fullName || "",
+    safeTitleCase_(data?.position),
+    data?.allocCode || "",
+    sentTo || "",
+    status,
+    errorDetail,
   ]);
 }
 
 /**
  * Ghi log luồng Candidate Welcome Draft
  */
-function logCandidateWorkflow(data, draftId) {
+function logCandidateWorkflow(
+  data,
+  draftId,
+  status = "DRAFT_CREATED",
+  errorDetail = "",
+) {
   appendWorkflowLog(CONFIG.LOG.CANDIDATE, [
-    data.fullName,
-    toTitleCase(data.position),
-    data.allocCode,
-    draftId,
-    "DRAFT_CREATED",
+    data?.fullName || "",
+    safeTitleCase_(data?.position),
+    data?.allocCode || "",
+    draftId || "",
+    status,
+    errorDetail,
   ]);
 }
