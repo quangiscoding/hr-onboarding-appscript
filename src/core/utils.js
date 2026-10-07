@@ -253,3 +253,89 @@ function getGuidePdfFileInfo(employmentType, onboardingType, customFileName) {
     return null;
   }
 }
+
+/**
+ * Kiểm tra xem Toàn bộ Dòng (Entire Row) trên TAB SHEET HIỆN TẠI đã bị khóa cho Workflow này chưa
+ * @param {number} rowNumber - Số dòng trên Sheet (1-based index)
+ * @param {string} triggerType - Loại workflow ("OFFER_ACCEPTED", "TA_NOTIFICATION", "WELCOME_EMAIL")
+ * @returns {boolean} true nếu đã chạy và bị khóa, false nếu chưa
+ */
+function isRowLockedForWorkflow(rowNumber, triggerType) {
+  if (!rowNumber || !triggerType) return false;
+
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const sheetName = sheet.getName();
+    const targetKey = `LOCK_${sheetName}_${triggerType}`;
+
+    // ⚡ QUAN TRỌNG: Lấy Range của Toàn Bộ Dòng (ví dụ: "3:3")
+    const entireRowRange = sheet.getRange(`${rowNumber}:${rowNumber}`);
+    const metadataList = entireRowRange.getDeveloperMetadata();
+
+    const isLocked = metadataList.some(
+      (meta) => meta.getKey() === targetKey && meta.getValue() === "COMPLETED",
+    );
+
+    Logger.log(
+      `[CHECK LOCK] Row: ${rowNumber} | Key: ${targetKey} | Result: ${isLocked}`,
+    );
+    return isLocked;
+  } catch (error) {
+    Logger.log(`[isRowLockedForWorkflow Error]: ${error.stack}`);
+    return false; // Fail-safe
+  }
+}
+
+/**
+ * Đánh dấu KHÓA duy nhất Workflow vừa chạy cho Toàn bộ Dòng (Entire Row) trên TAB SHEET HIỆN TẠI
+ * @param {number} rowNumber - Số dòng trên Sheet (1-based index)
+ * @param {string} triggerType - Loại workflow vừa chạy xong
+ */
+function lockRowForWorkflow(rowNumber, triggerType) {
+  if (!rowNumber || !triggerType) return;
+
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const sheetName = sheet.getName();
+    const targetKey = `LOCK_${sheetName}_${triggerType}`;
+
+    // ⚡ QUAN TRỌNG: Gắn Metadata vào Toàn Bộ Dòng (ví dụ: "3:3") để thỏa mãn Google Sheets API
+    const entireRowRange = sheet.getRange(`${rowNumber}:${rowNumber}`);
+
+    if (!isRowLockedForWorkflow(rowNumber, triggerType)) {
+      entireRowRange.addDeveloperMetadata(
+        targetKey,
+        "COMPLETED",
+        SpreadsheetApp.DeveloperMetadataVisibility.DOCUMENT,
+      );
+      Logger.log(
+        `[LOCK SUCCESS] Đã gắn key "${targetKey}" vào Dòng ${rowNumber}:${rowNumber}`,
+      );
+    }
+  } catch (error) {
+    Logger.log(`[lockRowForWorkflow Error]: ${error.stack}`);
+  }
+}
+
+/**
+ * Hàm hỗ trợ Dev/Admin: Xóa toàn bộ khóa DeveloperMetadata trên dòng đang chọn
+ */
+function dev_unlockCurrentRow() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const activeRange = sheet.getActiveRange();
+  if (!activeRange) return;
+
+  const rowNumber = activeRange.getRow();
+  const rowRange = sheet.getRange(rowNumber, 1, 1, sheet.getLastColumn());
+
+  const metadataList = rowRange.getDeveloperMetadata();
+  metadataList.forEach((meta) => {
+    if (meta.getKey().startsWith("LOCK_")) {
+      meta.remove();
+    }
+  });
+
+  SpreadsheetApp.getUi().alert(
+    `Đã xóa toàn bộ khóa DeveloperMetadata cho dòng ${rowNumber}!`,
+  );
+}

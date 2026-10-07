@@ -70,13 +70,12 @@ function menuSendTaNotification() {
 
 /**
  * Bộ điều phối chung (Controller Runner) cho các Action từ Menu:
- * chọn dòng -> normalize -> validate -> confirm -> chạy workflow -> hiển thị kết quả.
+ * chọn dòng -> normalize -> check lock -> validate -> confirm -> chạy workflow -> khóa dòng -> hiển thị kết quả.
  * @param {string} triggerType - Key trong WORKFLOW_REGISTRY
  */
 function executeWorkflowRunner(triggerType) {
   const ui = SpreadsheetApp.getUi();
   const workflow = WORKFLOW_REGISTRY[triggerType];
-
   if (!workflow) {
     ui.alert(`❌ Không tìm thấy workflow: ${triggerType}`);
     return;
@@ -85,7 +84,6 @@ function executeWorkflowRunner(triggerType) {
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     const activeRange = sheet.getActiveRange();
-
     if (!activeRange) {
       notifyWarning(
         "⚠️ Thiếu lựa chọn",
@@ -99,6 +97,17 @@ function executeWorkflowRunner(triggerType) {
       notifyWarning(
         "⚠️ Sai dòng",
         "Vui lòng chọn dòng dữ liệu nhân sự (không chọn dòng tiêu đề)!",
+      );
+      return;
+    }
+
+    // 🔒 CHECK LOCK: Dòng trên Tab Sheet này đã chạy Workflow NÀY chưa?
+    if (isRowLockedForWorkflow(rowIndex, triggerType)) {
+      notifyWarning(
+        "🔒 Chức Năng Đã Bị Khóa!",
+        `Dòng ${rowIndex} ĐÃ CHẠY luồng [${workflow.label}] trước đó rồi.\n\n` +
+          `Thao tác bị từ chối để tránh tạo lặp email/draft.\n` +
+          `(Các chức năng khác của dòng này vẫn có thể thực hiện bình thường).`,
       );
       return;
     }
@@ -122,6 +131,9 @@ function executeWorkflowRunner(triggerType) {
 
     // 4. Thực thi luồng nghiệp vụ tương ứng
     const result = workflow.run(data);
+
+    // 🔒 ĐÁNH DẤU KHÓA ĐỘC LẬP CHỨC NĂNG VỪA CHẠY XONG CHO DÒNG ĐÓ
+    lockRowForWorkflow(rowIndex, triggerType);
 
     // 5. Hiển thị kết quả
     notifySuccess("Thành công 🎉", result.message);
