@@ -29,23 +29,23 @@
         text-transform: uppercase;
         letter-spacing: 0.4px;
         color: #5f6368;
-        margin: 14px 0;
+        margin: 14px 0 6px;
       }
       .card {
-        background: #fff; /* Đổi nền trắng cho sạch */
+        background: #fff;
         border: 1px solid #e8eaed;
         border-radius: 6px;
         padding: 8px 10px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Thêm bóng mờ nhẹ */
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       }
       .field {
         display: flex;
-        flex-direction: column; /* Đặt label nằm trên, value nằm dưới */
+        flex-direction: column;
         padding: 5px 0;
-        border-bottom: 1px solid #f1f3f4; /* Đường gạch nhạt phân cách */
+        border-bottom: 1px solid #f1f3f4;
       }
       .field:last-child {
-        border-bottom: none; /* Dòng cuối không cần gạch */
+        border-bottom: none;
       }
       .field .label {
         font-size: 10.5px;
@@ -61,7 +61,7 @@
       }
       textarea {
         width: 100%;
-        min-height: 150px;
+        min-height: 140px;
         border: 1px solid #dadce0;
         border-radius: 6px;
         padding: 8px;
@@ -127,8 +127,60 @@
         color: #1a73e8;
         font-weight: 500;
         cursor: pointer;
+        font-size: 11.5px;
       }
-      /* CV upload */
+
+      /* Style Canvas xem trước */
+      .canvas-container {
+        width: 100%;
+        text-align: center;
+        background: #f8f9fa;
+        border: 1px dashed #dadce0;
+        border-radius: 6px;
+        padding: 6px;
+      }
+      canvas {
+        width: 100%;
+        height: auto;
+        border-radius: 4px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+      }
+      .control-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+        font-size: 11.5px;
+        color: #555;
+      }
+      .control-row label {
+        width: 80px;
+      }
+      .control-row input[type="range"] {
+        flex: 1;
+      }
+      .control-row span {
+        width: 38px;
+        font-weight: bold;
+        text-align: right;
+        font-size: 11px;
+      }
+      .btn-download {
+        width: 100%;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 6px;
+        background: #1e8e3e;
+        color: #fff;
+        font-weight: 600;
+        font-size: 12px;
+        cursor: pointer;
+        margin-top: 6px;
+      }
+      .btn-download:hover {
+        background: #137333;
+      }
+
       .cv-file-name {
         font-size: 11.5px;
         color: #137333;
@@ -177,18 +229,15 @@
       input[type="file"] {
         display: none;
       }
-      /* 1. Ẩn thanh cuộn trên Chrome, Safari, Edge và Google Apps Script Sidebar (Webkit) */
       ::-webkit-scrollbar {
         display: none;
         width: 0;
         height: 0;
       }
-
-      /* 2. Ẩn thanh cuộn trên Firefox và IE/Legacy Edge */
       html,
       body {
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* IE / Edge cũ */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
       }
     </style>
   </head>
@@ -197,16 +246,105 @@
     <div class="subtitle">
       Tạo draft bài đăng chào mừng nhân sự mới trên Outline Wiki
     </div>
-
     <div id="loading">Đang đọc dữ liệu ứng viên từ dòng đang chọn...</div>
     <div id="error-box" class="status"></div>
 
     <div id="main" style="display: none">
+      <!-- 1. THÔNG TIN ỨNG VIÊN -->
       <div>
         <div class="section-title">Thông tin ứng viên (dòng đang chọn)</div>
         <div class="card" id="candidate-card"></div>
       </div>
 
+      <!-- 2. CÔNG CỤ TẠO & CĂN CHỈNH ÁNH WELCOME (CANVAS) -->
+      <div>
+        <div class="section-title">Ảnh Welcome Card</div>
+        <div class="card">
+          <div class="canvas-container">
+            <canvas id="welcomeCanvas" width="1000" height="1000"></canvas>
+          </div>
+
+          <!-- NÚT UPLOAD ÁNH TRỰC TIẾP TỪ MÁY TÍNH -->
+          <div style="margin-top: 8px">
+            <button
+              class="btn-secondary"
+              style="border-color: #1a73e8; font-weight: 600"
+              onclick="document.getElementById('avatar-input').click()"
+            >
+              📷 Upload Ảnh Ứng Viên từ máy
+            </button>
+            <input
+              type="file"
+              id="avatar-input"
+              accept="image/*"
+              onchange="handleAvatarUpload(this)"
+            />
+
+            <button
+              class="btn-secondary"
+              style="margin-top: 4px"
+              onclick="document.getElementById('frame-input').click()"
+            >
+              🎨 Chọn Khung Template khác (nếu cần)
+            </button>
+            <input
+              type="file"
+              id="frame-input"
+              accept="image/*"
+              onchange="handleFrameUpload(this)"
+            />
+          </div>
+
+          <!-- THANH TRUỘT BỘ ĐIỀU CHỈNH -->
+          <div style="margin-top: 10px">
+            <div class="control-row">
+              <label>Zoom:</label>
+              <input
+                type="range"
+                id="zoomScale"
+                min="0.4"
+                max="2.2"
+                step="0.05"
+                value="1.0"
+                oninput="renderCanvas()"
+              />
+              <span id="zoomVal">1.0x</span>
+            </div>
+            <div class="control-row">
+              <label>Trái / Phải:</label>
+              <input
+                type="range"
+                id="offsetX"
+                min="-200"
+                max="200"
+                step="2"
+                value="0"
+                oninput="renderCanvas()"
+              />
+              <span id="xVal">0px</span>
+            </div>
+            <div class="control-row">
+              <label>Lên / Xuống:</label>
+              <input
+                type="range"
+                id="offsetY"
+                min="-200"
+                max="200"
+                step="2"
+                value="0"
+                oninput="renderCanvas()"
+              />
+              <span id="yVal">0px</span>
+            </div>
+          </div>
+
+          <button class="btn-download" onclick="downloadImage()">
+            ⬇️ Tải ảnh đã ghép về máy (.JPG)
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. CV DÙNG CHO AI TÓM TẮT -->
       <div>
         <div class="section-title">CV (cho AI tóm tắt)</div>
         <div class="card">
@@ -231,29 +369,162 @@
         </button>
       </div>
 
+      <!-- 4. INTRODUCTION & SUBMIT OUTLINE -->
       <div class="section-title">Introduction</div>
       <textarea
         id="introduction"
         placeholder="We are thrilled to welcome Ms./Mr. ... as our ...! 🎉 ..."
       ></textarea>
       <div class="hint">
-        Nội dung này sẽ là phần <b>Introduction</b> trong bài đăng (markdown hỗ
-        trợ <b>**bold**</b>, _italic_, emoji). Có thể bấm nút ✨ để AI soạn sẵn
-        rồi chỉnh tay. Sau khi Submit, hãy mở draft trên Outline để
-        <b>chèn ảnh ứng viên</b> trực tiếp trong bài nhé.
+        <b>💡 HƯỚNG DẪN:</b><br />
+        1. Bấm <b>Upload Ảnh Ứng Viên</b> -> Căn chỉnh góc -> Bấm
+        <b>Tải ảnh về máy</b>.<br />
+        2. Bấm <b>Submit</b> để tạo bài draft trên Outline Wiki.<br />
+        3. Mở draft trên Outline -> Kéo-thả (hoặc Ctrl+V) file ảnh vừa tải vào
+        bài.
       </div>
-
       <button id="submit-btn" class="btn" onclick="handleSubmit()">
         Submit → Tạo draft trên Outline
       </button>
-
       <div id="status" class="status"></div>
     </div>
 
     <script>
       let currentCandidate = null;
-      let cvFileData = null; // CV upload từ máy (ưu tiên hơn CV trên sheet)
+      let cvFileData = null;
 
+      /* ---------------- XỬ LÝ CANVAS CĂN CHỈNH ÁNH ---------------- */
+      const canvas = document.getElementById("welcomeCanvas");
+      const ctx = canvas.getContext("2d");
+
+      let avatarImg = new Image();
+      let frameImg = new Image();
+      let avatarLoaded = false;
+      let frameLoaded = false;
+
+      // Nạp sẵn khung Template mặc định (Đổi link này thành link file khung PNG của bạn nếu cần)
+      frameImg.crossOrigin = "anonymous";
+      frameImg.src =
+        "https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/Montserrat-Bold.ttf";
+      frameImg.onload = () => {
+        frameLoaded = true;
+        renderCanvas();
+      };
+
+      // 1. Nút Upload Ảnh ứng viên từ máy tính
+      function handleAvatarUpload(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          avatarImg = new Image();
+          avatarImg.onload = function () {
+            avatarLoaded = true;
+            renderCanvas();
+          };
+          avatarImg.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // 2. Nút Upload Khung Template tùy chỉnh từ máy tính
+      function handleFrameUpload(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          frameImg = new Image();
+          frameImg.onload = function () {
+            frameLoaded = true;
+            renderCanvas();
+          };
+          frameImg.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function renderCanvas() {
+        const zoom = parseFloat(document.getElementById("zoomScale").value);
+        const offsetX = parseInt(document.getElementById("offsetX").value);
+        const offsetY = parseInt(document.getElementById("offsetY").value);
+
+        document.getElementById("zoomVal").innerText = zoom.toFixed(2) + "x";
+        document.getElementById("xVal").innerText = offsetX + "px";
+        document.getElementById("yVal").innerText = offsetY + "px";
+
+        ctx.clearRect(0, 0, 1000, 1000);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, 1000, 1000);
+
+        // LAYER 1: Avatar Ứng Viên Cắt Tròn Ở Tâm
+        if (avatarLoaded) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(500, 445, 230, 0, Math.PI * 2, true);
+          ctx.closePath();
+          ctx.clip();
+
+          const aspect = avatarImg.width / avatarImg.height;
+          let drawW = 480 * zoom;
+          let drawH = (480 / aspect) * zoom;
+          let drawX = 500 - drawW / 2 + offsetX;
+          let drawY = 445 - drawH / 2 + offsetY;
+
+          ctx.drawImage(avatarImg, drawX, drawY, drawW, drawH);
+          ctx.restore();
+        }
+
+        // LAYER 2: Khung Template
+        if (frameLoaded) {
+          ctx.drawImage(frameImg, 0, 0, 1000, 1000);
+        } else {
+          // Fallback nền đỏ giả lập nếu chưa chọn khung
+          ctx.fillStyle = "#C8102E";
+          ctx.fillRect(0, 0, 1000, 1000);
+          ctx.clearRect(270, 215, 460, 460);
+        }
+
+        // LAYER 3: Dải đen & Chữ Thông Tin Nhân Sự (lấy tự động từ Sheet)
+        if (currentCandidate) {
+          const name = (currentCandidate.fullName || "").toUpperCase();
+          const position = currentCandidate.title || "";
+          const squad = currentCandidate.squad || "";
+
+          ctx.fillStyle = "#2b2b2b";
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(200, 645, 600, 90, 45);
+          else ctx.rect(200, 645, 600, 90);
+          ctx.fill();
+
+          ctx.fillStyle = "#FFFFFF";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+
+          ctx.font = "bold 36px sans-serif";
+          ctx.fillText(name, 500, 690);
+
+          ctx.font = "bold 28px sans-serif";
+          ctx.fillText(position, 500, 775);
+          ctx.fillText(squad, 500, 830);
+        }
+      }
+
+      function downloadImage() {
+        if (!avatarLoaded) {
+          alert("Vui lòng Upload Ảnh Ứng Viên trước khi tải về!");
+          return;
+        }
+        const name =
+          currentCandidate && currentCandidate.fullName
+            ? currentCandidate.fullName.replace(/\s+/g, "_")
+            : "Onboarding";
+        const link = document.createElement("a");
+        link.download = `Welcome_${name}.jpg`;
+        link.href = canvas.toDataURL("image/jpeg", 0.95);
+        link.click();
+      }
+
+      /* ---------------- GIỮ NGUYÊN 100% CÁC HÀM BAN ĐẦU ---------------- */
       function escapeHtml(str) {
         const div = document.createElement("div");
         div.textContent = String(str == null ? "" : str);
@@ -282,6 +553,9 @@
               `<div class="field"><span class="label">${label}</span><span class="value">${escapeHtml(value)}</span></div>`,
           )
           .join("");
+
+        // Cập nhật lại khung Canvas khi nạp xong dữ liệu candidate
+        renderCanvas();
       }
 
       function showStatus(type, html) {
@@ -345,7 +619,6 @@
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span>AI đang đọc CV...';
         clearStatus();
-
         google.script.run
           .withSuccessHandler(function (res) {
             btn.disabled = false;
@@ -386,12 +659,10 @@
           );
           return;
         }
-
         const btn = document.getElementById("submit-btn");
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span>Đang tạo draft...';
         clearStatus();
-
         google.script.run
           .withSuccessHandler(function (res) {
             btn.disabled = false;
