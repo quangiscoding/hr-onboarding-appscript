@@ -46,6 +46,9 @@ src/
 │   ├── email-templates.js #   5 hàm get*EmailTemplate -> { subject, htmlBody }
 │   ├── email-templates/   #   5 file .html (devops, hr, it, ta-notification, welcome-candidate)
 │   └── logger.js          #   appendWorkflowLog + 3 hàm log*Workflow -> tab sheet
+├── assets/
+│   └── frame.webp         # Ảnh khung Welcome Card gốc (1253x1253, có alpha; KHÔNG push lên
+│                          #   GAS — clasp chỉ push .js/.html/.json; là nguồn sinh welcome-frame.html)
 ├── recruitment/           # Module 2: AI Recruitment — Welcome Onboard Generator
 │   ├── sidebar.js         #   CONTROLLER: các hàm public bind qua google.script.run/menu
 │   │                      #   (showSidebar, getSelectedCandidate, summarizeCvToIntro,
@@ -59,6 +62,9 @@ src/
 │   │                      #   gemini), xoay vòng key + retry backoff khi 429, model fallback
 │   ├── image-loader.js    #   getDriveFileBase64(urlOrId) — helper đọc file Drive thành base64
 │   │                      #   (hiện CHƯA được luồng nào tham chiếu, để dự phòng)
+│   ├── welcome-frame.html # Data URI base64 (image/webp) khung Welcome Card MẶC ĐỊNH —
+│   │                      #   1 dòng duy nhất, sinh bởi scripts/update-welcome-frame.sh
+│   │                      #   từ assets/frame.webp; sidebar inject sẵn khi mở
 │   └── welcome-onboard.html # Sidebar UI: card thông tin + Canvas Welcome Card editor +
 │                           #   upload CV + AI summarize + submit Outline
 └── legacy/
@@ -114,13 +120,13 @@ src/
 - **`recruitment/`** — module AI Recruitment, sidebar "Welcome Onboard Generator" (mở từ menu "🚀 AI Recruitment"). Tách file theo trách nhiệm (GAS global namespace nên không import — chỉ quy ước tổ chức):
 
   - **`sidebar.js`** (controller mỏng, chỉ hàm public — KHÔNG ĐỔI TÊN vì bind theo string):
-    - `showSidebar()`: menu entry, mở `recruitment/welcome-onboard.html` (width 420).
+    - `showSidebar()`: menu entry, mở `recruitment/welcome-onboard.html` (width 420) qua `createTemplateFromFile` + inject `frameDataUrl` — data URI khung mặc định đọc bởi `getWelcomeFrameDataUrl_()` từ `recruitment/welcome-frame.html` (trả `""` nếu file thiếu/sai định dạng → HTML vẽ fallback nền đỏ).
     - `getSelectedCandidate()`: đọc dòng đang chọn qua `getHeaderColumnMap` (fullName, title, squad, lineManager, dateOfOnboard, workingEmail từ Alloc Code, phoneNumber, cvUrl...). Cột CV đọc 3 lớp: rich-text link URL → formula HYPERLINK() → display value.
     - `summarizeCvToIntro(formData)`: đọc CV (upload hoặc cột CV) → AI → trả Introduction.
     - `submitIntroductionPost(formData)`: build markdown + tạo draft Outline (ảnh KHÔNG upload qua Outline API).
   - **`welcome-onboard.html`** — UI sidebar gồm 4 section:
     1. Card thông tin ứng viên (tự fill từ dòng đang chọn).
-    2. **Canvas Welcome Card editor** (1000×1000): upload ảnh ứng viên từ máy + upload khung template tùy chỉnh (mặc định là placeholder URL `.ttf` — sẽ fail load và vẽ fallback nền đỏ `#C8102E`; thay bằng link PNG khung thật khi có); slider Zoom / Trái-Phải / Lên-Xuống (`renderCanvas()`); avatar cắt tròn ở tâm (500,445) r=230; tự vẽ đè dải đen bo tròn + tên dạng "TÊN HỌ" in hoa (`formatShortName` — client-side, đảo Tên-Họ + bỏ dấu), position, squad lấy từ sheet; nút `downloadImage()` tải JPG (quality 0.95, tên `Welcome_<FullName>.jpg`) về máy — sau đó người dùng tự kéo ảnh vào draft Outline.
+    2. **Canvas Welcome Card editor** (1000×1000): **khung mặc định hiện sẵn ngay khi mở sidebar** (inject `<?!= frameDataUrl ?>` server-side — data URI nên tải tức thì, không rò mạng, không làm canvas taint khi `toDataURL`); ngoài ra vẫn upload được ảnh ứng viên từ máy + khung template khác nếu cần; slider Zoom / Trái-Phải / Lên-Xuống (`renderCanvas()`); avatar cắt tròn ở tâm (500,445) r=230, khung vẽ đè full canvas (tự scale về 1000×1000); tự vẽ dải đen bo tròn + tên dạng "TÊN HỌ" in hoa (`formatShortName` — client-side, đảo Tên-Họ + bỏ dấu), position, squad lấy từ sheet; nút `downloadImage()` tải JPG (quality 0.95, tên `Welcome_<FullName>.jpg`) về máy — sau đó người dùng tự kéo ảnh vào draft Outline. Đổi khung mặc định: thay `assets/frame.webp` → chạy `scripts/update-welcome-frame.sh` → `pnpm push`.
     3. CV cho AI: hiển thị link CV trên sheet + nút upload CV khác từ máy (giới hạn 10MB, gửi base64 qua `google.script.run`).
     4. Introduction textarea + nút Submit tạo draft Outline.
   - **`outline-api.js`**:

@@ -425,14 +425,17 @@
       let avatarLoaded = false;
       let frameLoaded = false;
 
-      // Nạp sẵn khung Template mặc định (Đổi link này thành link file khung PNG của bạn nếu cần)
-      frameImg.crossOrigin = "anonymous";
-      frameImg.src =
-        "https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/Montserrat-Bold.ttf";
+      // Khung mặc định: data URI được inject server-side khi mở sidebar (xem
+      // showSidebar + recruitment/welcome-frame.html). Data URI tải tức thì, không
+      // phụ thuộc mạng và không làm canvas bị taint — nút tải ảnh (toDataURL) luôn chạy.
       frameImg.onload = () => {
         frameLoaded = true;
         renderCanvas();
       };
+      const DEFAULT_FRAME_SRC = "<?!= frameDataUrl ?>";
+      if (DEFAULT_FRAME_SRC) {
+        frameImg.src = DEFAULT_FRAME_SRC;
+      }
 
       // 1. Nút Upload Ảnh ứng viên từ máy tính
       function handleAvatarUpload(input) {

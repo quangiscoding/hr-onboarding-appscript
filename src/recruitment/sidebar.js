@@ -22,12 +22,37 @@
 
 /** Mở sidebar (được gọi từ menu "Mở AI Introduction Generator") */
 function showSidebar() {
-  const html = HtmlService.createHtmlOutputFromFile(
+  // Dùng template (thay vì createHtmlOutputFromFile) để inject khung Welcome Card
+  // mặc định dưới dạng data URI — sidebar mở là hiện sẵn khung, không phụ thuộc mạng.
+  const template = HtmlService.createTemplateFromFile(
     "recruitment/welcome-onboard",
-  )
-    .setTitle("AI Recruitment — Welcome Onboard")
-    .setWidth(420);
-  SpreadsheetApp.getUi().showSidebar(html);
+  );
+  template.frameDataUrl = getWelcomeFrameDataUrl_();
+  SpreadsheetApp.getUi().showSidebar(
+    template
+      .evaluate()
+      .setTitle("AI Recruitment — Welcome Onboard")
+      .setWidth(420),
+  );
+}
+
+/**
+ * Đọc data URI khung Welcome Card mặc định từ file HTML riêng
+ * (recruitment/welcome-frame.html — sinh bởi scripts/update-welcome-frame.sh
+ * từ src/assets/frame.webp). Trả "" nếu file chưa có/nội dung không hợp lệ
+ * -> sidebar vẽ fallback nền đỏ như cũ.
+ */
+function getWelcomeFrameDataUrl_() {
+  try {
+    const content = HtmlService.createHtmlOutputFromFile(
+      "recruitment/welcome-frame",
+    )
+      .getContent()
+      .trim();
+    return content.startsWith("data:image") ? content : "";
+  } catch (e) {
+    return "";
+  }
 }
 
 /**

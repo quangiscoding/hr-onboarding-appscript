@@ -50,6 +50,8 @@ coverage/
 # Project-specific
 # Manual backup folder (do not commit)
 src-backup/
+# Windows metadata junk from WSL copies
+*:Zone.Identifier
 # Local clasp credentials
 .clasp-credentials*.json
 .clasprc.json
