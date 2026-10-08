@@ -254,32 +254,49 @@ function getGuidePdfFileInfo(employmentType, onboardingType, customFileName) {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* DEVELOPER METADATA LOCK HELPERS                                    */
+/* ------------------------------------------------------------------ */
+
 /**
- * Kiểm tra xem Toàn bộ Dòng (Entire Row) trên TAB SHEET HIỆN TẠI đã bị khóa cho Workflow này chưa
+ * Tạo Key chuẩn định danh ngầm theo: TriggerType + Email
+ * Ví dụ Key: LOCK_WF_OFFER_ACCEPTED_tttuanh99@gmail.com
+ */
+function buildWorkflowLockKey_(triggerType, email) {
+  const cleanEmail = clean(String(email || "")).toLowerCase();
+  const cleanTrigger = clean(String(triggerType || "")).toUpperCase();
+  return `LOCK_WF_${cleanTrigger}_${cleanEmail}`;
+}
+
+/**
+ * Kiểm tra xem Dòng này VÀ Email này đã bị khóa cho Workflow hay chưa
  * @param {number} rowNumber - Số dòng trên Sheet (1-based index)
  * @param {string} triggerType - Loại workflow ("OFFER_ACCEPTED", "TA_NOTIFICATION", "WELCOME_EMAIL")
+ * @param {string} email - Email cá nhân hoặc Email làm việc của nhân sự
  * @returns {boolean} true nếu đã chạy và bị khóa, false nếu chưa
  */
-function isRowLockedForWorkflow(rowNumber, triggerType) {
-  if (!rowNumber || !triggerType) return false;
+function isRowLockedForWorkflow(rowNumber, triggerType, email) {
+  if (!rowNumber || !triggerType || !email) return false;
 
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    const sheetName = sheet.getName();
-    const targetKey = `LOCK_${sheetName}_${triggerType}`;
+    const targetKey = buildWorkflowLockKey_(triggerType, email);
 
-    // ⚡ QUAN TRỌNG: Lấy Range của Toàn Bộ Dòng (ví dụ: "3:3")
+    // 1. Kiểm tra trên Entire Row ("3:3")
     const entireRowRange = sheet.getRange(`${rowNumber}:${rowNumber}`);
     const metadataList = entireRowRange.getDeveloperMetadata();
 
-    const isLocked = metadataList.some(
+    const isLockedOnRow = metadataList.some(
       (meta) => meta.getKey() === targetKey && meta.getValue() === "COMPLETED",
     );
 
-    Logger.log(
-      `[CHECK LOCK] Row: ${rowNumber} | Key: ${targetKey} | Result: ${isLocked}`,
-    );
-    return isLocked;
+    if (isLockedOnRow) return true;
+
+    // 2. Dự phòng: Quét toàn Sheet xem email + workflow này đã từng bị khóa ở dòng khác chưa
+    const finder = sheet.createDeveloperMetadataFinder();
+    const globalMatch = finder.withKey(targetKey).find();
+
+    return globalMatch.length > 0;
   } catch (error) {
     Logger.log(`[isRowLockedForWorkflow Error]: ${error.stack}`);
     return false; // Fail-safe
@@ -287,29 +304,27 @@ function isRowLockedForWorkflow(rowNumber, triggerType) {
 }
 
 /**
- * Đánh dấu KHÓA duy nhất Workflow vừa chạy cho Toàn bộ Dòng (Entire Row) trên TAB SHEET HIỆN TẠI
+ * Đánh dấu KHÓA gắn chặt theo Dòng VÀ Email của nhân sự
  * @param {number} rowNumber - Số dòng trên Sheet (1-based index)
  * @param {string} triggerType - Loại workflow vừa chạy xong
+ * @param {string} email - Email cá nhân hoặc Email làm việc của nhân sự
  */
-function lockRowForWorkflow(rowNumber, triggerType) {
-  if (!rowNumber || !triggerType) return;
+function lockRowForWorkflow(rowNumber, triggerType, email) {
+  if (!rowNumber || !triggerType || !email) return;
 
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    const sheetName = sheet.getName();
-    const targetKey = `LOCK_${sheetName}_${triggerType}`;
-
-    // ⚡ QUAN TRỌNG: Gắn Metadata vào Toàn Bộ Dòng (ví dụ: "3:3") để thỏa mãn Google Sheets API
+    const targetKey = buildWorkflowLockKey_(triggerType, email);
     const entireRowRange = sheet.getRange(`${rowNumber}:${rowNumber}`);
 
-    if (!isRowLockedForWorkflow(rowNumber, triggerType)) {
+    if (!isRowLockedForWorkflow(rowNumber, triggerType, email)) {
       entireRowRange.addDeveloperMetadata(
         targetKey,
         "COMPLETED",
         SpreadsheetApp.DeveloperMetadataVisibility.DOCUMENT,
       );
       Logger.log(
-        `[LOCK SUCCESS] Đã gắn key "${targetKey}" vào Dòng ${rowNumber}:${rowNumber}`,
+        `[LOCK SUCCESS] Đã khóa "${targetKey}" cho Dòng ${rowNumber}:${rowNumber}`,
       );
     }
   } catch (error) {
@@ -318,24 +333,39 @@ function lockRowForWorkflow(rowNumber, triggerType) {
 }
 
 /**
- * Hàm hỗ trợ Dev/Admin: Xóa toàn bộ khóa DeveloperMetadata trên dòng đang chọn
+ * 🔓 HÀM XÓA LOCK (ĐÃ FIX): Xóa sạch toàn bộ khóa DeveloperMetadata trên dòng đang chọn
  */
 function dev_unlockCurrentRow() {
+  const ui = SpreadsheetApp.getUi();
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const activeRange = sheet.getActiveRange();
-  if (!activeRange) return;
+
+  if (!activeRange) {
+    ui.alert(
+      "⚠️ Vui lòng chọn một dòng chứa dữ liệu trên Sheet trước khi mở khóa!",
+    );
+    return;
+  }
 
   const rowNumber = activeRange.getRow();
-  const rowRange = sheet.getRange(rowNumber, 1, 1, sheet.getLastColumn());
 
-  const metadataList = rowRange.getDeveloperMetadata();
+  // ⚡ CỐT LÕI: Phải lấy Entire Row Range ("3:3") thì mới lấy đúng Metadata đã gắn
+  const entireRowRange = sheet.getRange(`${rowNumber}:${rowNumber}`);
+  const metadataList = entireRowRange.getDeveloperMetadata();
+
+  if (metadataList.length === 0) {
+    ui.alert(`ℹ️ Thông báo: Dòng ${rowNumber} hiện tại KHÔNG CÓ vết khóa nào!`);
+    return;
+  }
+
+  let count = 0;
   metadataList.forEach((meta) => {
+    // Xóa tất cả metadata khóa theo chuẩn cũ hoặc chuẩn mới
     if (meta.getKey().startsWith("LOCK_")) {
-      meta.remove();
+      meta.remove(); // ❌ Thực thi xóa vết khóa khỏi Google Sheet API
+      count++;
     }
   });
 
-  SpreadsheetApp.getUi().alert(
-    `Đã xóa toàn bộ khóa DeveloperMetadata cho dòng ${rowNumber}!`,
-  );
+  ui.alert(`🎉 Đã xóa thành công ${count} vết khóa cho Dòng ${rowNumber}!`);
 }

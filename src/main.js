@@ -7,7 +7,8 @@
  */
 
 /** Registry trung tâm: triggerType -> { validate, run, label }.
- *  Thêm luồng mới: bổ sung 1 entry tại đây + 1 item trong onOpen(). */
+ *  Thêm luồng mới: bổ sung 1 entry tại đây + 1 item trong onOpen().
+ */
 const WORKFLOW_REGISTRY = {
   WELCOME_EMAIL: {
     label: "Tạo Draft Welcome Email",
@@ -29,7 +30,6 @@ const WORKFLOW_REGISTRY = {
 /** Tự động tạo Custom Menu trên Google Sheets khi mở file */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
-
   ui.createMenu("🚀 Hera Onboarding Tools")
     .addItem(
       "1. Tạo Draft Welcome Email (Dòng đang chọn)",
@@ -39,11 +39,12 @@ function onOpen() {
       "2. Gửi Email Offer Accepted (DevOps / HR / IT)",
       "menuSendDevOpsEmail",
     )
-    .addSeparator()
     .addItem(
       "3. Gửi Notification cho TA (Dòng đang chọn)",
       "menuSendTaNotification",
     )
+    .addSeparator()
+    .addItem("🔓 Unlock Selected Row", "dev_unlockCurrentRow")
     .addToUi();
 
   ui.createMenu("🚀 AI Recruitment")
@@ -101,19 +102,20 @@ function executeWorkflowRunner(triggerType) {
       return;
     }
 
-    // 🔒 CHECK LOCK: Dòng trên Tab Sheet này đã chạy Workflow NÀY chưa?
-    if (isRowLockedForWorkflow(rowIndex, triggerType)) {
+    // 1. Đọc và chuẩn hóa dữ liệu của dòng đang chọn
+    const data = getNormalizedInput(triggerType, rowIndex);
+    const targetEmail = data.personalEmail || data.workingEmail;
+
+    // 🔒 CHECK LOCK: Dòng VÀ Email này đã chạy Workflow NÀY chưa?
+    if (isRowLockedForWorkflow(rowIndex, triggerType, targetEmail)) {
       notifyWarning(
         "🔒 Chức Năng Đã Bị Khóa!",
-        `Dòng ${rowIndex} ĐÃ CHẠY luồng [${workflow.label}] trước đó rồi.\n\n` +
+        `Nhân sự "${data.fullName || `Dòng \${rowIndex}`}" (${targetEmail || "N/A"}) ĐÃ CHẠY luồng [${workflow.label}] trước đó rồi.\n\n` +
           `Thao tác bị từ chối để tránh tạo lặp email/draft.\n` +
-          `(Các chức năng khác của dòng này vẫn có thể thực hiện bình thường).`,
+          `(Các chức năng khác của nhân sự/dòng này vẫn có thể thực hiện bình thường).`,
       );
       return;
     }
-
-    // 1. Đọc và chuẩn hóa dữ liệu của dòng đang chọn
-    const data = getNormalizedInput(triggerType, rowIndex);
 
     // 2. Validate dữ liệu theo từng luồng (trả về message cảnh báo, null nếu hợp lệ)
     const validationMessage = workflow.validate(data);
@@ -132,8 +134,8 @@ function executeWorkflowRunner(triggerType) {
     // 4. Thực thi luồng nghiệp vụ tương ứng
     const result = workflow.run(data);
 
-    // 🔒 ĐÁNH DẤU KHÓA ĐỘC LẬP CHỨC NĂNG VỪA CHẠY XONG CHO DÒNG ĐÓ
-    lockRowForWorkflow(rowIndex, triggerType);
+    // 🔒 ĐÁNH DẤU KHÓA ĐỘC LẬP THEO DÒNG + EMAIL VỪA CHẠY XONG
+    lockRowForWorkflow(rowIndex, triggerType, targetEmail);
 
     // 5. Hiển thị kết quả
     notifySuccess("Thành công 🎉", result.message);
