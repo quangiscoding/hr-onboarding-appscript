@@ -11,7 +11,7 @@
  */
 
 /* ------------------------------------------------------------------ */
-/* PRIVATE HELPERS                                                   */
+/* PRIVATE HELPERS                                                    */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -39,7 +39,6 @@ function sendDirectEmail_(to, mail, cc) {
  */
 function handleOfferAcceptedWorkflow(data) {
   const sentEmails = [];
-
   try {
     // Đọc recipients động từ sheet Data (Role | Send to | CC)
     const devopsRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.DEVOPS);
@@ -50,17 +49,14 @@ function handleOfferAcceptedWorkflow(data) {
     const sendTo = (type, recipients, mail) => {
       const to = (recipients?.to || []).join(",");
       const cc = (recipients?.cc || []).join(",");
-
       try {
         sendDirectEmail_(to, mail, cc);
         sentEmails.push({ type, to });
       } catch (error) {
         Logger.log(`❌ Lỗi khi gửi email ${type}: ` + error.toString());
         const errorMsg = `Lỗi gửi email ${type} tới (${to}): ${error.message}`;
-
         // Ghi log trạng thái FAILED kèm chi tiết lỗi
         logInternalWorkflow(data, sentEmails, "FAILED", errorMsg);
-
         throw new WorkflowError(
           "SEND_FAILED",
           `Không thể gửi email ${type} tới ${to}. Các email sau đó đã bị dừng.`,
@@ -139,10 +135,8 @@ function handleTaNotificationWorkflow(data) {
   } catch (error) {
     Logger.log("❌ Lỗi khi gửi Notification Email cho TA: " + error.toString());
     const errorMsg = `Không thể gửi Notification Email: ${error.message}`;
-
     // Ghi log THẤT BẠI
     logTaNotificationWorkflow(data, data.taEmail, "FAILED", errorMsg);
-
     throw new WorkflowError(
       "SEND_FAILED",
       `Không thể gửi Notification Email tới ${data.taEmail}. Vui lòng kiểm tra lại.`,
@@ -175,6 +169,7 @@ function handleWelcomeEmailWorkflow(data) {
     const guidePreviewUrl = pdfInfo?.fileId
       ? `https://drive.google.com/file/d/${pdfInfo.fileId}/view`
       : "";
+
     const candidateMail = getWelcomeCandidateEmailTemplate(
       data,
       guidePreviewUrl,
@@ -229,10 +224,8 @@ function handleWelcomeEmailWorkflow(data) {
   } catch (error) {
     Logger.log("❌ Lỗi khi tạo Welcome Draft: " + error.toString());
     const errorMsg = `Lỗi tạo bản nháp (${recipientEmail || "N/A"}): ${error.message}`;
-
     // Ghi log THẤT BẠI
     logCandidateWorkflow(data, "N/A", "FAILED", errorMsg);
-
     throw new WorkflowError(
       "DRAFT_FAILED",
       `Không thể tạo Welcome Draft cho ${data.fullName}: ${error.message}`,
@@ -340,8 +333,12 @@ function handleAvatarUpdateWorkflow() {
   );
   const matchedCandidates = [];
 
-  // 5. Quét danh sách ứng viên TỪ DƯỚI LÊN (dòng lastRow giảm dần về dòng 2)
-  for (let rowIndex = lastRow; rowIndex >= 2; rowIndex--) {
+  // 5. Quét tối đa 30 dòng gần nhất TỪ DƯỚI LÊN (dòng lastRow giảm dần)
+  const SCAN_LIMIT = 30;
+  const startRow = lastRow;
+  const endRow = Math.max(2, lastRow - SCAN_LIMIT + 1);
+
+  for (let rowIndex = startRow; rowIndex >= endRow; rowIndex--) {
     const rowData = getNormalizedInput(sheet, rowIndex);
     if (!rowData || !rowData.dateOfOnboard) continue;
 
