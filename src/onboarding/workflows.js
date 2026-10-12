@@ -393,7 +393,7 @@ function handleAvatarUpdateWorkflow() {
   const matchedCandidates = [];
 
   // 5. Quét TỪ DÒNG THỰC TẾ CUỐI CÙNG ngược lên (tối đa 50 dòng)
-  const SCAN_LIMIT = 50;
+  const SCAN_LIMIT = 10;
   const startRow = actualLastRow;
   const endRow = Math.max(2, actualLastRow - SCAN_LIMIT + 1);
 
@@ -403,14 +403,27 @@ function handleAvatarUpdateWorkflow() {
 
     const onboardDateStr = parseToDateStr_(rowData.startDate);
     const taAllocCode = extractAllocCode(rowData.taEmail);
-
     const rawStatus = String(rowData.status || "")
       .toLowerCase()
       .replace(/[-_ \t]/g, "");
-    const isOnboardedStatus = rawStatus === "onboarded";
 
+    const isOnboardedStatus = rawStatus === "onboarded";
     const isTodayOnboard = onboardDateStr === todayStr;
     const isMyCandidate = taAllocCode === currentAllocCode;
+
+    // ⚡ IN LOG CHẨN ĐOÁN 5 DÒNG GẦN NHẤT
+    if (rowIndex > startRow - 5) {
+      Logger.log(`--- Dòng ${rowIndex}: ${rowData.fullName} ---`);
+      Logger.log(
+        `- Raw Date: ${rowData.startDate} => Parsed: '${onboardDateStr}' (Match Today ${todayStr}: ${isTodayOnboard})`,
+      );
+      Logger.log(
+        `- Status: '${rowData.status}' => Clean: '${rawStatus}' (Match Onboarded: ${isOnboardedStatus})`,
+      );
+      Logger.log(
+        `- TA Email: '${rowData.taEmail}' => Alloc: '${taAllocCode}' (Match Current ${currentAllocCode}: ${isMyCandidate})`,
+      );
+    }
 
     // ĐIỀU KIỆN STRICT 3-IN-1: Onboard Đúng Hôm nay + Status "On-boarded" + Trùng TA In Charge
     if (isTodayOnboard && isOnboardedStatus && isMyCandidate) {
