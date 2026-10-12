@@ -15,9 +15,9 @@
  */
 class WorkflowError extends Error {
   /**
-   * @param {string} code - Mã lỗi ổn định (vd: MISSING_TA_EMAIL, SEND_FAILED)
-   * @param {string} userMessage - Thông điệp an toàn để hiển thị cho người dùng
-   * @param {Object} [details] - Dữ liệu thêm cho log (vd: lỗi gốc từ GmailApp)
+   * @param {string} code Mã lỗi ổn định (vd: MISSING_TA_EMAIL, NO_MATCHED_CANDIDATES)
+   * @param {string} userMessage Thông điệp an toàn để hiển thị cho người dùng
+   * @param {Object} [details] Dữ liệu thêm cho log
    */
   constructor(code, userMessage, details = {}) {
     super(userMessage);
@@ -25,22 +25,39 @@ class WorkflowError extends Error {
     this.code = code;
     this.userMessage = userMessage;
     this.details = details;
+
+    // ⚡ TỰ ĐỘNG GHI LOG NGHỆM THU KHI CÓ LỖI NGHIỆP VỤ
+    Logger.log(
+      `❌ [WorkflowError - ${code}]: ${userMessage} ${Object.keys(details).length ? "| Details: " + JSON.stringify(details) : ""}`,
+    );
   }
 }
 
 /** Alert thông báo thành công (màn hình có UI) */
 function notifySuccess(title, message) {
-  SpreadsheetApp.getUi().alert(title || "Thành công 🎉", message, SpreadsheetApp.getUi().ButtonSet.OK);
+  SpreadsheetApp.getUi().alert(
+    title || "Thành công 🎉",
+    message,
+    SpreadsheetApp.getUi().ButtonSet.OK,
+  );
 }
 
 /** Alert thông báo cảnh báo / dừng nhẹ (thiếu dữ liệu...) */
 function notifyWarning(title, message) {
-  SpreadsheetApp.getUi().alert(title || "⚠️ Lưu ý", message, SpreadsheetApp.getUi().ButtonSet.OK);
+  SpreadsheetApp.getUi().alert(
+    title || "⚠️ Lưu ý",
+    message,
+    SpreadsheetApp.getUi().ButtonSet.OK,
+  );
 }
 
 /** Alert thông báo lỗi */
 function notifyError(title, message) {
-  SpreadsheetApp.getUi().alert(title || "Lỗi ❌", message, SpreadsheetApp.getUi().ButtonSet.OK);
+  SpreadsheetApp.getUi().alert(
+    title || "Lỗi ❌",
+    message,
+    SpreadsheetApp.getUi().ButtonSet.OK,
+  );
 }
 
 /**

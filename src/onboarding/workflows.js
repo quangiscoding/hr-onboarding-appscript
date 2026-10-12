@@ -239,7 +239,7 @@ function handleWelcomeEmailWorkflow(data) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Quét danh sách ứng viên onboard hôm nay thuộc quản lý của TA đang thao tác (quét từ dưới lên)
+ * Quét danh sách ứng viên onboard HÔM NAY thuộc quản lý của TA đang thao tác (quét từ dưới lên)
  * và gửi mail trực tiếp cho anh Tuấn / IT Ops nhờ cập nhật Avatar (UC06).
  *
  * @returns {{ ok: true, message: string, sentCount: number, candidates: Array<string> }}
@@ -258,7 +258,6 @@ function handleAvatarUpdateWorkflow() {
     );
   }
 
-  // Trích xuất allocCode từ email (VD: ngoc.tran@kyanon.digital -> ngoc.tran)
   const extractAllocCode = (str) => {
     if (!str) return "";
     const cleanStr = String(str).trim().toLowerCase();
@@ -267,15 +266,33 @@ function handleAvatarUpdateWorkflow() {
 
   const currentAllocCode = extractAllocCode(currentUserEmail);
 
-  // 2. Đọc dữ liệu từ Sheet Hera | On-boarding List
+  // 2. Ép active đúng tab dữ liệu nhân sự chính
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheets()[0];
-  const lastRow = sheet.getLastRow();
+  const mainSheet = ss.getSheets()[0];
+  ss.setActiveSheet(mainSheet);
 
-  if (lastRow <= 1) {
+  // Tìm dòng thực sự có dữ liệu tên nhân sự (Cột 2 / Cột B)
+  const rawLastRow = mainSheet.getLastRow();
+  if (rawLastRow <= 1) {
     throw new WorkflowError(
       "EMPTY_SHEET",
       "Sheet dữ liệu Hera hiện đang rỗng.",
+    );
+  }
+
+  const colValues = mainSheet.getRange(1, 2, rawLastRow, 1).getValues();
+  let actualLastRow = 1;
+  for (let r = colValues.length - 1; r >= 0; r--) {
+    if (colValues[r][0] && String(colValues[r][0]).trim() !== "") {
+      actualLastRow = r + 1;
+      break;
+    }
+  }
+
+  if (actualLastRow <= 1) {
+    throw new WorkflowError(
+      "EMPTY_SHEET",
+      "Không tìm thấy dòng dữ liệu nhân sự hợp lệ nào.",
     );
   }
 
@@ -291,7 +308,7 @@ function handleAvatarUpdateWorkflow() {
     );
   }
 
-  // 4. Tra cứu bảng Avatar UC06 (Map theo Personal Email)
+  // 4. Tra cứu bảng Avatar UC06
   const avatarLookupMap = {};
   try {
     const AVATAR_SHEET_ID = "1NoTqsI8oiV0ilqlhLYiAKK6igsyw1n4Z50OxDR3eKcw";
@@ -305,62 +322,104 @@ function handleAvatarUpdateWorkflow() {
     const avatarSheet = targetSs.getSheets()[0];
     const avatarValues = avatarSheet.getDataRange().getValues();
 
-    avatarValues.forEach((row) => {
-      let email = "";
-      let driveUrl = "";
-      row.forEach((cell) => {
-        const val = String(cell).trim();
-        if (val.includes("@") && !email) email = val.toLowerCase();
-        if (
-          val.startsWith("http") &&
-          val.includes("drive.google.com") &&
-          !driveUrl
-        )
-          driveUrl = val;
-      });
-      if (email && driveUrl) avatarLookupMap[email] = driveUrl;
-    });
+    for (let i = 1; i < avatarValues.length; i++) {
+      const row = avatarValues[i];
+      const email = String(row[1] || "")
+        .trim()
+        .toLowerCase();
+      const pictureUrl = String(row[5] || "").trim();
+
+      if (email && pictureUrl) {
+        avatarLookupMap[email] = pictureUrl;
+      }
+    }
   } catch (err) {
     Logger.log(
       "⚠️ Cảnh báo: Không thể tải bảng tra cứu Avatar UC06: " + err.message,
     );
   }
 
+  const scriptTimeZone = Session.getScriptTimeZone();
   const todayStr = Utilities.formatDate(
     new Date(),
-    Session.getScriptTimeZone(),
+    scriptTimeZone,
     "yyyy-MM-dd",
   );
+
+  const parseToDateStr_ = (val) => {
+    if (!val) return "";
+    if (val instanceof Date && !isNaN(val.getTime())) {
+      return Utilities.formatDate(val, scriptTimeZone, "yyyy-MM-dd");
+    }
+    const strVal = String(val).trim();
+    const monthMap = {
+      jan: "01",
+      feb: "02",
+      mar: "03",
+      apr: "04",
+      may: "05",
+      jun: "06",
+      jul: "07",
+      aug: "08",
+      sep: "09",
+      oct: "10",
+      nov: "11",
+      dec: "12",
+    };
+
+    const textMatch = strVal.match(
+      /^(\d{1,2})[-/ ]([A-Za-z]{3})[-/ ](\d{4})\$/,
+    );
+    if (textMatch) {
+      const day = textMatch[1].padStart(2, "0");
+      const month = monthMap[textMatch[2].toLowerCase()];
+      const year = textMatch[3];
+      if (month) return `${year}-${month}-${day}`;
+    }
+
+    const numMatch = strVal.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})\$/);
+    if (numMatch) {
+      const day = numMatch[1].padStart(2, "0");
+      const month = numMatch[2].padStart(2, "0");
+      const year = numMatch[3];
+      return `${year}-${month}-${day}`;
+    }
+
+    const parsed = new Date(strVal);
+    if (!isNaN(parsed.getTime())) {
+      return Utilities.formatDate(parsed, scriptTimeZone, "yyyy-MM-dd");
+    }
+    return "";
+  };
+
   const matchedCandidates = [];
 
-  // 5. Quét tối đa 30 dòng gần nhất TỪ DƯỚI LÊN (dòng lastRow giảm dần)
-  const SCAN_LIMIT = 30;
-  const startRow = lastRow;
-  const endRow = Math.max(2, lastRow - SCAN_LIMIT + 1);
+  // 5. Quét TỪ DÒNG THỰC TẾ CUỐI CÙNG ngược lên (tối đa 50 dòng)
+  const SCAN_LIMIT = 50;
+  const startRow = actualLastRow;
+  const endRow = Math.max(2, actualLastRow - SCAN_LIMIT + 1);
 
   for (let rowIndex = startRow; rowIndex >= endRow; rowIndex--) {
-    const rowData = getNormalizedInput(sheet, rowIndex);
-    if (!rowData || !rowData.dateOfOnboard) continue;
+    const rowData = getNormalizedInput("AVATAR_UPDATE", rowIndex);
+    if (!rowData || !rowData.startDate) continue;
 
-    const onboardDateStr = Utilities.formatDate(
-      new Date(rowData.dateOfOnboard),
-      Session.getScriptTimeZone(),
-      "yyyy-MM-dd",
-    );
+    const onboardDateStr = parseToDateStr_(rowData.startDate);
+    const taAllocCode = extractAllocCode(rowData.taEmail);
 
-    const taAllocCode = extractAllocCode(rowData.taEmail || rowData.taInCharge);
+    const rawStatus = String(rowData.status || "")
+      .toLowerCase()
+      .replace(/[-_ \t]/g, "");
+    const isOnboardedStatus = rawStatus === "onboarded";
+
     const isTodayOnboard = onboardDateStr === todayStr;
-    const isOnboardedStatus =
-      String(rowData.offerStatus || "")
-        .trim()
-        .toLowerCase() === "on-boarded";
     const isMyCandidate = taAllocCode === currentAllocCode;
 
-    // ĐIỀU KIỆN 3-IN-1: Onboard Hôm nay + Status "On-boarded" + Trùng TA In Charge
+    // ĐIỀU KIỆN STRICT 3-IN-1: Onboard Đúng Hôm nay + Status "On-boarded" + Trùng TA In Charge
     if (isTodayOnboard && isOnboardedStatus && isMyCandidate) {
       const personalEmail = String(rowData.personalEmail || "")
         .trim()
         .toLowerCase();
+
       const avatarUrl =
         avatarLookupMap[personalEmail] || rowData.masterCvFolderUrl || "";
 
@@ -371,11 +430,17 @@ function handleAvatarUpdateWorkflow() {
     }
   }
 
-  // 6. Kiểm tra nếu không có ứng viên phù hợp
+  // 6. Kiểm tra nếu không có ứng viên phù hợp -> Tự log & ném lỗi
   if (matchedCandidates.length === 0) {
     throw new WorkflowError(
       "NO_MATCHED_CANDIDATES",
       `Không tìm thấy nhân sự nào onboard hôm nay (${todayStr}) có trạng thái "On-boarded" thuộc quản lý của bạn (${currentAllocCode}).`,
+      {
+        todayStr,
+        currentAllocCode,
+        scannedRows:
+          actualLastRow - Math.max(2, actualLastRow - SCAN_LIMIT + 1) + 1,
+      },
     );
   }
 
@@ -388,10 +453,8 @@ function handleAvatarUpdateWorkflow() {
         item.avatarUrl,
       );
 
-      // Ghép CC: CC từ sheet Data + CC cho chính TA đang thực hiện bấm nút
       const combinedCc = [tuanCc, currentUserEmail].filter(Boolean).join(",");
 
-      // Gửi mail trực tiếp qua helper của dự án
       sendDirectEmail_(tuanEmail, mailContent, combinedCc);
       sentCandidateNames.push(item.data.fullName);
     });
@@ -400,7 +463,6 @@ function handleAvatarUpdateWorkflow() {
       `✅ TA ${currentUserEmail} đã gửi thành công ${sentCandidateNames.length} email UC06 cập nhật avatar.`,
     );
 
-    // 8. Trả về kết quả Contract chuẩn
     return {
       ok: true,
       message: `Đã gửi thành công ${sentCandidateNames.length} email nhờ IT Ops (anh Tuấn) cập nhật avatar!\n\nNhân sự: ${sentCandidateNames.join(", ")}`,
@@ -408,7 +470,6 @@ function handleAvatarUpdateWorkflow() {
       candidates: sentCandidateNames,
     };
   } catch (error) {
-    Logger.log("❌ Lỗi khi gửi email UC06 Avatar: " + error.toString());
     throw new WorkflowError(
       "SEND_FAILED",
       `Quá trình gửi email cập nhật avatar thất bại: ${error.message}`,
