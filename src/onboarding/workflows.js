@@ -266,10 +266,9 @@ function handleAvatarUpdateWorkflow() {
 
   const currentAllocCode = extractAllocCode(currentUserEmail);
 
-  // 2. Ép active đúng tab dữ liệu nhân sự chính
+  // 2. Lấy đúng tab dữ liệu người dùng đang thao tác
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const mainSheet = ss.getSheets()[0];
-  ss.setActiveSheet(mainSheet);
+  const mainSheet = ss.getActiveSheet();
 
   // Tìm dòng thực sự có dữ liệu tên nhân sự (Cột 2 / Cột B)
   const rawLastRow = mainSheet.getLastRow();
@@ -376,7 +375,6 @@ function handleAvatarUpdateWorkflow() {
       const year = textMatch[3];
       if (month) return `${year}-${month}-${day}`;
     }
-
     const numMatch = strVal.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})\$/);
     if (numMatch) {
       const day = numMatch[1].padStart(2, "0");
@@ -448,13 +446,8 @@ function handleAvatarUpdateWorkflow() {
   const sentCandidateNames = [];
   try {
     matchedCandidates.forEach((item) => {
-      const mailContent = getAvatarUpdateEmailTemplate(
-        item.data,
-        item.avatarUrl,
-      );
-
+      const mailContent = getAvatarUpdateEmailTemplate(item);
       const combinedCc = [tuanCc, currentUserEmail].filter(Boolean).join(",");
-
       sendDirectEmail_(tuanEmail, mailContent, combinedCc);
       sentCandidateNames.push(item.data.fullName);
     });

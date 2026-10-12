@@ -113,21 +113,18 @@ function getWelcomeCandidateEmailTemplate(data, guidePreviewUrl) {
 }
 
 /** Draft nhờ cập nhật avatar cho anh Tuấn (UC06) */
-function getAvatarUpdateEmailTemplate(data) {
+function getAvatarUpdateEmailTemplate({ data, avatarUrl }) {
   const payload = buildTemplatePayload(data);
-
-  // Đổi tên object thành candidate cho rõ nghĩa
   const candidate = {
     ...payload,
     startDate: data.startDate || data.dateOfOnboard || "",
     rowNumber: data.rowNumber || "",
     rowLink: data.rowLink || "",
     workingEmail: data.workingEmail || "",
-    avatarUrl: data.avatarUrl || "",
+    avatarUrl: avatarUrl || data.avatarUrl || "", // ⚡ Lấy từ tham số avatarUrl truyền vào
   };
 
   const subject = `[Cập nhật Avatar] Nhân sự mới ${data.fullName || ""} - ${payload.positionTitle}`;
-
   return {
     subject,
     htmlBody: renderHtmlTemplate("avatar-update-email", { candidate }),
