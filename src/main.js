@@ -43,8 +43,8 @@ function onOpen() {
       "3. Gửi Notification cho TA (Dòng đang chọn)",
       "menuSendTaNotification",
     )
-    .addSeparator()
-    .addItem("🔓 Unlock Selected Row", "dev_unlockCurrentRow")
+    // .addSeparator()
+    // .addItem("🔓 Unlock Selected Row", "dev_unlockCurrentRow")
     .addToUi();
 
   ui.createMenu("🚀 AI Recruitment")

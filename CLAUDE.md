@@ -118,7 +118,6 @@ src/
 - **`legacy/custom-functions.js`** — các hàm `@customfunction` dùng trực tiếp trong công thức sheet, **KHÔNG ĐƯỢC ĐỔI TÊN**: `specificDays(dayName, monthName, year)`, `removeAccent(text)`, `convertVn2FirstLastName(text, removeAccentFlag)`, `convertVn2FirstFullname(text, removeAccentFlag)`, `convertFName2EmailAddress(text)`.
 
 - **`recruitment/`** — module AI Recruitment, sidebar "Welcome Onboard Generator" (mở từ menu "🚀 AI Recruitment"). Tách file theo trách nhiệm (GAS global namespace nên không import — chỉ quy ước tổ chức):
-
   - **`sidebar.js`** (controller mỏng, chỉ hàm public — KHÔNG ĐỔI TÊN vì bind theo string):
     - `showSidebar()`: menu entry, mở `recruitment/welcome-onboard.html` (width 420) qua `createTemplateFromFile` + inject `frameDataUrl` — data URI khung mặc định đọc bởi `getWelcomeFrameDataUrl_()` từ `recruitment/welcome-frame.html` (trả `""` nếu file thiếu/sai định dạng → HTML vẽ fallback nền đỏ).
     - `getSelectedCandidate()`: đọc dòng đang chọn qua `getHeaderColumnMap` (fullName, title, squad, lineManager, dateOfOnboard, workingEmail từ Alloc Code, phoneNumber, cvUrl...). Cột CV đọc 3 lớp: rich-text link URL → formula HYPERLINK() → display value.
@@ -141,6 +140,7 @@ src/
     - `OUTLINE_API_TOKEN`: giờ đây là **UserProperties per-user** — mỗi HR tự nhập qua menu "🚀 AI Recruitment → 2. Cài đặt Outline API Token cá nhân" (không dùng chung Script Property nữa).
     - `OPENROUTER_API_KEY` (https://openrouter.ai/settings/keys, ưu tiên) và/hoặc `GEMINI_API_KEY` (https://aistudio.google.com/apikey, dự phòng) — Script Properties, hỗ trợ nhiều key xoay vòng (`_2..10` hoặc phân cách phẩy). KHÔNG hardcode.
   - **OAuth scopes:** đã thu hẹp còn read-only tối thiểu (xem `appsscript.json`): `drive.readonly` (đọc CV/GUIDE_PDF), `documents.readonly` (DocumentApp đọc GDoc), `gmail.compose` + `gmail.send`, `spreadsheets.currentonly`, `script.container.ui`, `script.external_request` (UrlFetchApp gọi OpenRouter/Gemini/Outline), `userinfo.email`. CV upload từ máy được dựng blob trong bộ nhớ nên không cần scope write Drive.
+
 - **`core/ui-feedback.js`**: class `WorkflowError(code, userMessage, details)` + `notifySuccess/notifyWarning/notifyError/confirmAction`. Workflow chỉ return kết quả / throw WorkflowError; main.js gọi các hàm này để hiển thị (Phase 1 của refactor-plan).
 
 ---
