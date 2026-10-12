@@ -347,10 +347,18 @@ function handleAvatarUpdateWorkflow() {
 
   const parseToDateStr_ = (val) => {
     if (!val) return "";
-    if (val instanceof Date && !isNaN(val.getTime())) {
-      return Utilities.formatDate(val, scriptTimeZone, "yyyy-MM-dd");
+
+    // 1. Nếu trên Sheet là dạng Ngày (Date object)
+    if (val instanceof Date) {
+      return !isNaN(val.getTime())
+        ? Utilities.formatDate(val, scriptTimeZone, "yyyy-MM-dd")
+        : "";
     }
+
+    // 2. Chuyển thành chuỗi và xóa khoảng trắng
     const strVal = String(val).trim();
+
+    // 3. Xử lý dạng chữ: "12-Oct-2026" hoặc "12 Oct 2026"
     const monthMap = {
       jan: "01",
       feb: "02",
@@ -365,28 +373,26 @@ function handleAvatarUpdateWorkflow() {
       nov: "11",
       dec: "12",
     };
-
-    const textMatch = strVal.match(
-      /^(\d{1,2})[-/ ]([A-Za-z]{3})[-/ ](\d{4})\$/,
-    );
+    const textMatch = strVal.match(/^(\d{1,2})[-/ ]([A-Za-z]{3})[-/ ](\d{4})/);
     if (textMatch) {
       const day = textMatch[1].padStart(2, "0");
       const month = monthMap[textMatch[2].toLowerCase()];
       const year = textMatch[3];
       if (month) return `${year}-${month}-${day}`;
     }
-    const numMatch = strVal.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})\$/);
-    if (numMatch) {
-      const day = numMatch[1].padStart(2, "0");
-      const month = numMatch[2].padStart(2, "0");
-      const year = numMatch[3];
-      return `${year}-${month}-${day}`;
+
+    // 4. Xử lý dạng số: "12/10/2026" (LUÔN HIỂU LÀ: Ngày/Tháng/Năm)
+    const parts = strVal.split(/[-/]+/);
+    if (parts.length === 3) {
+      const day = parts[0].padStart(2, "0");
+      const month = parts[1].padStart(2, "0");
+      const year = parts[2];
+      // Đảm bảo là Ngày/Tháng/Năm hợp lệ
+      if (day <= 31 && month <= 12 && year.length === 4) {
+        return `${year}-${month}-${day}`;
+      }
     }
 
-    const parsed = new Date(strVal);
-    if (!isNaN(parsed.getTime())) {
-      return Utilities.formatDate(parsed, scriptTimeZone, "yyyy-MM-dd");
-    }
     return "";
   };
 
