@@ -6,7 +6,7 @@
  * Toàn bộ hiển thị kết quả đi qua core/ui-feedback.js (Phase 1 của docs/refactor-plan.md).
  */
 
-/** Registry trung tâm: triggerType -> { validate, run, label }.
+/** Registry trung tâm: triggerType -> { validate, run, label, isBatch }.
  *  Thêm luồng mới: bổ sung 1 entry tại đây + 1 item trong onOpen().
  */
 const WORKFLOW_REGISTRY = {
@@ -25,6 +25,12 @@ const WORKFLOW_REGISTRY = {
     validate: (data) => validateRequiredField(data.taEmail, "TA In Charge"),
     run: (data) => handleTaNotificationWorkflow(data),
   },
+  AVATAR_UPDATE: {
+    label: "Gửi mail nhắc IT Ops update avatar",
+    isBatch: true, // Luồng đặc thù: tự quét toàn Sheet theo TA đang thao tác
+    validate: () => null,
+    run: () => handleAvatarUpdateWorkflow(),
+  },
 };
 
 /** Tự động tạo Custom Menu trên Google Sheets khi mở file */
@@ -42,6 +48,11 @@ function onOpen() {
     .addItem(
       "3. Gửi Notification cho TA (Dòng đang chọn)",
       "menuSendTaNotification",
+    )
+    .addSeparator()
+    .addItem(
+      "4. Gửi mail nhắc IT Ops update avatar",
+      "menuSendAvatarUpdateNotification",
     )
     // .addSeparator()
     // .addItem("🔓 Unlock Selected Row", "dev_unlockCurrentRow")
@@ -69,22 +80,50 @@ function menuSendTaNotification() {
   executeWorkflowRunner("TA_NOTIFICATION");
 }
 
+/** 4. Menu: Gửi mail nhắc IT Ops update avatar */
+function menuSendAvatarUpdateNotification() {
+  executeWorkflowRunner("AVATAR_UPDATE");
+}
+
 /**
- * Bộ điều phối chung (Controller Runner) cho các Action từ Menu:
- * chọn dòng -> normalize -> check lock -> validate -> confirm -> chạy workflow -> khóa dòng -> hiển thị kết quả.
+ * Bộ điều phối chung (Controller Runner) cho TẤT CẢ Action từ Menu:
+ * phân loại luồng batch / single-row -> validate -> confirm -> chạy workflow -> khóa dòng (nếu single-row) -> hiển thị kết quả.
  * @param {string} triggerType - Key trong WORKFLOW_REGISTRY
  */
 function executeWorkflowRunner(triggerType) {
   const ui = SpreadsheetApp.getUi();
   const workflow = WORKFLOW_REGISTRY[triggerType];
+
   if (!workflow) {
     ui.alert(`❌ Không tìm thấy workflow: ${triggerType}`);
     return;
   }
 
   try {
+    const currentUser = Session.getActiveUser().getEmail();
+
+    // -------------------------------------------------------------
+    // NHÁNH 1: LUỒNG BATCH (Tự quét toàn bộ Sheet như AVATAR_UPDATE)
+    // -------------------------------------------------------------
+    if (workflow.isBatch) {
+      const confirmed = confirmAction(
+        "Xác nhận gửi email nhắc IT Ops update avatar?",
+        `Hệ thống sẽ quét các nhân sự onboard HÔM NAY có trạng thái 'On-boarded' thuộc quản lý của bạn và gửi email trực tiếp tới IT Ops.\n\nThao tác này sẽ gửi email dưới danh nghĩa Gmail: ${currentUser}`,
+      );
+
+      if (!confirmed) return;
+
+      const result = workflow.run();
+      notifySuccess("Thành công 🎉", result.message);
+      return;
+    }
+
+    // -------------------------------------------------------------
+    // NHÁNH 2: LUỒNG SINGLE ROW (Tác động theo 1 dòng đang chọn)
+    // -------------------------------------------------------------
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     const activeRange = sheet.getActiveRange();
+
     if (!activeRange) {
       notifyWarning(
         "⚠️ Thiếu lựa chọn",
@@ -117,7 +156,7 @@ function executeWorkflowRunner(triggerType) {
       return;
     }
 
-    // 2. Validate dữ liệu theo từng luồng (trả về message cảnh báo, null nếu hợp lệ)
+    // 2. Validate dữ liệu theo từng luồng
     const validationMessage = workflow.validate(data);
     if (validationMessage) {
       notifyWarning("⚠️ Thiếu dữ liệu", validationMessage);
@@ -127,8 +166,9 @@ function executeWorkflowRunner(triggerType) {
     // 3. Hỏi xác nhận người dùng
     const confirmed = confirmAction(
       "Xác nhận thực hiện",
-      `Bạn có chắc chắn muốn thực thi luồng [${workflow.label}] cho nhân sự: ${data.fullName} (Dòng ${data.rowNumber})?\n\nThao tác này sẽ gửi mail/tạo draft dưới danh nghĩa Gmail: ${Session.getActiveUser().getEmail()}`,
+      `Bạn có chắc chắn muốn thực thi luồng [${workflow.label}] cho nhân sự: ${data.fullName} (Dòng ${data.rowNumber})?\n\nThao tác này sẽ gửi mail/tạo draft dưới danh nghĩa Gmail: ${currentUser}`,
     );
+
     if (!confirmed) return;
 
     // 4. Thực thi luồng nghiệp vụ tương ứng

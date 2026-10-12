@@ -240,3 +240,182 @@ function handleWelcomeEmailWorkflow(data) {
     );
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* LUỒNG 4: NHỜ CẬP NHẬT AVATAR CHO ANH TUẤN / IT OPS (UC06)            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Quét danh sách ứng viên onboard hôm nay thuộc quản lý của TA đang thao tác (quét từ dưới lên)
+ * và gửi mail trực tiếp cho anh Tuấn / IT Ops nhờ cập nhật Avatar (UC06).
+ *
+ * @returns {{ ok: true, message: string, sentCount: number, candidates: Array<string> }}
+ * @throws {WorkflowError} NO_MATCHED_CANDIDATES khi không tìm thấy ứng viên, SEND_FAILED khi gửi lỗi
+ */
+function handleAvatarUpdateWorkflow() {
+  // 1. Lấy email của TA đang thao tác bấm nút trên Sheet
+  const currentUserEmail = Session.getActiveUser()
+    .getEmail()
+    .toLowerCase()
+    .trim();
+  if (!currentUserEmail) {
+    throw new WorkflowError(
+      "UNAUTHORIZED",
+      "Không thể xác định email người dùng đang thao tác. Vui lòng kiểm tra tài khoản đăng nhập.",
+    );
+  }
+
+  // Trích xuất allocCode từ email (VD: ngoc.tran@kyanon.digital -> ngoc.tran)
+  const extractAllocCode = (str) => {
+    if (!str) return "";
+    const cleanStr = String(str).trim().toLowerCase();
+    return cleanStr.includes("@") ? cleanStr.split("@")[0] : cleanStr;
+  };
+
+  const currentAllocCode = extractAllocCode(currentUserEmail);
+
+  // 2. Đọc dữ liệu từ Sheet Hera | On-boarding List
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheets()[0];
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow <= 1) {
+    throw new WorkflowError(
+      "EMPTY_SHEET",
+      "Sheet dữ liệu Hera hiện đang rỗng.",
+    );
+  }
+
+  // 3. Đọc recipients động cho IT Ops từ tab Data
+  const itRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.IT);
+  const tuanEmail = (itRecipients?.to || []).join(",");
+  const tuanCc = (itRecipients?.cc || []).join(",");
+
+  if (!tuanEmail) {
+    throw new WorkflowError(
+      "MISSING_IT_RECIPIENT",
+      "Không tìm thấy email người nhận của IT Ops trong tab Data.",
+    );
+  }
+
+  // 4. Tra cứu bảng Avatar UC06 (Map theo Personal Email)
+  const avatarLookupMap = {};
+  try {
+    const AVATAR_SHEET_ID = "1NoTqsI8oiV0ilqlhLYiAKK6igsyw1n4Z50OxDR3eKcw";
+    let targetSs;
+    try {
+      targetSs = SpreadsheetApp.openById(AVATAR_SHEET_ID);
+    } catch (e) {
+      targetSs = ss;
+    }
+
+    const avatarSheet = targetSs.getSheets()[0];
+    const avatarValues = avatarSheet.getDataRange().getValues();
+
+    avatarValues.forEach((row) => {
+      let email = "";
+      let driveUrl = "";
+      row.forEach((cell) => {
+        const val = String(cell).trim();
+        if (val.includes("@") && !email) email = val.toLowerCase();
+        if (
+          val.startsWith("http") &&
+          val.includes("drive.google.com") &&
+          !driveUrl
+        )
+          driveUrl = val;
+      });
+      if (email && driveUrl) avatarLookupMap[email] = driveUrl;
+    });
+  } catch (err) {
+    Logger.log(
+      "⚠️ Cảnh báo: Không thể tải bảng tra cứu Avatar UC06: " + err.message,
+    );
+  }
+
+  const todayStr = Utilities.formatDate(
+    new Date(),
+    Session.getScriptTimeZone(),
+    "yyyy-MM-dd",
+  );
+  const matchedCandidates = [];
+
+  // 5. Quét danh sách ứng viên TỪ DƯỚI LÊN (dòng lastRow giảm dần về dòng 2)
+  for (let rowIndex = lastRow; rowIndex >= 2; rowIndex--) {
+    const rowData = getNormalizedInput(sheet, rowIndex);
+    if (!rowData || !rowData.dateOfOnboard) continue;
+
+    const onboardDateStr = Utilities.formatDate(
+      new Date(rowData.dateOfOnboard),
+      Session.getScriptTimeZone(),
+      "yyyy-MM-dd",
+    );
+
+    const taAllocCode = extractAllocCode(rowData.taEmail || rowData.taInCharge);
+    const isTodayOnboard = onboardDateStr === todayStr;
+    const isOnboardedStatus =
+      String(rowData.offerStatus || "")
+        .trim()
+        .toLowerCase() === "on-boarded";
+    const isMyCandidate = taAllocCode === currentAllocCode;
+
+    // ĐIỀU KIỆN 3-IN-1: Onboard Hôm nay + Status "On-boarded" + Trùng TA In Charge
+    if (isTodayOnboard && isOnboardedStatus && isMyCandidate) {
+      const personalEmail = String(rowData.personalEmail || "")
+        .trim()
+        .toLowerCase();
+      const avatarUrl =
+        avatarLookupMap[personalEmail] || rowData.masterCvFolderUrl || "";
+
+      matchedCandidates.push({
+        data: rowData,
+        avatarUrl: avatarUrl,
+      });
+    }
+  }
+
+  // 6. Kiểm tra nếu không có ứng viên phù hợp
+  if (matchedCandidates.length === 0) {
+    throw new WorkflowError(
+      "NO_MATCHED_CANDIDATES",
+      `Không tìm thấy nhân sự nào onboard hôm nay (${todayStr}) có trạng thái "On-boarded" thuộc quản lý của bạn (${currentAllocCode}).`,
+    );
+  }
+
+  // 7. Tiến hành gửi mail từng ứng viên cho IT Ops (Anh Tuấn)
+  const sentCandidateNames = [];
+  try {
+    matchedCandidates.forEach((item) => {
+      const mailContent = getAvatarUpdateEmailTemplate(
+        item.data,
+        item.avatarUrl,
+      );
+
+      // Ghép CC: CC từ sheet Data + CC cho chính TA đang thực hiện bấm nút
+      const combinedCc = [tuanCc, currentUserEmail].filter(Boolean).join(",");
+
+      // Gửi mail trực tiếp qua helper của dự án
+      sendDirectEmail_(tuanEmail, mailContent, combinedCc);
+      sentCandidateNames.push(item.data.fullName);
+    });
+
+    Logger.log(
+      `✅ TA ${currentUserEmail} đã gửi thành công ${sentCandidateNames.length} email UC06 cập nhật avatar.`,
+    );
+
+    // 8. Trả về kết quả Contract chuẩn
+    return {
+      ok: true,
+      message: `Đã gửi thành công ${sentCandidateNames.length} email nhờ IT Ops (anh Tuấn) cập nhật avatar!\n\nNhân sự: ${sentCandidateNames.join(", ")}`,
+      sentCount: sentCandidateNames.length,
+      candidates: sentCandidateNames,
+    };
+  } catch (error) {
+    Logger.log("❌ Lỗi khi gửi email UC06 Avatar: " + error.toString());
+    throw new WorkflowError(
+      "SEND_FAILED",
+      `Quá trình gửi email cập nhật avatar thất bại: ${error.message}`,
+      { originalError: error.message },
+    );
+  }
+}
