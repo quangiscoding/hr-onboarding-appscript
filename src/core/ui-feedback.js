@@ -26,10 +26,14 @@ class WorkflowError extends Error {
     this.userMessage = userMessage;
     this.details = details;
 
-    // ⚡ TỰ ĐỘNG GHI LOG NGHỆM THU KHI CÓ LỖI NGHIỆP VỤ
+    // ⚡ TỰ ĐỘNG GHI LOG NGHỆM THU KHI CÓ LỖI NGHIỆP VỤ (KÈM STACK TRACE)
     Logger.log(
       `❌ [WorkflowError - ${code}]: ${userMessage} ${Object.keys(details).length ? "| Details: " + JSON.stringify(details) : ""}`,
     );
+    if (details && details.originalError) {
+      Logger.log(`📌 Original Error: ${details.originalError}`);
+    }
+    Logger.log(`📍 Stack Trace: ${this.stack}`);
   }
 }
 
