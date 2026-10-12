@@ -121,12 +121,14 @@ function getAvatarUpdateEmailTemplate({ data, avatarUrl }) {
     rowNumber: data.rowNumber || "",
     rowLink: data.rowLink || "",
     workingEmail: data.workingEmail || "",
-    avatarUrl: avatarUrl || data.avatarUrl || "", // ⚡ Lấy từ tham số avatarUrl truyền vào
+    avatarUrl: avatarUrl || data.avatarUrl || "",
   };
 
   const subject = `[Cập nhật Avatar] Nhân sự mới ${data.fullName || ""} - ${payload.positionTitle}`;
+
+  // ⚡ Truyền thẳng object candidate vào đây
   return {
     subject,
-    htmlBody: renderHtmlTemplate("avatar-update-email", { candidate }),
+    htmlBody: renderHtmlTemplate("avatar-update-email", candidate),
   };
 }
