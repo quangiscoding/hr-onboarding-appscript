@@ -235,9 +235,8 @@ function handleWelcomeEmailWorkflow(data) {
 }
 
 /* ------------------------------------------------------------------ */
-/* LUỒNG 4: NHỜ CẬP NHẬT AVATAR CHO IT OPS (UC06)            */
+/* LUỒNG 4: NHỜ CẬP NHẬT AVATAR CHO IT OPS (UC06)                     */
 /* ------------------------------------------------------------------ */
-
 /**
  * Quét danh sách ứng viên onboard HÔM NAY thuộc quản lý của TA đang thao tác (quét từ dưới lên)
  * và gửi mail trực tiếp cho anh Tuấn / IT Ops nhờ cập nhật Avatar (UC06).
@@ -251,6 +250,7 @@ function handleAvatarUpdateWorkflow() {
     .getEmail()
     .toLowerCase()
     .trim();
+
   if (!currentUserEmail) {
     throw new WorkflowError(
       "UNAUTHORIZED",
@@ -263,7 +263,6 @@ function handleAvatarUpdateWorkflow() {
     const cleanStr = String(str).trim().toLowerCase();
     return cleanStr.includes("@") ? cleanStr.split("@")[0] : cleanStr;
   };
-
   const currentAllocCode = extractAllocCode(currentUserEmail);
 
   // 2. Lấy đúng tab dữ liệu người dùng đang thao tác
@@ -317,7 +316,6 @@ function handleAvatarUpdateWorkflow() {
     } catch (e) {
       targetSs = ss;
     }
-
     const avatarSheet = targetSs.getSheets()[0];
     const avatarValues = avatarSheet.getDataRange().getValues();
 
@@ -327,7 +325,6 @@ function handleAvatarUpdateWorkflow() {
         .trim()
         .toLowerCase();
       const pictureUrl = String(row[5] || "").trim();
-
       if (email && pictureUrl) {
         avatarLookupMap[email] = pictureUrl;
       }
@@ -347,18 +344,12 @@ function handleAvatarUpdateWorkflow() {
 
   const parseToDateStr_ = (val) => {
     if (!val) return "";
-
-    // 1. Nếu trên Sheet là dạng Ngày (Date object)
     if (val instanceof Date) {
       return !isNaN(val.getTime())
         ? Utilities.formatDate(val, scriptTimeZone, "yyyy-MM-dd")
         : "";
     }
-
-    // 2. Chuyển thành chuỗi và xóa khoảng trắng
     const strVal = String(val).trim();
-
-    // 3. Xử lý dạng chữ: "12-Oct-2026" hoặc "12 Oct 2026"
     const monthMap = {
       jan: "01",
       feb: "02",
@@ -380,25 +371,21 @@ function handleAvatarUpdateWorkflow() {
       const year = textMatch[3];
       if (month) return `${year}-${month}-${day}`;
     }
-
-    // 4. Xử lý dạng số: "12/10/2026" (LUÔN HIỂU LÀ: Ngày/Tháng/Năm)
     const parts = strVal.split(/[-/]+/);
     if (parts.length === 3) {
       const day = parts[0].padStart(2, "0");
       const month = parts[1].padStart(2, "0");
       const year = parts[2];
-      // Đảm bảo là Ngày/Tháng/Năm hợp lệ
       if (day <= 31 && month <= 12 && year.length === 4) {
         return `${year}-${month}-${day}`;
       }
     }
-
     return "";
   };
 
   const matchedCandidates = [];
 
-  // 5. Quét TỪ DÒNG THỰC TẾ CUỐI CÙNG ngược lên (tối đa 50 dòng)
+  // 5. Quét TỪ DÒNG THỰC TẾ CUỐI CÙNG ngược lên (tối đa 10 dòng)
   const SCAN_LIMIT = 10;
   const startRow = actualLastRow;
   const endRow = Math.max(2, actualLastRow - SCAN_LIMIT + 1);
@@ -417,7 +404,6 @@ function handleAvatarUpdateWorkflow() {
     const isTodayOnboard = onboardDateStr === todayStr;
     const isMyCandidate = taAllocCode === currentAllocCode;
 
-    // ⚡ IN LOG CHẨN ĐOÁN 5 DÒNG GẦN NHẤT
     if (rowIndex > startRow - 5) {
       Logger.log(`--- Dòng ${rowIndex}: ${rowData.fullName} ---`);
       Logger.log(
@@ -431,12 +417,10 @@ function handleAvatarUpdateWorkflow() {
       );
     }
 
-    // ĐIỀU KIỆN STRICT 3-IN-1: Onboard Đúng Hôm nay + Status "On-boarded" + Trùng TA In Charge
     if (isTodayOnboard && isOnboardedStatus && isMyCandidate) {
       const personalEmail = String(rowData.personalEmail || "")
         .trim()
         .toLowerCase();
-
       const avatarUrl =
         avatarLookupMap[personalEmail] || rowData.masterCvFolderUrl || "";
 
@@ -461,31 +445,53 @@ function handleAvatarUpdateWorkflow() {
     );
   }
 
-  // 7. Tiến hành gửi mail từng ứng viên cho IT Ops (Anh Tuấn)
+  // 7. Tiến hành gửi mail từng ứng viên cho IT Ops & GHI LOG INTERNAL (SỬ DỤNG HÀM LOG CÓ SẴN)
   const sentCandidateNames = [];
-  try {
-    matchedCandidates.forEach((item) => {
-      const mailContent = getAvatarUpdateEmailTemplate(item);
-      const combinedCc = [tuanCc, currentUserEmail].filter(Boolean).join(",");
+
+  matchedCandidates.forEach((item) => {
+    const mailContent = getAvatarUpdateEmailTemplate(item);
+    const combinedCc = [tuanCc, currentUserEmail].filter(Boolean).join(",");
+
+    // Cấu trúc đối tượng gửi giả lập để truyền vào logInternalWorkflow
+    const sentItem = [{ type: "IT Avatar Update", to: tuanEmail }];
+
+    try {
+      // 1. Gửi Email
       sendDirectEmail_(tuanEmail, mailContent, combinedCc);
       sentCandidateNames.push(item.data.fullName);
-    });
 
-    Logger.log(
-      `✅ TA ${currentUserEmail} đã gửi thành công ${sentCandidateNames.length} email UC06 cập nhật avatar.`,
-    );
+      // 2. GHI LOG THÀNH CÔNG VÀO TAB "Internal Email Log"
+      logInternalWorkflow(item.data, sentItem, "EMAIL_SENT", "");
+    } catch (sendError) {
+      Logger.log(
+        `❌ Lỗi khi gửi mail Avatar cho ${item.data.fullName}: ` +
+          sendError.toString(),
+      );
 
-    return {
-      ok: true,
-      message: `Đã gửi thành công ${sentCandidateNames.length} email nhờ IT Ops (anh Tuấn) cập nhật avatar!\n\nNhân sự: ${sentCandidateNames.join(", ")}`,
-      sentCount: sentCandidateNames.length,
-      candidates: sentCandidateNames,
-    };
-  } catch (error) {
-    throw new WorkflowError(
-      "SEND_FAILED",
-      `Quá trình gửi email cập nhật avatar thất bại: ${error.message}`,
-      { originalError: error.message },
-    );
-  }
+      // 3. GHI LOG THẤT BẠI VÀO TAB "Internal Email Log"
+      logInternalWorkflow(
+        item.data,
+        sentItem,
+        "FAILED",
+        `Lỗi gửi mail: ${sendError.message}`,
+      );
+
+      throw new WorkflowError(
+        "SEND_FAILED",
+        `Quá trình gửi email cập nhật avatar thất bại cho ${item.data.fullName}: ${sendError.message}`,
+        { originalError: sendError.message, candidate: item.data.fullName },
+      );
+    }
+  });
+
+  Logger.log(
+    `✅ TA ${currentUserEmail} đã gửi thành công ${sentCandidateNames.length} email UC06 cập nhật avatar.`,
+  );
+
+  return {
+    ok: true,
+    message: `Đã gửi thành công ${sentCandidateNames.length} email nhờ IT Ops (anh Tuấn) cập nhật avatar!\n\nNhân sự: ${sentCandidateNames.join(", ")}`,
+    sentCount: sentCandidateNames.length,
+    candidates: sentCandidateNames,
+  };
 }
