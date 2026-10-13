@@ -235,7 +235,7 @@ function handleWelcomeEmailWorkflow(data) {
 }
 
 /* ------------------------------------------------------------------ */
-/* LUỒNG 4: NHỜ CẬP NHẬT AVATAR CHO ANH TUẤN / IT OPS (UC06)            */
+/* LUỒNG 4: NHỜ CẬP NHẬT AVATAR CHO IT OPS (UC06)            */
 /* ------------------------------------------------------------------ */
 
 /**
