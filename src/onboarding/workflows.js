@@ -296,7 +296,7 @@ function handleAvatarUpdateWorkflow() {
   }
 
   // 3. Đọc recipients động cho IT Ops từ tab Data
-  const itRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.IT);
+  const itRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.DEVOPS);
   const tuanEmail = (itRecipients?.to || []).join(",");
   const tuanCc = (itRecipients?.cc || []).join(",");
 
