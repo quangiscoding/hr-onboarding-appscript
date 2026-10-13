@@ -1,20 +1,43 @@
-/** ==========================================
- * LEGACY-UTILS.JS - CÁC CUSTOM FUNCTION CHO SHEET FORMULA
+/**
  * ==========================================
- * Toàn bộ hàm trong file này là @customfunction (gọi trực tiếp từ ô Google Sheet),
- * giữ nguyên tên để không phá các formula đang có trên Sheet.
+ * LEGACY-UTILS.JS - BẢN FIX XONG LỖI #NAME?
+ * ==========================================
+ * Toàn bộ hàm trong file này là @customfunction (gọi trực tiếp từ ô Google Sheet).
  */
 
 /**
- * Đếm số lượng một ngày cụ thể trong tuần (Monday, Tuesday...) trong một tháng.
- *
- * @param {string} dayName - Tên ngày trong tuần tiếng Anh (VD: "Monday")
- * @param {string} monthName - Tên tháng tiếng Anh (VD: "October")
- * @param {number} year - Năm cần kiểm tra (VD: 2026)
- * @return {number} Số lần xuất hiện của ngày đó trong tháng
+ * Loại bỏ toàn bộ dấu tiếng Việt khỏi chuỗi (Chuyển có dấu -> không dấu).
+ * @param {string|Array<Array<string>>} text - Chuỗi hoặc Range ô
+ * @return {string|Array<Array<string>>}
+ * @customfunction
+ */
+function removeAccent(text) {
+  if (!text) return "";
+
+  function clean_(str) {
+    if (!str) return "";
+    return String(str)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D");
+  }
+
+  if (Array.isArray(text)) {
+    return text.map(function (row) {
+      return [clean_(row[0])];
+    });
+  }
+  return clean_(text);
+}
+
+/**
+ * Đếm số lượng một ngày cụ thể trong tuần trong một tháng.
  * @customfunction
  */
 function specificDays(dayName, monthName, year) {
+  if (!dayName || !monthName || !year) return 0;
+
   const monthNames = [
     "January",
     "February",
@@ -29,7 +52,6 @@ function specificDays(dayName, monthName, year) {
     "November",
     "December",
   ];
-
   const dayNames = [
     "Sunday",
     "Monday",
@@ -37,123 +59,127 @@ function specificDays(dayName, monthName, year) {
     "Wednesday",
     "Thursday",
     "Friday",
-    "Saterday", // giữ theo chuẩn gốc
+    "Saterday",
   ];
 
-  const day = dayNames.indexOf(dayName);
-  const month = monthNames.indexOf(monthName) + 1;
+  const targetDay = dayNames.indexOf(String(dayName).trim());
+  const monthIdx = monthNames.indexOf(String(monthName).trim());
 
-  if (day === -1 || month === 0) return 0;
+  if (targetDay === -1 || monthIdx === -1) return 0;
 
-  const daysInMonth = new Date(year, month, 0).getDate();
+  const daysInMonth = new Date(Number(year), monthIdx + 1, 0).getDate();
+  const firstDayOfWeek = new Date(Number(year), monthIdx, 1).getDay();
+
   let count = 0;
-
-  for (let i = 1; i <= daysInMonth; i++) {
-    if (new Date(year, month - 1, i).getDay() === day) {
+  for (let day = 1; day <= daysInMonth; day++) {
+    if ((firstDayOfWeek + day - 1) % 7 === targetDay) {
       count++;
     }
   }
-
   return count;
 }
 
 /**
- * Loại bỏ toàn bộ dấu tiếng Việt khỏi chuỗi (Chuyển có dấu -> không dấu).
- *
- * @param {string} text - Chuỗi văn bản tiếng Việt có dấu
- * @return {string} Chuỗi đã xóa sạch dấu
- * @customfunction
- */
-function removeAccent(text) {
-  if (!text) return "";
-  return String(text)
-    .replace(/[âấầẩẫậăắằẳẵặ]/g, "a")
-    .replace(/[ÂẤẦẨẪẬĂẮẰẲẴẶ]/g, "A")
-    .replace(/[áàảãạ]/g, "a")
-    .replace(/[ÁÀẢÃẠ]/g, "A")
-    .replace(/[éèẻẽẹêếềểễệ]/g, "e")
-    .replace(/[ÉÈẺẼẸÊẾỀỂỄỆ]/g, "E")
-    .replace(/[óòỏõọ]/g, "o")
-    .replace(/[ÓÒỎÕỌ]/g, "O")
-    .replace(/[đ]/g, "d")
-    .replace(/[Đ]/g, "D")
-    .replace(/[ôốồổỗộơớờởỡợ]/g, "o")
-    .replace(/[ÔỐỒỔỖỘƠỚỜỞỠỢ]/g, "O")
-    .replace(/[úùủũụưứừửữự]/g, "u")
-    .replace(/[ÚÙỦŨỤƯỨỪỬỮỰ]/g, "U")
-    .replace(/[íìỉĩị]/g, "i")
-    .replace(/[ÍÌỈĨỊ]/g, "I")
-    .replace(/[ýỳỷỹỵ]/g, "y")
-    .replace(/[ÝỲỶỸỴ]/g, "Y");
-}
-
-/**
  * Đảo cấu trúc họ tên Việt Nam: [Tên] + [Họ].
- * Ví dụ: "Trần Thị Tú Anh" -> "Anh Trần" (removeAccentFlag=1 -> "Anh Tran")
- *
- * @param {string} text - Họ và tên đầy đủ
- * @param {number} [removeAccentFlag=0] - 1: Bỏ dấu, 0: Giữ nguyên
- * @return {string}
+ * Ví dụ: "Trần Thị Tú Anh" -> "Anh Trần"
  * @customfunction
  */
-function convertVn2FirstLastName(text, removeAccentFlag = 0) {
-  if (!text) return "";
+function convertVn2FirstLastName(text, removeAccentFlag) {
+  const isBODau = Number(removeAccentFlag) === 1;
 
-  let normalized = String(text).trim();
-  if (removeAccentFlag == 1) {
-    normalized = removeAccent(normalized);
+  function processSingle_(val) {
+    if (!val) return "";
+    let str = String(val).trim();
+    if (!str) return "";
+
+    if (isBODau) {
+      str = str
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D");
+    }
+
+    const lastSpaceIdx = str.lastIndexOf(" ");
+    if (lastSpaceIdx === -1) return str;
+
+    const firstName = str.slice(lastSpaceIdx + 1);
+    const firstWord = str.slice(0, str.indexOf(" "));
+    return firstName + " " + firstWord;
   }
 
-  const parts = normalized.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "";
-  if (parts.length === 1) return parts[0];
-
-  return `${parts[parts.length - 1]} ${parts[0]}`;
+  if (Array.isArray(text)) {
+    return text.map(function (row) {
+      return [processSingle_(row[0])];
+    });
+  }
+  return processSingle_(text);
 }
 
 /**
  * Chuyển họ tên Việt Nam sang dạng quốc tế: [Tên] + [Họ + Tên lót].
- * Ví dụ: "Trần Thị Tú Anh" -> "Anh Trần Thị Tú" (removeAccentFlag=1 -> "Anh Tran Thi Tu")
- *
- * @param {string} text - Họ và tên đầy đủ
- * @param {number} [removeAccentFlag=0] - 1: Bỏ dấu, 0: Giữ nguyên
- * @return {string}
+ * Ví dụ: "Trần Thị Tú Anh" -> "Anh Trần Thị Tú"
  * @customfunction
  */
-function convertVn2FirstFullname(text, removeAccentFlag = 0) {
-  if (!text) return "";
+function convertVn2FirstFullname(text, removeAccentFlag) {
+  const isBODau = Number(removeAccentFlag) === 1;
 
-  let normalized = String(text).trim();
-  if (removeAccentFlag == 1) {
-    normalized = removeAccent(normalized);
+  function processSingle_(val) {
+    if (!val) return "";
+    let str = String(val).trim();
+    if (!str) return "";
+
+    if (isBODau) {
+      str = str
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D");
+    }
+
+    const lastSpaceIdx = str.lastIndexOf(" ");
+    if (lastSpaceIdx === -1) return str;
+
+    const firstName = str.slice(lastSpaceIdx + 1);
+    const restName = str.slice(0, lastSpaceIdx);
+    return firstName + " " + restName;
   }
 
-  const parts = normalized.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "";
-
-  const firstName = parts[parts.length - 1];
-  return [firstName, ...parts.slice(0, -1)].join(" ");
+  if (Array.isArray(text)) {
+    return text.map(function (row) {
+      return [processSingle_(row[0])];
+    });
+  }
+  return processSingle_(text);
 }
 
 /**
  * Tạo địa chỉ Email/Username từ chuỗi tên dạng FirstFullName không dấu.
  * Ví dụ: "Anh Tran Thi Tu" -> "anh.tranthitu"
- *
- * @param {string} text - Chuỗi tên dạng FirstFullName (VD: "Anh Tran Thi Tu")
- * @return {string} Tiền tố Email (VD: "anh.tranthitu")
  * @customfunction
  */
 function convertFName2EmailAddress(text) {
-  if (!text) return "";
+  function processSingle_(val) {
+    if (!val) return "";
+    const cleanStr = String(val)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D")
+      .trim()
+      .toLowerCase();
 
-  const parts = String(text).trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return parts[0] || "";
+    const parts = cleanStr.split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "";
+    if (parts.length === 1) return parts[0];
 
-  // [Tên chính] + "." + [Họ] + [các tên lót dính liền]
-  let email = `${parts[0]}.${parts[1]}`;
-  for (let i = 2; i < parts.length; i++) {
-    email += parts[i];
+    return parts[0] + "." + parts.slice(1).join("");
   }
 
-  return email;
+  if (Array.isArray(text)) {
+    return text.map(function (row) {
+      return [processSingle_(row[0])];
+    });
+  }
+  return processSingle_(text);
 }
