@@ -26,7 +26,7 @@ const WORKFLOW_REGISTRY = {
     run: (data) => handleTaNotificationWorkflow(data),
   },
   AVATAR_UPDATE: {
-    label: "Gửi mail nhắc IT Ops update avatar",
+    label: "Gửi mail nhắc DevOps update avatar",
     isBatch: true, // Luồng đặc thù: tự quét toàn Sheet theo TA đang thao tác
     validate: () => null,
     run: () => handleAvatarUpdateWorkflow(),
@@ -38,24 +38,23 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu("🚀 Hera Onboarding Tools")
     .addItem(
-      "1. Tạo Draft Welcome Email (Dòng đang chọn)",
+      `1. ${WORKFLOW_REGISTRY.WELCOME_EMAIL.label}`,
       "menuSendWelcomeEmail",
     )
     .addItem(
-      "2. Gửi Email Offer Accepted (DevOps / HR / IT)",
+      `2. ${WORKFLOW_REGISTRY.OFFER_ACCEPTED.label}`,
       "menuSendDevOpsEmail",
     )
     .addItem(
-      "3. Gửi Notification cho TA (Dòng đang chọn)",
+      `3. ${WORKFLOW_REGISTRY.TA_NOTIFICATION.label}`,
       "menuSendTaNotification",
     )
-    .addSeparator()
     .addItem(
-      "4. Gửi mail nhắc IT Ops update avatar",
+      `4. ${WORKFLOW_REGISTRY.AVATAR_UPDATE.label}`,
       "menuSendAvatarUpdateNotification",
     )
-    // .addSeparator()
-    // .addItem("🔓 Unlock Selected Row", "dev_unlockCurrentRow")
+    .addSeparator()
+    .addItem("🔓 Unlock Selected Row", "dev_unlockCurrentRow")
     .addToUi();
 
   ui.createMenu("🚀 AI Recruitment")
