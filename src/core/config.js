@@ -144,17 +144,19 @@ const CONFIG = {
 
   // 2. AI_PRICING nằm NGANG CẤP với LOG (bên ngoài LOG):
   AI_PRICING: {
-    // Gemini Direct API
-    "gemini-flash-latest": { input: 0.075, output: 0.3 },
-    "gemini-2.5-flash": { input: 0.075, output: 0.3 },
-    "gemini-3.8-flash": { input: 0.075, output: 0.3 },
-    "gemini-3.7-flash": { input: 0.075, output: 0.3 },
+    // Gemini 2.5 Flash ($0.30 Input / $2.50 Output)
+    "gemini-2.5-flash": { input: 0.3, output: 2.5 },
+    "gemini-flash-latest": { input: 0.3, output: 2.5 },
+    "google/gemini-2.5-flash": { input: 0.3, output: 2.5 },
 
-    // OpenRouter Models
-    "google/gemini-2.5-flash": { input: 0.075, output: 0.3 },
+    // Gemini 2.5 Flash-Lite ($0.10 Input / $0.40 Output)
+    "gemini-2.5-flash-lite": { input: 0.1, output: 0.4 },
 
-    // Giá mặc định phòng trường hợp dùng Model mới chưa khai báo
-    DEFAULT: { input: 0.075, output: 0.3 },
+    // Gemini 3.x Flash ($0.75 Input / $3.75 Output)
+    "gemini-3.8-flash": { input: 0.75, output: 3.75 },
+    "gemini-3.7-flash": { input: 0.75, output: 3.75 },
+
+    DEFAULT: { input: 0.3, output: 2.5 },
   },
 };
 
