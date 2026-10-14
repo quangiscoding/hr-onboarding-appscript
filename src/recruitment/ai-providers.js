@@ -123,7 +123,16 @@ function callOpenRouter_(cvContent, prompt) {
 
       const key = keys[attempt % keys.length];
       const result = callOpenRouterOnce_(model, contentParts, key);
-      if (result.ok) return result.text;
+
+      if (result.ok) {
+        return {
+          text: result.text,
+          provider: "openrouter",
+          model: model,
+          inputTokens: result.inputTokens,
+          outputTokens: result.outputTokens,
+        };
+      }
 
       const { status, message } = result;
       if (status !== 429) {
@@ -190,7 +199,13 @@ function callOpenRouterOnce_(model, contentParts, apiKey) {
       message: "OpenRouter trả về nội dung rỗng.",
     };
   }
-  return { ok: true, text: text };
+  const usage = body.usage || {};
+  return {
+    ok: true,
+    text: text,
+    inputTokens: usage.prompt_tokens || 0,
+    outputTokens: usage.completion_tokens || 0,
+  };
 }
 
 /**
@@ -263,7 +278,16 @@ function callGeminiProvider_(cvContent, prompt) {
       // Xoay vòng key: mỗi attempt (kể cả lần đầu) dùng key kế tiếp trong danh sách
       const key = keys[attempt % keys.length];
       const result = callGeminiOnce_(model, promptParts, key);
-      if (result.ok) return result.text;
+
+      if (result.ok) {
+        return {
+          text: result.text,
+          provider: "gemini",
+          model: model,
+          inputTokens: result.inputTokens,
+          outputTokens: result.outputTokens,
+        };
+      }
 
       const { status, message } = result;
       // 429 = rate limit -> retry với key kế tiếp; lỗi khác -> bỏ sang model kế
@@ -332,7 +356,13 @@ function callGeminiOnce_(model, promptParts, apiKey) {
       message: "Gemini trả về nội dung rỗng.",
     };
   }
-  return { ok: true, text: text };
+  const usage = body.usageMetadata || {};
+  return {
+    ok: true,
+    text: text,
+    inputTokens: usage.promptTokenCount || 0,
+    outputTokens: usage.candidatesTokenCount || 0,
+  };
 }
 
 /**

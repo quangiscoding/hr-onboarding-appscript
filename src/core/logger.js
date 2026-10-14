@@ -114,3 +114,56 @@ function logCandidateWorkflow(
     errorDetail,
   ]);
 }
+
+/**
+ * Ghi log chi phí và Token khi gọi AI (OpenRouter / Gemini)
+ */
+function logAiCostWorkflow(data) {
+  try {
+    const config = CONFIG?.LOG?.AI_COST;
+    if (!config) return;
+
+    // Lấy email người thực hiện script (yêu cầu scope userinfo.email)
+    let userEmail = "";
+    try {
+      userEmail =
+        Session.getActiveUser().getEmail() ||
+        Session.getEffectiveUser().getEmail();
+    } catch (e) {
+      userEmail = "N/A";
+    }
+
+    const provider = data?.provider || "N/A";
+    const model = data?.model || "N/A";
+
+    // Tra cứu đơn giá từ CONFIG.AI_PRICING theo model
+    const pricing = CONFIG?.AI_PRICING?.[model] ||
+      CONFIG?.AI_PRICING?.DEFAULT || { input: 0, output: 0 };
+
+    const inputTokens = Number(data?.inputTokens) || 0;
+    const outputTokens = Number(data?.outputTokens) || 0;
+
+    // Tính tổng chi phí ($) dựa trên đơn giá USD / 1.000.000 tokens
+    const inputCost = (inputTokens / 1000000) * pricing.input;
+    const outputCost = (outputTokens / 1000000) * pricing.output;
+    const totalCost = inputCost + outputCost;
+
+    // appendWorkflowLog sẽ tự động thêm new Date() (Timestamp) vào vị trí đầu tiên
+    // Mảng 11 giá trị sau khớp ĐÚNG THỨ TỰ 11 cột còn lại của HEADERS
+    appendWorkflowLog(config, [
+      userEmail, // User Call
+      data?.fullName || "", // Fullname
+      provider, // Provider ("openrouter" | "gemini")
+      model, // Model
+      inputTokens, // Input Tokens
+      outputTokens, // Output Tokens
+      pricing.input, // Price Input ($/1M)
+      pricing.output, // Price Output ($/1M)
+      totalCost, // Total Cost ($)
+      data?.status || "SUCCESS", // Status
+      data?.errorDetail || "", // Error Details
+    ]);
+  } catch (error) {
+    Logger.log("❌ Lỗi logAiCostWorkflow: " + error.message);
+  }
+}

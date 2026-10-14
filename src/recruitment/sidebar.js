@@ -135,22 +135,58 @@ function getSelectedCandidate() {
  * @param {Object} formData - { candidate: Object, cvFile?: { dataBase64, fileName, mimeType } | null }
  * @returns {Object} { ok, introduction?, error? }
  */
+/* ------------------------------------------------------------------ */
+/* AI SUMMARIZE HANDLER (google.script.run)                           */
+/* ------------------------------------------------------------------ */
+/**
+ * Handler cho nút "AI tóm tắt CV": đọc CV (upload hoặc cột CV) → AI → trả về Introduction.
+ * @param {Object} formData - { candidate: Object, cvFile?: { dataBase64, fileName, mimeType } | null }
+ * @returns {Object} { ok, introduction?, error? }
+ */
 function summarizeCvToIntro(formData) {
+  const candidate = formData && formData.candidate;
+
+  if (!candidate || !candidate.fullName) {
+    return {
+      ok: false,
+      error: "Thiếu thông tin ứng viên. Hãy chọn lại dòng và mở lại sidebar.",
+    };
+  }
+
+  let aiRes = null;
+
   try {
-    const candidate = formData && formData.candidate;
-    if (!candidate || !candidate.fullName) {
-      return {
-        ok: false,
-        error: "Thiếu thông tin ứng viên. Hãy chọn lại dòng và mở lại sidebar.",
-      };
-    }
-
     const cvContent = readCvContent_(formData && formData.cvFile, candidate);
-    const introduction = callGeminiSummarizeCv_(cvContent, candidate);
 
-    return { ok: true, introduction };
+    // callGeminiSummarizeCv_ giờ trả về: { text, provider, model, inputTokens, outputTokens }
+    aiRes = callGeminiSummarizeCv_(cvContent, candidate);
+
+    // 1. Ghi log thành công vào tab "AI Cost Log"
+    logAiCostWorkflow({
+      fullName: candidate.fullName,
+      provider: aiRes?.provider,
+      model: aiRes?.model,
+      inputTokens: aiRes?.inputTokens,
+      outputTokens: aiRes?.outputTokens,
+      status: "SUCCESS",
+    });
+
+    // 2. Trả về text cho UI hiển thị như cũ
+    return { ok: true, introduction: aiRes.text };
   } catch (error) {
     Logger.log("❌ summarizeCvToIntro lỗi: " + error.toString());
+
+    // Ghi log thất bại vào tab "AI Cost Log"
+    logAiCostWorkflow({
+      fullName: candidate?.fullName || "N/A",
+      provider: aiRes?.provider || "N/A",
+      model: aiRes?.model || "N/A",
+      inputTokens: aiRes?.inputTokens || 0,
+      outputTokens: aiRes?.outputTokens || 0,
+      status: "FAILED",
+      errorDetail: error.message || error.toString(),
+    });
+
     return { ok: false, error: error.message || error.toString() };
   }
 }
