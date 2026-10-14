@@ -19,86 +19,87 @@
  *   - PDF:   { kind: "pdf_inline", pdfBase64, fileName } (gửi thẳng PDF base64 cho AI)
  *   - Khác:  { kind: "text", text }
  */
+/**
+ * Đọc nội dung CV từ upload hoặc link trên Sheet
+ */
 function readCvContent_(cvFileMeta, candidate) {
-  let blob = null;
-  let fileName = "cv";
-
-  // 1. CV upload trực tiếp từ sidebar (base64) — dựng blob trong bộ nhớ, KHÔNG tạo file Drive
+  // 1. Nếu có file upload trực tiếp từ Sidebar
   if (cvFileMeta && cvFileMeta.dataBase64) {
     const bytes = Utilities.base64Decode(cvFileMeta.dataBase64);
-    blob = Utilities.newBlob(
+    const blob = Utilities.newBlob(
       bytes,
       cvFileMeta.mimeType || "application/pdf",
       cvFileMeta.fileName || "cv.pdf",
     );
-    fileName = cvFileMeta.fileName || "cv.pdf";
-  } else if (candidate && candidate.cvUrl) {
-    // 2. Link CV trong cột CV của sheet
+
+    // Nếu là PDF upload từ máy -> gửi base64
+    if (
+      blob.getContentType() === MimeType.PDF ||
+      /\.pdf\$/i.test(cvFileMeta.fileName || "")
+    ) {
+      return {
+        kind: "pdf_inline",
+        pdfBase64: Utilities.base64Encode(blob.getBytes()),
+        fileName: cvFileMeta.fileName || "cv.pdf",
+      };
+    }
+  }
+
+  // 2. Nếu đọc từ Link/Tên file trong cột CV trên Sheet
+  if (candidate && candidate.cvUrl) {
     let fileId = extractDriveFileId_(candidate.cvUrl);
     if (!fileId) {
-      // Cột CV chỉ chứa TÊN FILE (không phải link) -> tìm file trong Drive theo tên
       fileId = findDriveFileIdByName_(candidate.cvUrl);
-      if (!fileId) {
-        throw new Error(
-          `Cột CV không chứa link Drive hợp lệ và không tìm thấy file nào tên "${candidate.cvUrl}" trong Drive của bạn. Hãy dán link Drive của CV vào cột CV hoặc upload file từ máy.`,
-        );
-      }
     }
-    const file = DriveApp.getFileById(fileId);
-    blob = file.getBlob();
-    fileName = file.getName() || fileName;
-  } else {
-    throw new Error(
-      "Không tìm thấy CV: cột CV trên sheet trống và bạn chưa upload file CV. Hãy upload CV hoặc điền link CV vào cột CV.",
-    );
-  }
 
-  const mimeType = blob.getContentType() || "";
-  const nameForDetect = fileName || "";
+    if (!fileId) {
+      throw new Error(
+        `Không tìm thấy file CV từ link/tên "${candidate.cvUrl}".`,
+      );
+    }
 
-  // PDF: gửi thẳng base64 cho AI (Gemini đọc PDF native, không cần convert sang GDoc)
-  if (mimeType === MimeType.PDF || /\.pdf$/i.test(nameForDetect)) {
-    return {
-      kind: "pdf_inline",
-      pdfBase64: Utilities.base64Encode(blob.getBytes()),
-      fileName,
-    };
-  }
-
-  // Google Docs: mở DocumentApp trực tiếp
-  if (mimeType === MimeType.GOOGLE_DOCS) {
-    const fileId =
-      extractDriveFileId_(candidate && candidate.cvUrl) ||
-      findDriveFileIdByName_(nameForDetect);
-    let text = "";
+    // TH1: Thử mở bằng Google Docs (Nếu link dán vào là Google Docs)
     try {
-      text = DocumentApp.openById(fileId).getBody().getText();
+      const doc = DocumentApp.openById(fileId);
+      const docText = doc.getBody().getText().trim();
+      if (docText) {
+        Logger.log(
+          "✅ Đã đọc CV dạng Google Docs thành công! Số ký tự: " +
+            docText.length,
+        );
+        return { kind: "text", text: docText };
+      }
     } catch (e) {
-      text = "";
+      // Không phải Google Doc, bỏ qua chuyển xuống thử đọc dạng File/PDF
     }
-    if (text) return { kind: "text", text };
+
+    // TH2: Mở bằng DriveApp (Nếu link dán vào là file PDF / Word / File mã hóa)
+    const file = DriveApp.getFileById(fileId);
+    const mimeType = file.getMimeType();
+    const fileName = file.getName();
+
+    // Nếu là Google Doc loại MimeType
+    if (mimeType === MimeType.GOOGLE_DOCS) {
+      const docText = DocumentApp.openById(fileId).getBody().getText().trim();
+      return { kind: "text", text: docText };
+    }
+
+    // Nếu là file PDF
+    if (mimeType === MimeType.PDF || /\.pdf\$/i.test(fileName)) {
+      return {
+        kind: "pdf_inline",
+        pdfBase64: Utilities.base64Encode(file.getBlob().getBytes()),
+        fileName: fileName,
+      };
+    }
+
+    // Nếu là file DOCX
+    if (mimeType === MimeType.MICROSOFT_WORD || /\.docx\$/i.test(fileName)) {
+      return { kind: "text", text: extractTextFromDocx_(file.getBlob()) };
+    }
   }
 
-  // DOCX (zip): giải nén lấy word/document.xml rồi strip tag XML
-  if (mimeType === MimeType.MICROSOFT_WORD || /\.docx$/i.test(nameForDetect)) {
-    return { kind: "text", text: extractTextFromDocx_(blob) };
-  }
-
-  // DOC cũ (binary): không đọc được — yêu cầu đổi định dạng
-  if (/\.doc$/i.test(nameForDetect) || mimeType === "application/msword") {
-    throw new Error(
-      "File CV là .doc cũ — script không đọc được. Hãy lưu lại thành .docx hoặc PDF rồi upload lại (hoặc upload PDF).",
-    );
-  }
-
-  // Plain text / các định dạng khác
-  const text = blob.getDataAsString("UTF-8");
-  if (!text || !/[a-zA-Z]/.test(text.slice(0, 500))) {
-    throw new Error(
-      "Không trích xuất được text từ file CV. Các định dạng hỗ trợ: PDF, DOCX, Google Docs, TXT.",
-    );
-  }
-  return { kind: "text", text };
+  throw new Error("Không tìm thấy CV hợp lệ để xử lý.");
 }
 
 /**
