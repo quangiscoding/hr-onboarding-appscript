@@ -92,7 +92,7 @@ const CONFIG = {
         "Request Type",
         "Sent To",
         "Status",
-        "Error Details", // Cột mới
+        "Error Details",
       ],
     },
     TA_NOTIFICATION: {
@@ -104,7 +104,7 @@ const CONFIG = {
         "Alloc Code",
         "Sent To",
         "Status",
-        "Error Details", // Cột mới
+        "Error Details",
       ],
     },
     CANDIDATE: {
@@ -116,10 +116,10 @@ const CONFIG = {
         "Alloc Code",
         "Draft ID",
         "Status",
-        "Error Details", // Cột mới
+        "Error Details",
       ],
     },
-    // THÊM TAB LOG AI COST VÀO ĐÂY:
+    // 1. AI_COST nằm BÊN TRONG LOG:
     AI_COST: {
       SHEET_NAME: "AI Cost Log",
       HEADERS: [
@@ -137,19 +137,21 @@ const CONFIG = {
         "Error Details",
       ],
     },
-    AI_PRICING: {
-      // Gemini Direct API
-      "gemini-flash-latest": { input: 0.075, output: 0.3 },
-      "gemini-2.5-flash": { input: 0.075, output: 0.3 },
-      "gemini-3.8-flash": { input: 0.075, output: 0.3 },
-      "gemini-3.7-flash": { input: 0.075, output: 0.3 },
+  },
 
-      // OpenRouter Models
-      "google/gemini-2.5-flash": { input: 0.075, output: 0.3 },
+  // 2. AI_PRICING nằm NGANG CẤP với LOG (bên ngoài LOG):
+  AI_PRICING: {
+    // Gemini Direct API
+    "gemini-flash-latest": { input: 0.075, output: 0.3 },
+    "gemini-2.5-flash": { input: 0.075, output: 0.3 },
+    "gemini-3.8-flash": { input: 0.075, output: 0.3 },
+    "gemini-3.7-flash": { input: 0.075, output: 0.3 },
 
-      // Giá mặc định phòng trường hợp dùng Model mới chưa khai báo
-      DEFAULT: { input: 0.075, output: 0.3 },
-    },
+    // OpenRouter Models
+    "google/gemini-2.5-flash": { input: 0.075, output: 0.3 },
+
+    // Giá mặc định phòng trường hợp dùng Model mới chưa khai báo
+    DEFAULT: { input: 0.075, output: 0.3 },
   },
 };
 
