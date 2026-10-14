@@ -119,6 +119,37 @@ const CONFIG = {
         "Error Details", // Cột mới
       ],
     },
+    // THÊM TAB LOG AI COST VÀO ĐÂY:
+    AI_COST: {
+      SHEET_NAME: "AI Cost Log",
+      HEADERS: [
+        "Timestamp",
+        "User Call",
+        "Fullname",
+        "Provider",
+        "Model",
+        "Input Tokens",
+        "Output Tokens",
+        "Price Input ($/1M)",
+        "Price Output ($/1M)",
+        "Total Cost ($)",
+        "Status",
+        "Error Details",
+      ],
+    },
+    AI_PRICING: {
+      // Gemini Direct API
+      "gemini-flash-latest": { input: 0.075, output: 0.3 },
+      "gemini-2.5-flash": { input: 0.075, output: 0.3 },
+      "gemini-3.8-flash": { input: 0.075, output: 0.3 },
+      "gemini-3.7-flash": { input: 0.075, output: 0.3 },
+
+      // OpenRouter Models
+      "google/gemini-2.5-flash": { input: 0.075, output: 0.3 },
+
+      // Giá mặc định phòng trường hợp dùng Model mới chưa khai báo
+      DEFAULT: { input: 0.075, output: 0.3 },
+    },
   },
 };
 
