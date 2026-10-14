@@ -128,6 +128,9 @@ const CONFIG = {
         "Fullname",
         "Provider",
         "Model",
+        "Time Start", // Mới thêm
+        "Time End", // Mới thêm
+        "Latency (s)", // Mới thêm
         "Input Tokens",
         "Output Tokens",
         "Price Input ($/1M)",

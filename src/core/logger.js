@@ -116,14 +116,13 @@ function logCandidateWorkflow(
 }
 
 /**
- * Ghi log chi phí và Token khi gọi AI (OpenRouter / Gemini)
+ * Ghi log chi phí, Token và Thời gian gọi AI
  */
 function logAiCostWorkflow(data) {
   try {
     const config = CONFIG?.LOG?.AI_COST;
     if (!config) return;
 
-    // Lấy email người thực hiện script (yêu cầu scope userinfo.email)
     let userEmail = "";
     try {
       userEmail =
@@ -135,26 +134,42 @@ function logAiCostWorkflow(data) {
 
     const provider = data?.provider || "N/A";
     const model = data?.model || "N/A";
-
-    // Tra cứu đơn giá từ CONFIG.AI_PRICING theo model
     const pricing = CONFIG?.AI_PRICING?.[model] ||
       CONFIG?.AI_PRICING?.DEFAULT || { input: 0, output: 0 };
 
     const inputTokens = Number(data?.inputTokens) || 0;
     const outputTokens = Number(data?.outputTokens) || 0;
 
-    // Tính tổng chi phí ($) dựa trên đơn giá USD / 1.000.000 tokens
     const inputCost = (inputTokens / 1000000) * pricing.input;
     const outputCost = (outputTokens / 1000000) * pricing.output;
     const totalCost = inputCost + outputCost;
 
-    // appendWorkflowLog sẽ tự động thêm new Date() (Timestamp) vào vị trí đầu tiên
-    // Mảng 11 giá trị sau khớp ĐÚNG THỨ TỰ 11 cột còn lại của HEADERS
+    // Định dạng thời gian hiển thị hh:mm:ss.sss
+    const formatTime = (d) =>
+      d instanceof Date
+        ? Utilities.formatDate(d, Session.getScriptTimeZone(), "HH:mm:ss.SSS")
+        : "";
+
+    const timeStart = data?.timeStart ? formatTime(data.timeStart) : "";
+    const timeEnd = data?.timeEnd ? formatTime(data.timeEnd) : "";
+    const latencySec =
+      data?.timeStart && data?.timeEnd
+        ? Number(
+            (
+              (data.timeEnd.getTime() - data.timeStart.getTime()) /
+              1000
+            ).toFixed(2),
+          )
+        : 0;
+
     appendWorkflowLog(config, [
       userEmail, // User Call
       data?.fullName || "", // Fullname
-      provider, // Provider ("openrouter" | "gemini")
+      provider, // Provider
       model, // Model
+      timeStart, // Time Start
+      timeEnd, // Time End
+      latencySec, // Latency (s)
       inputTokens, // Input Tokens
       outputTokens, // Output Tokens
       pricing.input, // Price Input ($/1M)

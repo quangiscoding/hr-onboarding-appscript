@@ -154,33 +154,40 @@ function summarizeCvToIntro(formData) {
   }
 
   let aiRes = null;
+  const timeStart = new Date(); // Mốc bắt đầu gọi AI
 
   try {
     const cvContent = readCvContent_(formData && formData.cvFile, candidate);
 
-    // callGeminiSummarizeCv_ giờ trả về: { text, provider, model, inputTokens, outputTokens }
+    // Gọi AI
     aiRes = callGeminiSummarizeCv_(cvContent, candidate);
 
-    // 1. Ghi log thành công vào tab "AI Cost Log"
+    const timeEnd = new Date(); // Mốc kết thúc
+
+    // Ghi log thành công
     logAiCostWorkflow({
       fullName: candidate.fullName,
       provider: aiRes?.provider,
       model: aiRes?.model,
+      timeStart: timeStart,
+      timeEnd: timeEnd,
       inputTokens: aiRes?.inputTokens,
       outputTokens: aiRes?.outputTokens,
       status: "SUCCESS",
     });
 
-    // 2. Trả về text cho UI hiển thị như cũ
     return { ok: true, introduction: aiRes.text };
   } catch (error) {
+    const timeEnd = new Date(); // Mốc kết thúc (nếu lỗi)
     Logger.log("❌ summarizeCvToIntro lỗi: " + error.toString());
 
-    // Ghi log thất bại vào tab "AI Cost Log"
+    // Ghi log thất bại
     logAiCostWorkflow({
       fullName: candidate?.fullName || "N/A",
       provider: aiRes?.provider || "N/A",
       model: aiRes?.model || "N/A",
+      timeStart: timeStart,
+      timeEnd: timeEnd,
       inputTokens: aiRes?.inputTokens || 0,
       outputTokens: aiRes?.outputTokens || 0,
       status: "FAILED",
