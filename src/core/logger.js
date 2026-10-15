@@ -2,13 +2,41 @@
  * LOGGER.JS - GHI LOG WORKFLOW VÀO TAB BẢNG TÍNH
  * ========================================== */
 
+/**
+ * Format Date object thành chuỗi "'HH:mm:ss.SSS"
+ * Ép cứng padding 2 chữ số và dùng dấu ' đằng trước để Google Sheets không auto-format mất số 0
+ */
+function formatTime_(d) {
+  if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+  const pad = (num) => String(num).padStart(2, "0");
+  const padMs = (num) => String(num).padStart(3, "0");
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+  return `'${hours}:${minutes}:${seconds}`;
+}
+
+/**
+ * Format đầy đủ Ngày & Giờ cho cột Timestamp ('MM/DD/YYYY HH:mm:ss)
+ */
+function formatTimestamp_(d) {
+  if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+  const pad = (num) => String(num).padStart(2, "0");
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+  return `'${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+}
+
 function getOrCreateLogSheet(sheetName, headers) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) {
     Logger.log("❌ Không tìm thấy Active Spreadsheet.");
     return null;
   }
-
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
@@ -24,12 +52,21 @@ function getOrCreateLogSheet(sheetName, headers) {
   return sheet;
 }
 
+/**
+ * Thêm 1 dòng log vào tab tương ứng, tự động thêm và format Timestamp đầu tiên
+ */
 function appendWorkflowLog(config, values) {
   try {
     if (!config || !config.SHEET_NAME) return;
     const sheet = getOrCreateLogSheet(config.SHEET_NAME, config.HEADERS);
     if (sheet) {
-      sheet.appendRow([new Date(), ...values]);
+      // Định dạng Timestamp chuẩn 2 chữ số cho giờ/ngày
+      const formattedTimestamp = formatTimestamp_(new Date());
+
+      // Tạo mảng dòng log mới với Timestamp nằm ở cột A
+      const rowData = [formattedTimestamp, ...values];
+
+      sheet.appendRow(rowData);
     }
   } catch (error) {
     Logger.log(
@@ -53,7 +90,6 @@ function logInternalWorkflow(
   errorDetail = "",
 ) {
   if (!Array.isArray(sentEmails) || sentEmails.length === 0) {
-    // Trường hợp chưa gửi được mail nào đã fail
     appendWorkflowLog(CONFIG.LOG.INTERNAL, [
       data?.fullName || "",
       safeTitleCase_(data?.position),
@@ -64,7 +100,6 @@ function logInternalWorkflow(
     ]);
     return;
   }
-
   sentEmails.forEach((sent) => {
     appendWorkflowLog(CONFIG.LOG.INTERNAL, [
       data?.fullName || "",
@@ -144,14 +179,9 @@ function logAiCostWorkflow(data) {
     const outputCost = (outputTokens / 1000000) * pricing.output;
     const totalCost = inputCost + outputCost;
 
-    // Định dạng thời gian hiển thị hh:mm:ss.sss
-    const formatTime = (d) =>
-      d instanceof Date
-        ? Utilities.formatDate(d, Session.getScriptTimeZone(), "HH:mm:ss.SSS")
-        : "";
+    const timeStart = data?.timeStart ? formatTime_(data.timeStart) : "";
+    const timeEnd = data?.timeEnd ? formatTime_(data.timeEnd) : "";
 
-    const timeStart = data?.timeStart ? formatTime(data.timeStart) : "";
-    const timeEnd = data?.timeEnd ? formatTime(data.timeEnd) : "";
     const latencySec =
       data?.timeStart && data?.timeEnd
         ? Number(
@@ -167,14 +197,14 @@ function logAiCostWorkflow(data) {
       data?.fullName || "", // Fullname
       provider, // Provider
       model, // Model
-      timeStart, // Time Start
-      timeEnd, // Time End
+      timeStart, // Time Start ('HH:mm:ss.SSS)
+      timeEnd, // Time End ('HH:mm:ss.SSS)
       latencySec, // Latency (s)
       inputTokens, // Input Tokens
       outputTokens, // Output Tokens
-      pricing.input, // Price Input ($/1M)
-      pricing.output, // Price Output ($/1M)
-      totalCost, // Total Cost ($)
+      pricing.input, // Price Input (\$/1M)
+      pricing.output, // Price Output (\$/1M)
+      totalCost, // Total Cost (\$)
       data?.status || "SUCCESS", // Status
       data?.errorDetail || "", // Error Details
     ]);
