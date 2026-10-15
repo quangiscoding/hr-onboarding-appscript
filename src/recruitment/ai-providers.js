@@ -317,6 +317,19 @@ function callGeminiProvider_(cvContent, prompt) {
  * Gọi generateContent 1 lần với 1 model. Không retry ở đây.
  * @returns {Object} { ok: true, text } hoặc { ok: false, status, message }
  */
+/**
+ * Calls Gemini Direct API once and returns response text + token usage.
+ *
+ * Google Gemini REST API Response Structure:
+ * {
+ *   "candidates": [ { "content": { "parts": [ { "text": "..." } ] } } ],
+ *   "usageMetadata": {
+ *     "promptTokenCount": 1569,     // Input tokens (Prompt + File content)
+ *     "candidatesTokenCount": 120,  // Output tokens (Generated text)
+ *     "totalTokenCount": 1689
+ *   }
+ * }
+ */
 function callGeminiOnce_(model, promptParts, apiKey) {
   const response = UrlFetchApp.fetch(
     `${CONFIG.GEMINI.BASE_URL}/models/${model}:generateContent?key=${apiKey}`,
@@ -325,7 +338,7 @@ function callGeminiOnce_(model, promptParts, apiKey) {
       contentType: "application/json",
       payload: JSON.stringify({
         contents: [{ parts: promptParts }],
-        // Lưu ý: Gemini 3.x từ chối temperature/top_p/top_k trong generateContent
+        // Note: Gemini 3.x rejects temperature/top_p/top_k in generateContent
         generationConfig: {},
       }),
       muteHttpExceptions: true,
@@ -334,6 +347,8 @@ function callGeminiOnce_(model, promptParts, apiKey) {
 
   const statusCode = response.getResponseCode();
   const body = JSON.parse(response.getContentText() || "{}");
+
+  // Check for HTTP errors or missing response candidates
   if (statusCode !== 200 || !body.candidates || !body.candidates[0]) {
     const errMsg =
       body.error && body.error.message
@@ -342,6 +357,7 @@ function callGeminiOnce_(model, promptParts, apiKey) {
     return { ok: false, status: statusCode, message: errMsg };
   }
 
+  // Extract generated output text
   const parts = body.candidates[0].content && body.candidates[0].content.parts;
   const text =
     parts &&
@@ -349,19 +365,23 @@ function callGeminiOnce_(model, promptParts, apiKey) {
       .map((p) => p.text || "")
       .join("")
       .trim();
+
   if (!text) {
     return {
       ok: false,
       status: statusCode,
-      message: "Gemini trả về nội dung rỗng.",
+      message: "Gemini returned empty content.",
     };
   }
+
+  // Extract token metadata from Google's native 'usageMetadata' object
   const usage = body.usageMetadata || {};
+
   return {
     ok: true,
     text: text,
-    inputTokens: usage.promptTokenCount || 0,
-    outputTokens: usage.candidatesTokenCount || 0,
+    inputTokens: usage.promptTokenCount || 0, // Maps to 'promptTokenCount'
+    outputTokens: usage.candidatesTokenCount || 0, // Maps to 'candidatesTokenCount'
   };
 }
 
