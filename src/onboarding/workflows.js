@@ -436,9 +436,10 @@ function handleAvatarUpdateWorkflow() {
   }
 
   if (readyForDevOps.length === 0 && missingForTA.length === 0) {
-    return {
-      message: `Không tìm thấy nhân sự onboard hôm nay (${todayDisplayStr}) thuộc quản lý của bạn (${currentAllocCode}) cần xử lý (hoặc tất cả đã được gửi và khóa trước đó).`,
-    };
+    throw new WorkflowError(
+      "NO_CANDIDATES_FOUND",
+      `Không tìm thấy dữ liệu cần xử lý cho tài khoản ${currentAllocCode} trong ngày ${todayDisplayStr}.\n\nCó thể do:\n• Bạn không có nhân sự mới onboard hôm nay.\n• Tất cả nhân sự hôm nay đã được gửi email trước đó.`,
+    );
   }
 
   let summaryMsg = [];

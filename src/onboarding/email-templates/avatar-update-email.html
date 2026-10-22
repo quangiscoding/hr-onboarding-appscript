@@ -9,17 +9,17 @@
   "
 >
   <p style="margin: 0 0 12px 0">Hi IT Ops Team,</p>
-
   <p style="margin: 0 0 16px 0">
     Nhờ team hỗ trợ cập nhật avatar cho
     <strong><?= it.candidates.length ?></strong> nhân sự mới onboard ngày
-    <strong><?= it.todayStr ?></strong> tại file
+    <strong><?= it.todayStr ?></strong> tại
     <a
       href="<?= it.sheetUrl ?>"
       target="_blank"
       style="color: #0d6efd; font-weight: bold; text-decoration: underline"
-      >Hera | On-boarding List</a
-    >:
+    >
+      File Hera | On-boarding List ↗
+    </a>
   </p>
 
   <table
@@ -39,28 +39,18 @@
           border-bottom: 1px solid #dddddd;
         "
       >
-        <th style="padding: 10px 8px; color: #444444">Dòng Hera</th>
         <th style="padding: 10px 8px; color: #444444">Họ và tên</th>
         <th style="padding: 10px 8px; color: #444444">Working Email</th>
         <th style="padding: 10px 8px; color: #444444">Chức vụ / Squad</th>
-        <th style="padding: 10px 8px; color: #444444">Link Avatar</th>
-        <!-- 🌟 CỘT MỚI BỔ SUNG -->
+        <th style="padding: 10px 8px; color: #444444">Avatar</th>
         <th style="padding: 10px 8px; color: #444444; text-align: center">
-          Link Hera
+          Thông tin nhân sự
         </th>
       </tr>
     </thead>
     <tbody>
       <? it.candidates.forEach(function(item) { ?>
       <tr style="border-bottom: 1px solid #eeeeee">
-        <td style="padding: 10px 8px; font-weight: bold; color: #666666">
-          <a
-            href="<?= item.rowLink ?>"
-            target="_blank"
-            style="color: #0d6efd; text-decoration: underline"
-            >#<?= item.rowNumber ?></a
-          >
-        </td>
         <td style="padding: 10px 8px; font-weight: bold; color: #111111">
           <?= item.fullName ?>
         </td>
@@ -81,54 +71,36 @@
             href="<?= item.avatarUrl ?>"
             target="_blank"
             style="color: #0d6efd; text-decoration: underline"
-            >Xem ảnh Drive</a
           >
+            Xem ảnh Drive
+          </a>
           <? if (item.uc06RowLink) { ?>
-          <br /><span style="font-size: 11px; font-weight: normal"
-            ><a
+          <br /><span style="font-size: 11px; font-weight: normal">
+            <a
               href="<?= item.uc06RowLink ?>"
               target="_blank"
               style="color: #666666; text-decoration: underline"
-              >(Link Avatar Dòng #<?= item.uc06RowNumber ?>)</a
-            ></span
-          >
+            >
+              (Link Avatar Dòng #<?= item.uc06RowNumber ?>)
+            </a>
+          </span>
           <? } ?> <? } else { ?>
           <span style="color: #ef403e">Chưa có link</span>
           <? } ?>
         </td>
-        <!-- 🌟 DỮ LIỆU CỘT MỚI: DÙNG TEXT LINK GỌN GÀNG -->
         <td style="padding: 10px 8px; text-align: center; font-weight: bold">
           <a
             href="<?= item.rowLink ?>"
             target="_blank"
             style="color: #0d6efd; text-decoration: underline"
           >
-            Đi tới dòng #<?= item.rowNumber ?> ↗
+            Link ↗
           </a>
         </td>
       </tr>
       <? }); ?>
     </tbody>
   </table>
-  <!-- 
-  <div style="text-align: center; margin: 20px 0">
-    <a
-      href="<?= it.sheetUrl ?>"
-      target="_blank"
-      style="
-        background-color: #ef403e;
-        color: #ffffff;
-        padding: 10px 22px;
-        text-decoration: none;
-        border-radius: 6px;
-        font-weight: bold;
-        font-size: 13px;
-        display: inline-block;
-      "
-    >
-      Mở File Hera Onboarding List
-    </a>
-  </div> -->
 
   <p style="margin: 0">Em cảm ơn team!</p>
 </div>
