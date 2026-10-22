@@ -242,8 +242,7 @@ function handleWelcomeEmailWorkflow(data) {
  * Được gọi trực tiếp từ Controller main.js thông qua WORKFLOW_REGISTRY.AVATAR_UPDATE.run()
  */
 /**
- * Business Logic cho luồng AVATAR_UPDATE (Batch Processing)
- * Được gọi trực tiếp từ Controller main.js thông qua WORKFLOW_REGISTRY.AVATAR_UPDATE.run()
+ * Business Logic cho luồng AVATAR_UPDATE (Debug & Execution Logging)
  */
 function handleAvatarUpdateWorkflow() {
   const SPREADSHEET_UC06_ID = "1NoTqsI8oiV0ilqlhLYiAKK6igsyw1n4Z50OxDR3eKcw";
@@ -256,7 +255,7 @@ function handleAvatarUpdateWorkflow() {
     .trim();
   const currentAllocCode = currentUserEmail.split("@")[0].trim();
 
-  // 2. Tra cứu file UC06 bằng getHeaderColumnMap (không dùng fallback)
+  // 2. Tra cứu file UC06
   let avatarMap = {};
   let uc06SheetUrl = "";
   try {
@@ -264,13 +263,11 @@ function handleAvatarUpdateWorkflow() {
     const uc06Sheet = uc06Ss.getSheets()[0];
     uc06SheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit#gid=${uc06Sheet.getSheetId()}`;
 
-    const lastRow = uc06Sheet.getLastRow();
-    const lastCol = uc06Sheet.getLastColumn();
+    const lastRowUC06 = uc06Sheet.getLastRow();
+    const lastColUC06 = uc06Sheet.getLastColumn();
 
-    if (lastRow > 1) {
+    if (lastRowUC06 > 1) {
       const uc06ColMap = getHeaderColumnMap(uc06Sheet);
-
-      // Lấy trực tiếp cột Email Address và Picture, không chế fallback
       const emailColNumber = uc06ColMap[normalizeHeaderKey("Email Address")];
       const pictureColNumber = uc06ColMap[normalizeHeaderKey("Picture")];
 
@@ -280,7 +277,7 @@ function handleAvatarUpdateWorkflow() {
         const pictureColLetter = String.fromCharCode(64 + pictureColNumber);
 
         const uc06Data = uc06Sheet
-          .getRange(2, 1, lastRow - 1, lastCol)
+          .getRange(2, 1, lastRowUC06 - 1, lastColUC06)
           .getValues();
 
         for (let i = 0; i < uc06Data.length; i++) {
@@ -310,10 +307,32 @@ function handleAvatarUpdateWorkflow() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getActiveSheet();
   const sheetUrl = ss.getUrl();
-  const lastRow = sheet.getLastRow();
+  const rawLastRow = sheet.getLastRow();
 
-  if (lastRow <= 1) {
+  if (rawLastRow <= 1) {
     return { message: "Sheet dữ liệu Hera hiện đang rỗng." };
+  }
+
+  // ⚡ TỐI ƯU TỐC ĐỘ: Tìm dòng cuối cùng CÓ DỮ LIỆU THỰC TẾ (Cột B)
+  const colBValues = sheet.getRange(1, 2, rawLastRow, 1).getValues();
+  let actualLastRow = 1;
+  for (let r = colBValues.length - 1; r >= 0; r--) {
+    if (colBValues[r][0] && String(colBValues[r][0]).trim() !== "") {
+      actualLastRow = r + 1;
+      break;
+    }
+  }
+
+  // 📢 PRINT DÒNG THỰC TẾ CUỐI CÙNG RA LOG
+  Logger.log(`==================================================`);
+  Logger.log(`🔍 [LOG SHEET HERA] Raw Last Row (Sheet): ${rawLastRow}`);
+  Logger.log(
+    `🎯 [LOG SHEET HERA] Actual Last Row (Có dữ liệu): ${actualLastRow}`,
+  );
+  Logger.log(`==================================================`);
+
+  if (actualLastRow <= 1) {
+    return { message: "Không tìm thấy dòng dữ liệu nhân sự hợp lệ nào." };
   }
 
   const scriptTimeZone = Session.getScriptTimeZone();
@@ -331,12 +350,20 @@ function handleAvatarUpdateWorkflow() {
   const readyForDevOps = [];
   const missingForTA = [];
 
-  // 4. Quét BATCH từ dòng dưới cùng ngược lên dòng 2
-  for (let r = lastRow; r >= 2; r--) {
+  // 4. Quét TỪ DÒNG THỰC TẾ CUỐI CÙNG (actualLastRow) ngược lên dòng 2
+  for (let r = actualLastRow; r >= 2; r--) {
     let candidateData;
     try {
       candidateData = getNormalizedInput(TRIGGER_TYPE, r);
     } catch (err) {
+      Logger.log(
+        `⚠️ Dòng ${r}: Lỗi khi gọi getNormalizedInput - ${err.message}`,
+      );
+      continue;
+    }
+
+    if (!candidateData) {
+      Logger.log(`⚠️ Dòng ${r}: candidateData rỗng (bỏ qua).`);
       continue;
     }
 
@@ -351,26 +378,52 @@ function handleAvatarUpdateWorkflow() {
     } = candidateData;
 
     const targetLockEmail = personalEmail || workingEmail;
-    if (!fullName || !personalEmail) continue;
 
-    // Điều kiện 1: Trạng thái On-boarded
+    if (!fullName || !personalEmail) {
+      Logger.log(
+        `⚠️ Dòng ${r}: Thiếu Name hoặc Personal Email (Name: '${fullName}', Email: '${personalEmail}')`,
+      );
+      continue;
+    }
+
+    // So sánh các điều kiện
     const rawStatus = String(status || "")
       .toLowerCase()
       .replace(/[-_ \t]/g, "");
-    if (rawStatus !== "onboarded") continue;
-
-    // Điều kiện 2: Ngày Onboard trùng HÔM NAY
-    if (startDate !== todayDisplayStr && startDate !== todayStr) continue;
-
-    // Điều kiện 3: Alloc Code của TA trùng người đang thao tác
+    const isOnboarded = rawStatus === "onboarded";
+    const isToday = startDate === todayDisplayStr || startDate === todayStr;
     const taAllocCode = String(taEmail || "")
       .split("@")[0]
       .trim()
       .toLowerCase();
-    if (taAllocCode !== currentAllocCode) continue;
+    const isMyTA = taAllocCode === currentAllocCode;
+    const isLocked = isRowLockedForWorkflow(
+      rowNumber,
+      TRIGGER_TYPE,
+      targetLockEmail,
+    );
 
-    // 🔒 Check Lock: Dòng VÀ Email này đã được gửi cho DevOps và khóa trước đó chưa?
-    if (isRowLockedForWorkflow(rowNumber, TRIGGER_TYPE, targetLockEmail)) {
+    // 📢 LOG CHI TIẾT TỪNG ĐIỀU KIỆN SO SÁNH
+    Logger.log(
+      `--- [Dòng ${r}] NV: ${fullName} ---` +
+        `\n  + 1. Status: '${status}' (Pass: ${isOnboarded})` +
+        `\n  + 2. Date: '${startDate}' vs Today: '${todayDisplayStr}' / '${todayStr}' (Pass: ${isToday})` +
+        `\n  + 3. TA: '${taEmail}' -> Alloc: '${taAllocCode}' vs Current: '${currentAllocCode}' (Pass: ${isMyTA})` +
+        `\n  + 4. Locked: ${isLocked}`,
+    );
+
+    // Điều kiện 1: Trạng thái On-boarded
+    if (!isOnboarded) continue;
+
+    // Điều kiện 2: Ngày Onboard trùng HÔM NAY
+    if (!isToday) continue;
+
+    // Điều kiện 3: Alloc Code của TA trùng người đang thao tác
+    if (!isMyTA) continue;
+
+    // 🔒 Check Lock Metadata
+    if (isLocked) {
+      Logger.log(`🔒 Dòng ${r} (${fullName}) đã bị KHÓA trước đó -> Bỏ qua.`);
       continue;
     }
 
@@ -384,10 +437,22 @@ function handleAvatarUpdateWorkflow() {
 
     if (candidateData.avatarUrl) {
       readyForDevOps.push(candidateData);
+      Logger.log(
+        `✅ Dòng ${r} (${fullName}): CÓ ảnh UC06 -> Đưa vào nhóm DevOps.`,
+      );
     } else {
       missingForTA.push(candidateData);
+      Logger.log(
+        `⚠️ Dòng ${r} (${fullName}): THIẾU ảnh UC06 -> Đưa vào nhóm TA Reminder.`,
+      );
     }
   }
+
+  Logger.log(`==================================================`);
+  Logger.log(`📊 [KẾT QUẢ TỔNG HỢP]`);
+  Logger.log(`  - DevOps Ready: ${readyForDevOps.length} nhân sự`);
+  Logger.log(`  - TA Missing: ${missingForTA.length} nhân sự`);
+  Logger.log(`==================================================`);
 
   if (readyForDevOps.length === 0 && missingForTA.length === 0) {
     return {
@@ -413,7 +478,6 @@ function handleAvatarUpdateWorkflow() {
 
     sendDirectEmail_(to, mailTemplate, cc);
 
-    // Khóa metadata & Ghi log thành công cho các dòng đã gửi DevOps
     readyForDevOps.forEach((item) => {
       lockRowForWorkflow(
         item.rowNumber,
@@ -448,7 +512,6 @@ function handleAvatarUpdateWorkflow() {
     );
   }
 
-  // Trả kết quả về cho main.js gọi notifySuccess()
   return {
     message: summaryMsg.join("\n\n"),
   };
