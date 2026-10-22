@@ -241,9 +241,6 @@ function handleWelcomeEmailWorkflow(data) {
  * Business Logic cho luồng AVATAR_UPDATE (Batch Processing)
  * Được gọi trực tiếp từ Controller main.js thông qua WORKFLOW_REGISTRY.AVATAR_UPDATE.run()
  */
-/**
- * Business Logic cho luồng AVATAR_UPDATE (Debug & Execution Logging)
- */
 function handleAvatarUpdateWorkflow() {
   const SPREADSHEET_UC06_ID = "1NoTqsI8oiV0ilqlhLYiAKK6igsyw1n4Z50OxDR3eKcw";
   const TRIGGER_TYPE = "AVATAR_UPDATE";
@@ -255,7 +252,7 @@ function handleAvatarUpdateWorkflow() {
     .trim();
   const currentAllocCode = currentUserEmail.split("@")[0].trim();
 
-  // 2. Tra cứu file UC06
+  // 2. Tra cứu file UC06 (Đọc 1 lần về RAM)
   let avatarMap = {};
   let uc06SheetUrl = "";
   try {
@@ -303,7 +300,7 @@ function handleAvatarUpdateWorkflow() {
     Logger.log("⚠️ Lỗi tải bảng tra cứu Avatar UC06: " + e.message);
   }
 
-  // 3. Đọc dữ liệu Sheet Hera chính
+  // 3. ĐỌC BATCH TOÀN BỘ SHEET HERA & METADATA VỀ RAM (1 LẦN DUY NHẤT)
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getActiveSheet();
   const sheetUrl = ss.getUrl();
@@ -313,21 +310,45 @@ function handleAvatarUpdateWorkflow() {
     return { message: "Sheet dữ liệu Hera hiện đang rỗng." };
   }
 
-  // ⚡ TỐI ƯU TỐC ĐỘ: Tìm dòng cuối cùng CÓ DỮ LIỆU THỰC TẾ (Cột B)
-  const colBValues = sheet.getRange(1, 2, rawLastRow, 1).getValues();
+  // A. Lấy ColMap + Đọc toàn bộ mảng tính về RAM
+  const heraColMap = getHeaderColumnMap(sheet);
+  const heraAllRowsData = sheet
+    .getRange(1, 1, rawLastRow, sheet.getLastColumn())
+    .getValues();
+
+  // B. Đóng gói Cache Context cho getNormalizedInput
+  const cachedContext = {
+    colMap: heraColMap,
+    allRowsData: heraAllRowsData,
+  };
+
+  // C. ⚡ TỐI ƯU CỐT LÕI: Tải toàn bộ Lock Metadata của Sheet về RAM 1 lần duy nhất!
+  const lockedKeysSet = new Set();
+  try {
+    const allMetadata = sheet.getDeveloperMetadata();
+    allMetadata.forEach((meta) => {
+      // Giả định Key Metadata được lưu theo dạng PREFIX_TRIGGERTYPE_ROW_EMAIL hoặc value
+      const key = meta.getKey();
+      const val = meta.getValue();
+      if (key) lockedKeysSet.add(key);
+      if (val) lockedKeysSet.add(val);
+    });
+  } catch (errMeta) {
+    Logger.log("⚠️ Không tải được Metadata theo lô: " + errMeta.message);
+  }
+
+  // D. Xác định actualLastRow dựa trên RAM
   let actualLastRow = 1;
-  for (let r = colBValues.length - 1; r >= 0; r--) {
-    if (colBValues[r][0] && String(colBValues[r][0]).trim() !== "") {
+  for (let r = heraAllRowsData.length - 1; r >= 1; r--) {
+    if (heraAllRowsData[r][1] && String(heraAllRowsData[r][1]).trim() !== "") {
       actualLastRow = r + 1;
       break;
     }
   }
 
-  // 📢 PRINT DÒNG THỰC TẾ CUỐI CÙNG RA LOG
   Logger.log(`==================================================`);
-  Logger.log(`🔍 [LOG SHEET HERA] Raw Last Row (Sheet): ${rawLastRow}`);
   Logger.log(
-    `🎯 [LOG SHEET HERA] Actual Last Row (Có dữ liệu): ${actualLastRow}`,
+    `🎯 [LOG SPEED] Actual Last Row: ${actualLastRow} | Loaded Metadata Keys: ${lockedKeysSet.size}`,
   );
   Logger.log(`==================================================`);
 
@@ -350,22 +371,16 @@ function handleAvatarUpdateWorkflow() {
   const readyForDevOps = [];
   const missingForTA = [];
 
-  // 4. Quét TỪ DÒNG THỰC TẾ CUỐI CÙNG (actualLastRow) ngược lên dòng 2
+  // 4. QUÉT MẢNG TRÊN RAM (Siêu tốc - Không tốn bất kỳ I/O API nào)
   for (let r = actualLastRow; r >= 2; r--) {
     let candidateData;
     try {
-      candidateData = getNormalizedInput(TRIGGER_TYPE, r);
+      candidateData = getNormalizedInput(TRIGGER_TYPE, r, cachedContext);
     } catch (err) {
-      Logger.log(
-        `⚠️ Dòng ${r}: Lỗi khi gọi getNormalizedInput - ${err.message}`,
-      );
       continue;
     }
 
-    if (!candidateData) {
-      Logger.log(`⚠️ Dòng ${r}: candidateData rỗng (bỏ qua).`);
-      continue;
-    }
+    if (!candidateData) continue;
 
     const {
       status,
@@ -378,56 +393,44 @@ function handleAvatarUpdateWorkflow() {
     } = candidateData;
 
     const targetLockEmail = personalEmail || workingEmail;
+    if (!fullName || !personalEmail) continue;
 
-    if (!fullName || !personalEmail) {
-      Logger.log(
-        `⚠️ Dòng ${r}: Thiếu Name hoặc Personal Email (Name: '${fullName}', Email: '${personalEmail}')`,
-      );
-      continue;
-    }
-
-    // So sánh các điều kiện
+    // Fast Check 1: Trạng thái On-boarded
     const rawStatus = String(status || "")
       .toLowerCase()
       .replace(/[-_ \t]/g, "");
-    const isOnboarded = rawStatus === "onboarded";
-    const isToday = startDate === todayDisplayStr || startDate === todayStr;
+    if (rawStatus !== "onboarded") continue;
+
+    // Fast Check 2: Ngày Onboard trùng HÔM NAY
+    if (startDate !== todayDisplayStr && startDate !== todayStr) continue;
+
+    // Fast Check 3: Alloc Code của TA trùng người đang thao tác
     const taAllocCode = String(taEmail || "")
       .split("@")[0]
       .trim()
       .toLowerCase();
-    const isMyTA = taAllocCode === currentAllocCode;
-    const isLocked = isRowLockedForWorkflow(
-      rowNumber,
-      TRIGGER_TYPE,
-      targetLockEmail,
-    );
+    if (taAllocCode !== currentAllocCode) continue;
 
-    // 📢 LOG CHI TIẾT TỪNG ĐIỀU KIỆN SO SÁNH
-    Logger.log(
-      `--- [Dòng ${r}] NV: ${fullName} ---` +
-        `\n  + 1. Status: '${status}' (Pass: ${isOnboarded})` +
-        `\n  + 2. Date: '${startDate}' vs Today: '${todayDisplayStr}' / '${todayStr}' (Pass: ${isToday})` +
-        `\n  + 3. TA: '${taEmail}' -> Alloc: '${taAllocCode}' vs Current: '${currentAllocCode}' (Pass: ${isMyTA})` +
-        `\n  + 4. Locked: ${isLocked}`,
-    );
+    // 🔒 Fast Check 4: Check Lock Metadata trực tiếp qua RAM Set (Không gọi Sheet API)
+    // Nếu Set rỗng (do lỗi fetch) thì mới fallback về hàm isRowLockedForWorkflow cũ
+    let isLocked = false;
+    if (lockedKeysSet.size > 0) {
+      const lockKey = `${TRIGGER_TYPE}_${rowNumber}_${targetLockEmail.toLowerCase()}`;
+      isLocked = lockedKeysSet.has(lockKey);
+    } else {
+      isLocked = isRowLockedForWorkflow(
+        rowNumber,
+        TRIGGER_TYPE,
+        targetLockEmail,
+      );
+    }
 
-    // Điều kiện 1: Trạng thái On-boarded
-    if (!isOnboarded) continue;
-
-    // Điều kiện 2: Ngày Onboard trùng HÔM NAY
-    if (!isToday) continue;
-
-    // Điều kiện 3: Alloc Code của TA trùng người đang thao tác
-    if (!isMyTA) continue;
-
-    // 🔒 Check Lock Metadata
     if (isLocked) {
-      Logger.log(`🔒 Dòng ${r} (${fullName}) đã bị KHÓA trước đó -> Bỏ qua.`);
+      Logger.log(`🔒 Dòng ${r} (${fullName}) đã bị KHÓA -> Bỏ qua.`);
       continue;
     }
 
-    // Tra cứu UC06 theo Email cá nhân
+    // Tra cứu UC06 theo Email cá nhân trên RAM Map
     const cleanPersonalEmail = personalEmail.toLowerCase();
     const uc06Info = avatarMap[cleanPersonalEmail] || null;
 
@@ -437,22 +440,10 @@ function handleAvatarUpdateWorkflow() {
 
     if (candidateData.avatarUrl) {
       readyForDevOps.push(candidateData);
-      Logger.log(
-        `✅ Dòng ${r} (${fullName}): CÓ ảnh UC06 -> Đưa vào nhóm DevOps.`,
-      );
     } else {
       missingForTA.push(candidateData);
-      Logger.log(
-        `⚠️ Dòng ${r} (${fullName}): THIẾU ảnh UC06 -> Đưa vào nhóm TA Reminder.`,
-      );
     }
   }
-
-  Logger.log(`==================================================`);
-  Logger.log(`📊 [KẾT QUẢ TỔNG HỢP]`);
-  Logger.log(`  - DevOps Ready: ${readyForDevOps.length} nhân sự`);
-  Logger.log(`  - TA Missing: ${missingForTA.length} nhân sự`);
-  Logger.log(`==================================================`);
 
   if (readyForDevOps.length === 0 && missingForTA.length === 0) {
     return {

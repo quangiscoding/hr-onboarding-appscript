@@ -12,10 +12,14 @@
  * @param {number} [targetRow=null] - Số dòng cụ thể cần lấy dữ liệu (truyền từ Custom Menu)
  * @returns {Object} Đối tượng chứa toàn bộ dữ liệu nhân sự đã chuẩn hóa.
  */
-function getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null) {
+function getNormalizedInput(
+  triggerType = "MANUAL_TEST",
+  targetRow = null,
+  cachedContext = null,
+) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
-  // 1. Xác định dòng cần lấy dữ liệu (Ưu tiên targetRow truyền vào từ Custom Menu)
+  // 1. Xác định dòng cần lấy dữ liệu
   let rowIndex = targetRow;
   if (!rowIndex) {
     const activeRange = sheet.getActiveRange();
@@ -23,20 +27,25 @@ function getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null) {
       throw new Error("Vui lòng chọn một ô/dòng trên bảng tính!");
     rowIndex = activeRange.getRow();
   }
-
   if (rowIndex < 2) {
     throw new Error(
       "Vui lòng chọn dòng chứa dữ liệu nhân sự (không chọn dòng tiêu đề)!",
     );
   }
 
-  // 2. Đọc Headers (Dòng 1) và Data (Dòng chọn)
-  const lastCol = sheet.getLastColumn();
-  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  const rowValues = sheet.getRange(rowIndex, 1, 1, lastCol).getValues()[0];
+  let colMap, rowValues;
 
-  // Map Header Key chuẩn hóa với Giá trị ô (dùng lại sheet helper của utils.js)
-  const colMap = getHeaderColumnMap(sheet);
+  // 2. Phân nhánh: Lấy dữ liệu từ RAM (Batch) hoặc Đọc từ Sheet (Single Row)
+  if (cachedContext && cachedContext.colMap && cachedContext.allRowsData) {
+    colMap = cachedContext.colMap;
+    // index trong mảng JS (0-based) tương ứng rowIndex - 1
+    rowValues = cachedContext.allRowsData[rowIndex - 1] || [];
+  } else {
+    const lastCol = sheet.getLastColumn();
+    rowValues = sheet.getRange(rowIndex, 1, 1, lastCol).getValues()[0];
+    colMap = getHeaderColumnMap(sheet);
+  }
+
   const rowData = {};
   Object.keys(colMap).forEach((key) => {
     rowData[key] = rowValues[colMap[key] - 1];
@@ -47,7 +56,6 @@ function getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null) {
   const accentlessName = removeAccents(rawFullName);
   const parts = accentlessName.split(" ").filter(Boolean);
 
-  // "Tên Họ" không dấu, viết hoa chữ cái đầu (Ví dụ: "Anh Tran")
   let formattedName = "Candidate";
   if (parts.length >= 2) {
     const firstName = parts[parts.length - 1];
@@ -67,14 +75,10 @@ function getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null) {
     triggerType: triggerType,
     rowNumber: rowIndex,
     rowLink: `${SpreadsheetApp.getActiveSpreadsheet().getUrl()}#gid=${sheet.getSheetId()}&range=${rowIndex}:${rowIndex}`,
-
-    // Trạng thái & Chia nhánh Logic
     status: clean(rowData[COLS.OFFER_STATUS]),
     employmentType: clean(rowData[COLS.EMPLOYMENT_TYPE]),
     onboardingType: clean(rowData[COLS.ONBOARDING_TYPE]),
     deviceRequest: clean(rowData[COLS.DEVICE_REQUEST]),
-
-    // Thông tin ứng viên
     fullName: rawFullName,
     accentlessFullName: accentlessName,
     formattedName: formattedName,
@@ -83,18 +87,12 @@ function getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null) {
     squad: toTitleCase(rowData[COLS.SQUAD]),
     level: clean(rowData[COLS.LEVEL]),
     startDate: formatDateValue(rowData[COLS.DATE_ONBOARD]),
-
-    // Emails & Identifiers
     personalEmail: clean(rowData[COLS.PERSONAL_EMAIL]),
     workingEmail: workingEmail,
     allocCode: allocCode,
     okrFolderUrl: okrFolderUrl,
-
-    // Emails liên quan
     taEmail: formatKyanonEmail(rowData[COLS.TA_IN_CHARGE]),
     managerEmail: formatKyanonEmail(rowData[COLS.LINE_MANAGER]),
-
-    // Người thực thi
     currentUserEmail: Session.getEffectiveUser().getEmail(),
   };
 }
