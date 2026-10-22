@@ -478,34 +478,43 @@ function handleAvatarUpdateWorkflow() {
     );
   }
 
-  // 6. Gửi 1 Mail Digest Nhắc Nhở cho TA in charge & BUILD THÔNG TIN CHI TIẾT LÊN POPUP
+  // 6. Gửi 1 Mail Digest Nhắc Nhở cho TA in charge & MỞ POPUP HTML
   if (missingForTA.length > 0) {
-    // A. Gửi email nhắc nhở về Gmail cho TA
-    const mailTemplate = getAvatarTaReminderDigestTemplate(
-      missingForTA,
-      currentAllocCode,
-      todayDisplayStr,
+    // A. Gửi email nhắc nhở về Gmail cho TA in charge
+    // const mailTemplate = getAvatarTaReminderDigestTemplate(
+    //   missingForTA,
+    //   currentAllocCode,
+    //   todayDisplayStr,
+    // );
+    // sendDirectEmail_(currentUserEmail, mailTemplate, "");
+
+    // B. Mở Modal Popup HTML hiển thị Bảng danh sách chi tiết
+    const dialogTemplate = HtmlService.createTemplateFromFile(
+      "onboarding/dialog-templates/ta-reminder-dialog",
+    );
+    dialogTemplate.candidates = missingForTA;
+
+    // Chiều cao tự dãn theo số dòng, tối đa 480px
+    const calculatedHeight = Math.min(300 + missingForTA.length * 36, 480);
+
+    const htmlOutput = dialogTemplate
+      .evaluate()
+      .setWidth(680)
+      .setHeight(calculatedHeight);
+
+    SpreadsheetApp.getUi().showModalDialog(
+      htmlOutput,
+      `⚠️ Nhắc nhở bổ sung Avatar cho TA (${missingForTA.length} nhân sự)`,
     );
 
-    sendDirectEmail_(currentUserEmail, mailTemplate, "");
-
-    // B. Tạo danh sách chi tiết ứng viên để hiện lên Popup thông báo
-    const candidateListText = missingForTA
-      .map(
-        (c, idx) =>
-          `  ${idx + 1}. [Dòng ${c.rowNumber}] ${c.fullName} - ${c.personalEmail}` +
-          (c.position ? ` (${c.position})` : ""),
-      )
-      .join("\n");
-
     summaryMsg.push(
-      `⚠️ Đã gửi Email nhắc nhở cho bạn (${missingForTA.length} nhân sự thiếu ảnh avatar):\n\n` +
-        `Danh sách ứng viên chưa bổ sung ảnh:\n${candidateListText}\n\n` +
-        `📌 Lưu ý: Các dòng trên CHƯA KHÓA để bạn tiếp tục bổ sung link avatar và quét lại sau.`,
+      `⚠️ Đã gửi 1 Email nhắc nhở cho TA (${missingForTA.length} nhân sự thiếu ảnh).`,
     );
   }
 
   return {
+    ok: true,
+    suppressPopup: missingForTA.length > 0,
     message: summaryMsg.join("\n\n"),
   };
 }

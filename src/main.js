@@ -113,7 +113,9 @@ function executeWorkflowRunner(triggerType) {
       if (!confirmed) return;
 
       const result = workflow.run();
-      notifySuccess("Thành công 🎉", result.message);
+      if (result && !result.suppressPopup && result.message) {
+        notifySuccess("Thành công 🎉", result.message);
+      }
       return;
     }
 
@@ -177,7 +179,10 @@ function executeWorkflowRunner(triggerType) {
     lockRowForWorkflow(rowIndex, triggerType, targetEmail);
 
     // 5. Hiển thị kết quả
-    notifySuccess("Thành công 🎉", result.message);
+    if (result && !result.suppressPopup && result.message) {
+      notifySuccess("Thành công 🎉", result.message);
+    }
+    return;
   } catch (error) {
     if (error instanceof WorkflowError) {
       // Lỗi nghiệp vụ có chủ đích: hiển thị thông điệp an toàn cho người dùng
