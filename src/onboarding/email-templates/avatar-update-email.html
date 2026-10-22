@@ -4,17 +4,18 @@
     font-size: 14px;
     line-height: 1.5;
     color: #333333;
-    max-width: 600px;
+    max-width: 680px;
     margin: 0;
   "
 >
   <p style="margin: 0 0 12px 0">Hi DevOps Team,</p>
+
   <p style="margin: 0 0 16px 0">
-    Nhờ team hỗ trợ cập nhật avatar cho nhân sự mới onboard ngày
-    <strong><?= it.startDate ?></strong> tại dòng
-    <strong><?= it.rowNumber ?></strong> file
+    Nhờ team hỗ trợ cập nhật avatar cho
+    <strong><?= it.candidates.length ?></strong> nhân sự mới onboard ngày
+    <strong><?= it.todayStr ?></strong> tại file
     <a
-      href="<?= it.rowLink ?>"
+      href="<?= it.sheetUrl ?>"
       target="_blank"
       style="color: #0d6efd; font-weight: bold; text-decoration: underline"
       >Hera | On-boarding List</a
@@ -25,66 +26,85 @@
     style="
       width: 100%;
       border-collapse: collapse;
-      margin: 0 0 16px 0;
+      margin: 0 0 20px 0;
       border-top: 2px solid #ef403e;
-      border-bottom: 1px solid #eeeeee;
+      font-size: 13px;
     "
   >
-    <tr>
-      <td style="padding: 8px 0; color: #666666; width: 130px">Họ và tên:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111">
-        <?= it.fullName ?>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 8px 0; color: #666666">Working Email:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #ef403e">
-        <?= it.workingEmail || "Chưa khởi tạo" ?>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 8px 0; color: #666666">Ngày Onboard:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111">
-        <?= it.startDate ?>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 8px 0; color: #666666">Chức vụ:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111">
-        <?= it.positionTitle ?>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 8px 0; color: #666666">Squad / Unit:</td>
-      <td style="padding: 8px 0; font-weight: bold; color: #111111">
-        <?= it.squadTitle ?>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 8px 0; color: #666666">Link Avatar / Photo:</td>
-      <td style="padding: 8px 0; font-weight: bold">
-        <? if (it.avatarUrl) { ?>
-        <a
-          href="<?= it.avatarUrl ?>"
-          target="_blank"
-          style="color: #0d6efd; text-decoration: underline"
-          >Xem ảnh / Folder Avatar</a
-        >
-        <? } else { ?>
-        <span style="color: #ef403e">Chưa cập nhật link avatar</span>
-        <? } ?>
-      </td>
-    </tr>
+    <thead>
+      <tr
+        style="
+          background-color: #f8f9fa;
+          text-align: left;
+          border-bottom: 1px solid #dddddd;
+        "
+      >
+        <th style="padding: 10px 8px; color: #444444">Dòng Hera</th>
+        <th style="padding: 10px 8px; color: #444444">Họ và tên</th>
+        <th style="padding: 10px 8px; color: #444444">Working Email</th>
+        <th style="padding: 10px 8px; color: #444444">Chức vụ / Squad</th>
+        <th style="padding: 10px 8px; color: #444444">Link Avatar (UC06)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <? it.candidates.forEach(function(item) { ?>
+      <tr style="border-bottom: 1px solid #eeeeee">
+        <td style="padding: 10px 8px; font-weight: bold; color: #666666">
+          <a
+            href="<?= item.rowLink ?>"
+            target="_blank"
+            style="color: #0d6efd; text-decoration: underline"
+            >#<?= item.rowNumber ?></a
+          >
+        </td>
+        <td style="padding: 10px 8px; font-weight: bold; color: #111111">
+          <?= item.fullName ?>
+        </td>
+        <td style="padding: 10px 8px; font-weight: bold">
+          <? if (item.workingEmail) { ?>
+          <span style="color: #111111"><?= item.workingEmail ?></span>
+          <? } else { ?>
+          <span style="color: #ef403e">Chưa khởi tạo</span>
+          <? } ?>
+        </td>
+        <td style="padding: 10px 8px; color: #555555">
+          <?= item.position ?><br />
+          <span style="font-size: 11px; color: #888888"><?= item.squad ?></span>
+        </td>
+        <td style="padding: 10px 8px; font-weight: bold">
+          <? if (item.avatarUrl) { ?>
+          <a
+            href="<?= item.avatarUrl ?>"
+            target="_blank"
+            style="color: #0d6efd; text-decoration: underline"
+            >Xem ảnh Drive</a
+          >
+          <? if (item.uc06RowLink) { ?>
+          <br /><span style="font-size: 11px; font-weight: normal"
+            ><a
+              href="<?= item.uc06RowLink ?>"
+              target="_blank"
+              style="color: #666666; text-decoration: underline"
+              >(UC06 Dòng #<?= item.uc06RowNumber ?>)</a
+            ></span
+          >
+          <? } ?> <? } else { ?>
+          <span style="color: #ef403e">Chưa có link</span>
+          <? } ?>
+        </td>
+      </tr>
+      <? }); ?>
+    </tbody>
   </table>
 
-  <div style="text-align: center; margin: 20px 0 16px 0">
+  <div style="text-align: center; margin: 20px 0">
     <a
-      href="<?= it.rowLink ?>"
+      href="<?= it.sheetUrl ?>"
       target="_blank"
       style="
         background-color: #ef403e;
         color: #ffffff;
-        padding: 10px 20px;
+        padding: 10px 22px;
         text-decoration: none;
         border-radius: 6px;
         font-weight: bold;
@@ -92,7 +112,7 @@
         display: inline-block;
       "
     >
-      Mở Google Sheet (Dòng <?= it.rowNumber ?>)
+      Mở File Hera Onboarding List
     </a>
   </div>
 

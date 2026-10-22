@@ -112,23 +112,34 @@ function getWelcomeCandidateEmailTemplate(data, guidePreviewUrl) {
   };
 }
 
-/** Draft nhờ cập nhật avatar cho anh Tuấn (UC06) */
-function getAvatarUpdateEmailTemplate({ data, avatarUrl }) {
-  const payload = buildTemplatePayload(data);
-  const candidate = {
-    ...payload,
-    startDate: data.startDate || data.dateOfOnboard || "",
-    rowNumber: data.rowNumber || "",
-    rowLink: data.rowLink || "",
-    workingEmail: data.workingEmail || "",
-    avatarUrl: avatarUrl || data.avatarUrl || "",
+/**
+ * Digest Email gửi DevOps: Danh sách nhân sự đã có link Avatar trên UC06
+ */
+function getAvatarUpdateDigestTemplate(candidates, sheetUrl, todayStr) {
+  const subject = `[Avatar Updated] Danh sách cập nhật Avatar nhân sự onboard ngày ${todayStr} (${candidates.length} nhân sự)`;
+  const payload = {
+    candidates: candidates,
+    sheetUrl: sheetUrl,
+    todayStr: todayStr,
   };
-
-  const subject = `[Cập nhật Avatar] Nhân sự mới ${data.fullName || ""} - ${payload.positionTitle}`;
-
-  // ⚡ Truyền thẳng object candidate vào đây
   return {
-    subject,
-    htmlBody: renderHtmlTemplate("avatar-update-email", candidate),
+    subject: subject,
+    htmlBody: renderHtmlTemplate("avatar-update-email", payload),
+  };
+}
+
+/**
+ * Digest Email gửi TA In Charge: Nhắc nhở bổ sung link Avatar trên UC06
+ */
+function getAvatarTaReminderDigestTemplate(candidates, taName, todayStr) {
+  const subject = `[REMINDER] Nhắc nhở bổ sung Link Avatar nhân sự onboard ngày ${todayStr} (${candidates.length} nhân sự)`;
+  const payload = {
+    candidates: candidates,
+    taName: taName,
+    todayStr: todayStr,
+  };
+  return {
+    subject: subject,
+    htmlBody: renderHtmlTemplate("avatar-ta-reminder-email", payload),
   };
 }
