@@ -24,17 +24,17 @@
         font-size: 13px;
         line-height: 1.4;
       }
-
       /* Container Bảng */
       .table-container {
-        max-height: 100%;
+        max-height: calc(
+          100vh - 150px
+        ); /* Tự dãn lấp đầy space, trừ phần Header Cảnh báo + Nút Đóng */
         overflow-y: auto;
         border: 1px solid #dee2e6;
         border-radius: 6px;
         margin-bottom: 12px;
         padding-right: 2px;
       }
-
       /* Custom Scrollbar Đỏ Nhạt Mảnh */
       .table-container::-webkit-scrollbar {
         width: 6px;
@@ -50,12 +50,13 @@
       .table-container::-webkit-scrollbar-thumb:hover {
         background: #ef403e; /* Hover thành đỏ chủ đạo */
       }
-
       table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate; /* Đổi sang separate để position: sticky không bị vỡ trên Google iframe */
+        border-spacing: 0;
       }
       th {
+        position: -webkit-sticky; /* Prefix hỗ trợ WebKit / WebView Google Apps Script */
         position: sticky;
         top: 0;
         background-color: #f8f9fa;
@@ -64,7 +65,7 @@
         padding: 10px 8px;
         border-bottom: 2px solid #dee2e6;
         font-weight: bold;
-        z-index: 1;
+        z-index: 10; /* Đảm bảo đè lên nội dung các dòng dữ liệu bên dưới */
       }
       td {
         padding: 10px 8px;
@@ -95,6 +96,7 @@
         font-weight: bold;
         border-radius: 4px;
         cursor: pointer;
+        margin-top: 15px;
       }
       .btn-close:hover {
         background-color: #d32f2f;
@@ -104,7 +106,14 @@
   <body>
     <div class="header-notice">
       ⚠️ Phát hiện <strong><?= candidates.length ?></strong> nhân sự thiếu link
-      Avatar trên UC06.
+      Avatar tại
+      <a
+        href="<?= uc06Url ?>"
+        target="_blank"
+        style="color: #856404; font-weight: bold; text-decoration: underline"
+      >
+        file UC06 ↗
+      </a>
     </div>
 
     <div class="table-container">

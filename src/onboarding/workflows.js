@@ -451,7 +451,6 @@ function handleAvatarUpdateWorkflow() {
       sheetUrl,
       todayDisplayStr,
     );
-
     const to = (devopsRecipients?.to || []).join(",");
     const cc = [(devopsRecipients?.cc || []).join(","), currentUserEmail]
       .filter(Boolean)
@@ -474,28 +473,19 @@ function handleAvatarUpdateWorkflow() {
     });
 
     summaryMsg.push(
-      `✅ Đã gửi 1 Digest Email cho DevOps (${readyForDevOps.length} nhân sự có ảnh) và KHÓA dòng tương ứng.`,
+      `✅ Đã gửi email nhắc DevOps cập nhật Avatar thành công cho ${readyForDevOps.length} nhân sự (đã khóa dòng tương ứng).`,
     );
   }
 
-  // 6. Gửi 1 Mail Digest Nhắc Nhở cho TA in charge & MỞ POPUP HTML
+  // 6. MỞ POPUP HTML hiển thị danh sách nhân sự thiếu Avatar cho TA
   if (missingForTA.length > 0) {
-    // A. Gửi email nhắc nhở về Gmail cho TA in charge
-    // const mailTemplate = getAvatarTaReminderDigestTemplate(
-    //   missingForTA,
-    //   currentAllocCode,
-    //   todayDisplayStr,
-    // );
-    // sendDirectEmail_(currentUserEmail, mailTemplate, "");
-
-    // B. Mở Modal Popup HTML hiển thị Bảng danh sách chi tiết
     const dialogTemplate = HtmlService.createTemplateFromFile(
       "onboarding/dialog-templates/ta-reminder-dialog",
     );
     dialogTemplate.candidates = missingForTA;
+    dialogTemplate.uc06Url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit`;
 
-    // Chiều cao tự dãn theo số dòng, tối đa 480px
-    const calculatedHeight = Math.min(300 + missingForTA.length * 36, 480);
+    const calculatedHeight = Math.min(180 + missingForTA.length * 36, 480);
 
     const htmlOutput = dialogTemplate
       .evaluate()
@@ -507,14 +497,18 @@ function handleAvatarUpdateWorkflow() {
       `⚠️ Nhắc nhở bổ sung Avatar cho TA (${missingForTA.length} nhân sự)`,
     );
 
-    summaryMsg.push(
-      `⚠️ Đã gửi 1 Email nhắc nhở cho TA (${missingForTA.length} nhân sự thiếu ảnh).`,
-    );
+    if (readyForDevOps.length === 0) {
+      summaryMsg.push(
+        `⚠️ Đã hiển thị danh sách ${missingForTA.length} nhân sự thiếu link Avatar trên UC06.`,
+      );
+    }
   }
 
+  // Trả kết quả về cho Controller (main.js)
   return {
     ok: true,
-    suppressPopup: missingForTA.length > 0,
+    // Chỉ ẩn Popup thông báo thành công NẾU KHÔNG CÓ email nào gửi được cho DevOps
+    suppressPopup: readyForDevOps.length === 0 && missingForTA.length > 0,
     message: summaryMsg.join("\n\n"),
   };
 }
