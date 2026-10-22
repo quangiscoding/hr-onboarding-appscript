@@ -238,8 +238,7 @@ function handleWelcomeEmailWorkflow(data) {
 /* LUỒNG 4: NHỜ CẬP NHẬT AVATAR CHO IT OPS (UC06)                     */
 /* ------------------------------------------------------------------ */
 /**
- * Business Logic cho luồng AVATAR_UPDATE (Batch Processing)
- * Được gọi trực tiếp từ Controller main.js thông qua WORKFLOW_REGISTRY.AVATAR_UPDATE.run()
+ * Business Logic cho luồng AVATAR_UPDATE (Detailed Popup Output & TA Email)
  */
 function handleAvatarUpdateWorkflow() {
   const SPREADSHEET_UC06_ID = "1NoTqsI8oiV0ilqlhLYiAKK6igsyw1n4Z50OxDR3eKcw";
@@ -252,7 +251,7 @@ function handleAvatarUpdateWorkflow() {
     .trim();
   const currentAllocCode = currentUserEmail.split("@")[0].trim();
 
-  // 2. Tra cứu file UC06 (Đọc 1 lần về RAM)
+  // 2. Tra cứu file UC06 (Lấy dữ liệu về RAM)
   let avatarMap = {};
   let uc06SheetUrl = "";
   try {
@@ -322,12 +321,11 @@ function handleAvatarUpdateWorkflow() {
     allRowsData: heraAllRowsData,
   };
 
-  // C. ⚡ TỐI ƯU CỐT LÕI: Tải toàn bộ Lock Metadata của Sheet về RAM 1 lần duy nhất!
+  // C. Tải toàn bộ Lock Metadata của Sheet về RAM 1 lần duy nhất
   const lockedKeysSet = new Set();
   try {
     const allMetadata = sheet.getDeveloperMetadata();
     allMetadata.forEach((meta) => {
-      // Giả định Key Metadata được lưu theo dạng PREFIX_TRIGGERTYPE_ROW_EMAIL hoặc value
       const key = meta.getKey();
       const val = meta.getValue();
       if (key) lockedKeysSet.add(key);
@@ -345,12 +343,6 @@ function handleAvatarUpdateWorkflow() {
       break;
     }
   }
-
-  Logger.log(`==================================================`);
-  Logger.log(
-    `🎯 [LOG SPEED] Actual Last Row: ${actualLastRow} | Loaded Metadata Keys: ${lockedKeysSet.size}`,
-  );
-  Logger.log(`==================================================`);
 
   if (actualLastRow <= 1) {
     return { message: "Không tìm thấy dòng dữ liệu nhân sự hợp lệ nào." };
@@ -411,8 +403,7 @@ function handleAvatarUpdateWorkflow() {
       .toLowerCase();
     if (taAllocCode !== currentAllocCode) continue;
 
-    // 🔒 Fast Check 4: Check Lock Metadata trực tiếp qua RAM Set (Không gọi Sheet API)
-    // Nếu Set rỗng (do lỗi fetch) thì mới fallback về hàm isRowLockedForWorkflow cũ
+    // 🔒 Fast Check 4: Check Lock Metadata trực tiếp qua RAM Set
     let isLocked = false;
     if (lockedKeysSet.size > 0) {
       const lockKey = `${TRIGGER_TYPE}_${rowNumber}_${targetLockEmail.toLowerCase()}`;
@@ -426,7 +417,6 @@ function handleAvatarUpdateWorkflow() {
     }
 
     if (isLocked) {
-      Logger.log(`🔒 Dòng ${r} (${fullName}) đã bị KHÓA -> Bỏ qua.`);
       continue;
     }
 
@@ -488,8 +478,9 @@ function handleAvatarUpdateWorkflow() {
     );
   }
 
-  // 6. Gửi 1 Mail Digest Nhắc Nhở cho TA in charge (KHÔNG KHÓA METADATA)
+  // 6. Gửi 1 Mail Digest Nhắc Nhở cho TA in charge & BUILD THÔNG TIN CHI TIẾT LÊN POPUP
   if (missingForTA.length > 0) {
+    // A. Gửi email nhắc nhở về Gmail cho TA
     const mailTemplate = getAvatarTaReminderDigestTemplate(
       missingForTA,
       currentAllocCode,
@@ -498,8 +489,19 @@ function handleAvatarUpdateWorkflow() {
 
     sendDirectEmail_(currentUserEmail, mailTemplate, "");
 
+    // B. Tạo danh sách chi tiết ứng viên để hiện lên Popup thông báo
+    const candidateListText = missingForTA
+      .map(
+        (c, idx) =>
+          `  ${idx + 1}. [Dòng ${c.rowNumber}] ${c.fullName} - ${c.personalEmail}` +
+          (c.position ? ` (${c.position})` : ""),
+      )
+      .join("\n");
+
     summaryMsg.push(
-      `⚠️ Đã gửi 1 Email nhắc nhở cho TA (${missingForTA.length} nhân sự thiếu ảnh). Các dòng này CHƯA KHÓA để tiếp tục quét lại sau khi bổ sung.`,
+      `⚠️ Đã gửi Email nhắc nhở cho bạn (${missingForTA.length} nhân sự thiếu ảnh avatar):\n\n` +
+        `Danh sách ứng viên chưa bổ sung ảnh:\n${candidateListText}\n\n` +
+        `📌 Lưu ý: Các dòng trên CHƯA KHÓA để bạn tiếp tục bổ sung link avatar và quét lại sau.`,
     );
   }
 
