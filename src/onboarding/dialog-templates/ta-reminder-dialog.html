@@ -24,18 +24,15 @@
         font-size: 13px;
         line-height: 1.4;
       }
-      /* Container Bảng */
+      /* Container Bảng: Tự dãn lấp đầy space Modal */
       .table-container {
-        max-height: calc(
-          100vh - 150px
-        ); /* Tự dãn lấp đầy space, trừ phần Header Cảnh báo + Nút Đóng */
+        max-height: calc(100vh - 140px);
         overflow-y: auto;
         border: 1px solid #dee2e6;
         border-radius: 6px;
         margin-bottom: 12px;
         padding-right: 2px;
       }
-      /* Custom Scrollbar Đỏ Nhạt Mảnh */
       .table-container::-webkit-scrollbar {
         width: 6px;
       }
@@ -44,19 +41,19 @@
         border-radius: 4px;
       }
       .table-container::-webkit-scrollbar-thumb {
-        background: #f5a9b0; /* Đỏ nhạt rõ nét hơn chút */
+        background: #f5a9b0;
         border-radius: 4px;
       }
       .table-container::-webkit-scrollbar-thumb:hover {
-        background: #ef403e; /* Hover thành đỏ chủ đạo */
+        background: #ef403e;
       }
       table {
         width: 100%;
-        border-collapse: separate; /* Đổi sang separate để position: sticky không bị vỡ trên Google iframe */
+        border-collapse: separate;
         border-spacing: 0;
       }
       th {
-        position: -webkit-sticky; /* Prefix hỗ trợ WebKit / WebView Google Apps Script */
+        position: -webkit-sticky;
         position: sticky;
         top: 0;
         background-color: #f8f9fa;
@@ -65,7 +62,7 @@
         padding: 10px 8px;
         border-bottom: 2px solid #dee2e6;
         font-weight: bold;
-        z-index: 10; /* Đảm bảo đè lên nội dung các dòng dữ liệu bên dưới */
+        z-index: 10;
       }
       td {
         padding: 10px 8px;
@@ -78,11 +75,9 @@
         font-weight: bold;
         color: #0d6efd;
       }
-      .footer-note {
-        font-size: 12px;
-        color: #6c757d;
-        font-style: italic;
-        margin-bottom: 20px;
+      .status-badge-success {
+        color: #198754;
+        font-weight: bold;
       }
       .btn-container {
         text-align: right;
@@ -96,7 +91,7 @@
         font-weight: bold;
         border-radius: 4px;
         cursor: pointer;
-        margin-top: 15px;
+        margin-top: 10px;
       }
       .btn-close:hover {
         background-color: #d32f2f;
@@ -104,9 +99,15 @@
     </style>
   </head>
   <body>
+    <!-- Khung thông báo linh hoạt theo Context -->
     <div class="header-notice">
-      ⚠️ Phát hiện <strong><?= candidates.length ?></strong> nhân sự thiếu link
-      Avatar tại
+      <? if (noticeType === 'PROCESSED') { ?> ✅
+      <strong
+        >Tất cả nhân sự onboard hôm nay do bạn phụ trách đã được xử lý và khóa
+        trước đó.</strong
+      >
+      <? } else { ?> ⚠️ Phát hiện <strong><?= candidates.length ?></strong> nhân
+      sự thiếu link Avatar tại
       <a
         href="<?= uc06Url ?>"
         target="_blank"
@@ -114,6 +115,7 @@
       >
         file UC06 ↗
       </a>
+      <? } ?>
     </div>
 
     <div class="table-container">
@@ -123,7 +125,9 @@
             <th style="width: 12%">Dòng</th>
             <th style="width: 28%">Họ và Tên</th>
             <th style="width: 35%">Email Cá Nhân</th>
-            <th style="width: 25%">Chức Danh</th>
+            <th style="width: 25%">
+              <?= noticeType === 'PROCESSED' ? 'Trạng thái' : 'Chức Danh' ?>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -131,8 +135,12 @@
           <tr>
             <td class="row-badge">#<?= c.rowNumber ?></td>
             <td style="font-weight: bold; color: #111"><?= c.fullName ?></td>
-            <td><?= c.personalEmail ?></td>
-            <td><?= c.position || "-" ?></td>
+            <td><?= c.personalEmail || c.workingEmail ?></td>
+            <td>
+              <? if (noticeType === 'PROCESSED') { ?>
+              <span class="status-badge-success">🔒 Đã gửi & Khóa</span>
+              <? } else { ?> <?= c.position || "-" ?> <? } ?>
+            </td>
           </tr>
           <? }); ?>
         </tbody>

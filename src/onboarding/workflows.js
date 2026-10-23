@@ -362,8 +362,9 @@ function handleAvatarUpdateWorkflow() {
 
   const readyForDevOps = [];
   const missingForTA = [];
+  const alreadyProcessed = []; // Mảng lưu các nhân sự đã gửi/khóa trước đó
 
-  // 4. QUÉT MẢNG TRÊN RAM (Siêu tốc - Không tốn bất kỳ I/O API nào)
+  // 4. QUÉT MẢNG TRÊN RAM
   for (let r = actualLastRow; r >= 2; r--) {
     let candidateData;
     try {
@@ -371,7 +372,6 @@ function handleAvatarUpdateWorkflow() {
     } catch (err) {
       continue;
     }
-
     if (!candidateData) continue;
 
     const {
@@ -416,7 +416,9 @@ function handleAvatarUpdateWorkflow() {
       );
     }
 
+    // Nếu ĐÃ KHÓA -> Đưa vào danh sách đã xử lý
     if (isLocked) {
+      alreadyProcessed.push(candidateData);
       continue;
     }
 
@@ -435,16 +437,46 @@ function handleAvatarUpdateWorkflow() {
     }
   }
 
+  // 5. Kiểm tra nếu không có ứng viên MỚI nào cần xử lý
   if (readyForDevOps.length === 0 && missingForTA.length === 0) {
+    if (alreadyProcessed.length > 0) {
+      const dialogTemplate = HtmlService.createTemplateFromFile(
+        "onboarding/dialog-templates/ta-reminder-dialog",
+      );
+      dialogTemplate.candidates = alreadyProcessed;
+      dialogTemplate.noticeType = "PROCESSED";
+      dialogTemplate.uc06Url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit`;
+
+      const calculatedHeight = Math.min(
+        185 + alreadyProcessed.length * 38,
+        480,
+      );
+      const htmlOutput = dialogTemplate
+        .evaluate()
+        .setWidth(680)
+        .setHeight(calculatedHeight);
+
+      SpreadsheetApp.getUi().showModalDialog(
+        htmlOutput,
+        `ℹ️ Danh sách nhân sự đã xử lý Avatar (${alreadyProcessed.length} nhân sự)`,
+      );
+
+      return {
+        ok: true,
+        suppressPopup: true,
+        message: `Đã hiển thị ${alreadyProcessed.length} nhân sự đã được xử lý và khóa trước đó.`,
+      };
+    }
+
     throw new WorkflowError(
       "NO_CANDIDATES_FOUND",
-      `Không tìm thấy dữ liệu cần xử lý cho tài khoản ${currentAllocCode} trong ngày ${todayDisplayStr}.\n\nCó thể do:\n• Bạn không có nhân sự mới onboard hôm nay.\n• Tất cả nhân sự hôm nay đã được gửi email trước đó.`,
+      `Không tìm thấy nhân sự onboard hôm nay (${todayDisplayStr}) thuộc quản lý của bạn (${currentAllocCode}).`,
     );
   }
 
   let summaryMsg = [];
 
-  // 5. Gửi 1 Mail Digest cho DevOps & ĐÓNG DẤU KHÓA METADATA
+  // 6. Gửi Mail Digest cho DevOps & KHÓA DÒNG tương ứng
   if (readyForDevOps.length > 0) {
     const devopsRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.DEVOPS);
     const mailTemplate = getAvatarUpdateDigestTemplate(
@@ -478,16 +510,16 @@ function handleAvatarUpdateWorkflow() {
     );
   }
 
-  // 6. MỞ POPUP HTML hiển thị danh sách nhân sự thiếu Avatar cho TA
+  // 7. Bật Modal HTML nhắc nhở bổ sung link cho TA
   if (missingForTA.length > 0) {
     const dialogTemplate = HtmlService.createTemplateFromFile(
       "onboarding/dialog-templates/ta-reminder-dialog",
     );
     dialogTemplate.candidates = missingForTA;
+    dialogTemplate.noticeType = "MISSING";
     dialogTemplate.uc06Url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit`;
 
-    const calculatedHeight = Math.min(180 + missingForTA.length * 36, 480);
-
+    const calculatedHeight = Math.min(180 + missingForTA.length * 38, 480);
     const htmlOutput = dialogTemplate
       .evaluate()
       .setWidth(680)
@@ -505,10 +537,8 @@ function handleAvatarUpdateWorkflow() {
     }
   }
 
-  // Trả kết quả về cho Controller (main.js)
   return {
     ok: true,
-    // Chỉ ẩn Popup thông báo thành công NẾU KHÔNG CÓ email nào gửi được cho DevOps
     suppressPopup: readyForDevOps.length === 0 && missingForTA.length > 0,
     message: summaryMsg.join("\n\n"),
   };
