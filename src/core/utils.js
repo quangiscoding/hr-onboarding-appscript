@@ -84,6 +84,18 @@ function toEmailUsername(email, fallback = "") {
   return raw.includes("@") ? raw.split("@")[0] : raw;
 }
 
+// Chuyển đổi chỉ số cột dạng số (bắt đầu từ 1: 1-indexed) thành ký tự cột tương ứng theo chuẩn A1 trong Google Sheets / Excel
+function getColumnLetterFromIndex(colIndex) {
+  let temp,
+    letter = "";
+  while (colIndex > 0) {
+    temp = (colIndex - 1) % 26;
+    letter = String.fromCharCode(temp + 65) + letter;
+    colIndex = Math.floor((colIndex - temp) / 26);
+  }
+  return letter;
+}
+
 /* ------------------------------------------------------------------ */
 /* RECIPIENT HELPERS - danh sách người nhận email (sheet Data)          */
 /* ------------------------------------------------------------------ */

@@ -251,10 +251,12 @@ function handleAvatarUpdateWorkflow() {
     .trim();
   const currentAllocCode = currentUserEmail.split("@")[0].trim();
 
-  // 2. Tra cứu file UC06 (Lấy dữ liệu về RAM)
+  // 2. TRA CỨU FILE UC06 (Lấy trước dữ liệu Avatar về RAM để tra cứu nhanh)
   let avatarMap = {};
   let uc06SheetUrl = "";
+
   try {
+    // 2.1. Mở bảng tính UC06 và lấy link gốc đến Sheet đầu tiên
     const uc06Ss = SpreadsheetApp.openById(SPREADSHEET_UC06_ID);
     const uc06Sheet = uc06Ss.getSheets()[0];
     uc06SheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit#gid=${uc06Sheet.getSheetId()}`;
@@ -262,33 +264,46 @@ function handleAvatarUpdateWorkflow() {
     const lastRowUC06 = uc06Sheet.getLastRow();
     const lastColUC06 = uc06Sheet.getLastColumn();
 
-    if (lastRowUC06 > 1) {
+    // 2.2. Kiểm tra bảng tính có dữ liệu hay không (dòng > 1 và cột > 0)
+    if (lastRowUC06 > 1 && lastColUC06 > 0) {
+      // Đọc hàng tiêu đề để tìm vị trí cột "Email Address" và "Picture" động
       const uc06ColMap = getHeaderColumnMap(uc06Sheet);
       const emailColNumber = uc06ColMap[normalizeHeaderKey("Email Address")];
       const pictureColNumber = uc06ColMap[normalizeHeaderKey("Picture")];
 
+      // Chỉ thực hiện khi tìm thấy cả 2 cột cần thiết
       if (emailColNumber && pictureColNumber) {
+        // emailColIdx & pictureColIdx (0-indexed): Dùng để truy xuất phần tử trong mảng Javascript (row[...])
         const emailColIdx = emailColNumber - 1;
         const pictureColIdx = pictureColNumber - 1;
-        const pictureColLetter = String.fromCharCode(64 + pictureColNumber);
 
+        // pictureColLetter (1-indexed): Đổi số thứ tự cột trên Sheet sang ký tự A1 (VD: 1 -> "A", 27 -> "AA")
+        // Dùng để tạo đường link trực tiếp đến đúng ô (cell) chứa avatar trên Google Sheets
+        const pictureColLetter = getColumnLetterFromIndex(pictureColNumber);
+
+        // Đọc toàn bộ bảng dữ liệu UC06 (từ dòng 2 đến hết) vào bộ nhớ RAM một lần duy nhất (Batch Read)
         const uc06Data = uc06Sheet
           .getRange(2, 1, lastRowUC06 - 1, lastColUC06)
           .getValues();
 
+        // Duyệt qua từng dòng để xây dựng từ điển tra cứu avatarMap theo Email
         for (let i = 0; i < uc06Data.length; i++) {
           const row = uc06Data[i];
           const rawEmail = row[emailColIdx];
-          if (!rawEmail) continue;
+          if (!rawEmail) continue; // Bỏ qua nếu dòng này không có email
 
           const personalEmail = String(rawEmail).trim().toLowerCase();
           const pictureUrl = String(row[pictureColIdx] || "").trim();
 
           if (personalEmail) {
+            // Chỉ số dòng hiển thị thực tế trên Google Sheets (dữ liệu bắt đầu từ dòng 2, nên dòng = i + 2)
             const uc06RowNumber = i + 2;
+
+            // Lưu thông tin vào map: Khóa tra cứu là Email cá nhân dạng chữ thường
             avatarMap[personalEmail] = {
               pictureUrl: pictureUrl,
               uc06RowNumber: uc06RowNumber,
+              // Link mở trực tiếp đến ô chứa ảnh trên sheet UC06 (VD: ...#gid=0&range=F5)
               uc06RowLink: `${uc06SheetUrl}&range=${pictureColLetter}${uc06RowNumber}`,
             };
           }
@@ -296,6 +311,7 @@ function handleAvatarUpdateWorkflow() {
       }
     }
   } catch (e) {
+    // Ghi log cảnh báo nếu có lỗi xảy ra (ví dụ: không có quyền truy cập file UC06, sai ID,...)
     Logger.log("⚠️ Lỗi tải bảng tra cứu Avatar UC06: " + e.message);
   }
 
