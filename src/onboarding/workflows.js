@@ -470,7 +470,8 @@ function handleAvatarUpdateWorkflow() {
 
     throw new WorkflowError(
       "NO_CANDIDATES_FOUND",
-      `Không tìm thấy nhân sự onboard hôm nay (${todayDisplayStr}) thuộc quản lý của bạn (${currentAllocCode}).`,
+      `Không tìm thấy nhân sự onboard hôm nay (${todayDisplayStr}) thuộc quản lý của bạn (${currentAllocCode}).
+      \nHãy kiểm tra và đảm bảo cột Offer Status đang ở trạng thái On-boarded`,
     );
   }
 
