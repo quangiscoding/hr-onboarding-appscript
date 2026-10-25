@@ -158,6 +158,9 @@ const CONFIG = {
 
     DEFAULT: { input: 0.3, output: 2.5 },
   },
+
+  // Sheet UC06 - Avatar Update Reminder
+  SPREADSHEET_UC06_ID: "1NoTqsI8oiV0ilqlhLYiAKK6igsyw1n4Z50OxDR3eKcw",
 };
 
 // Từ điển Key đã được chuẩn hóa qua normalizeHeaderKey()

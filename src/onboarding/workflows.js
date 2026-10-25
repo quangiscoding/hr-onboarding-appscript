@@ -241,7 +241,7 @@ function handleWelcomeEmailWorkflow(data) {
  * Business Logic cho luồng AVATAR_UPDATE (Detailed Popup Output & TA Email)
  */
 function handleAvatarUpdateWorkflow() {
-  const SPREADSHEET_UC06_ID = "1NoTqsI8oiV0ilqlhLYiAKK6igsyw1n4Z50OxDR3eKcw";
+  const SPREADSHEET_UC06_ID = CONFIG.SPREADSHEET_UC06_ID;
   const TRIGGER_TYPE = "AVATAR_UPDATE";
 
   // 1. Lấy Alloc Code người dùng thao tác
@@ -540,6 +540,9 @@ function handleAvatarUpdateWorkflow() {
 
   return {
     ok: true,
+    status: missingForTA.length > 0 ? "HAS_MISSING" : "SUCCESS",
+    alreadyProcessed: alreadyProcessed,
+    readyForDevOps: readyForDevOps,
     suppressPopup: readyForDevOps.length === 0 && missingForTA.length > 0,
     message: summaryMsg.join("\n\n"),
   };
