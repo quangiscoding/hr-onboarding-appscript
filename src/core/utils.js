@@ -202,10 +202,19 @@ function getRecipientsByRole(roleName) {
  */
 function getHeaderColumnMap(sheet) {
   const lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return {}; // Tránh ném lỗi khi sheet trống
+
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
   const map = {};
+
   headers.forEach((header, index) => {
-    if (header) map[normalizeHeaderKey(header)] = index + 1;
+    if (header && String(header).trim() !== "") {
+      const key = normalizeHeaderKey(header);
+      // Chỉ gán nếu chưa tồn tại (giữ lại cột đầu tiên nếu bị trùng)
+      if (!map[key]) {
+        map[key] = index + 1; // 1-indexed
+      }
+    }
   });
   return map;
 }

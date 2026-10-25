@@ -321,9 +321,7 @@ function handleAvatarUpdateWorkflow() {
   const sheetUrl = ss.getUrl();
   const rawLastRow = sheet.getLastRow();
 
-  if (rawLastRow <= 1) {
-    return { message: "Sheet dữ liệu Hera hiện đang rỗng." };
-  }
+  if (rawLastRow <= 1) return { message: "Sheet dữ liệu Hera hiện đang rỗng." };
 
   // A. Lấy ColMap + Đọc toàn bộ mảng tính về RAM
   const heraColMap = getHeaderColumnMap(sheet);
