@@ -319,23 +319,29 @@ function handleAvatarUpdateWorkflow() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getActiveSheet();
   const sheetUrl = ss.getUrl();
-  const rawLastRow = sheet.getLastRow();
+  const rawLastRow = sheet.getLastRow(); // Dòng cuối cùng có format/data
 
+  // Kiểm tra Sheet rỗng (chỉ có 0 hoặc 1 dòng tiêu đề) -> Dừng sớm
   if (rawLastRow <= 1) return { message: "Sheet dữ liệu Hera hiện đang rỗng." };
 
-  // A. Lấy ColMap + Đọc toàn bộ mảng tính về RAM
+  // --- A. Lấy bản đồ cột động + Tải toàn bộ bảng tính vào RAM (Batch Read) ---
+  // heraColMap: Từ điển ánh xạ tiêu đề cột -> số thứ tự cột 1-indexed (VD: {"fullname": 1})
   const heraColMap = getHeaderColumnMap(sheet);
+
+  // heraAllRowsData: Mảng 2 chiều chứa toàn bộ dữ liệu dòng 1 đến hết bảng tính
   const heraAllRowsData = sheet
     .getRange(1, 1, rawLastRow, sheet.getLastColumn())
     .getValues();
 
-  // B. Đóng gói Cache Context cho getNormalizedInput
+  // --- B. Đóng gói Cache Context cho hàm getNormalizedInput ---
+  // Truyền object này vào các hàm chuẩn hóa để đọc dữ liệu trên RAM, tránh gọi API Sheet nhiều lần
   const cachedContext = {
     colMap: heraColMap,
     allRowsData: heraAllRowsData,
   };
 
-  // C. Tải toàn bộ Lock Metadata của Sheet về RAM 1 lần duy nhất
+  // --- C. Tải toàn bộ trạng thái Lock Metadata về RAM một lần duy nhất ---
+  // Giúp thao tác kiểm tra lock ở Bước 4 đạt tốc độ O(1), hạn chế gọi API độc lập từng dòng
   const lockedKeysSet = new Set();
   try {
     const allMetadata = sheet.getDeveloperMetadata();
@@ -346,32 +352,37 @@ function handleAvatarUpdateWorkflow() {
       if (val) lockedKeysSet.add(val);
     });
   } catch (errMeta) {
+    // Không ném lỗi: Nếu tải lô thất bại, Bước 4 sẽ fallback tự động sang kiểm tra đơn lẻ từng ô
     Logger.log("⚠️ Không tải được Metadata theo lô: " + errMeta.message);
   }
 
-  // D. Xác định actualLastRow dựa trên RAM
+  // --- D. Xác định dòng dữ liệu thực tế (actualLastRow) dựa trên RAM ---
+  // sheet.getLastRow() thường tính cả dòng rỗng có viền/format. Quét ngược để tìm dòng có text thật.
   let actualLastRow = 1;
   for (let r = heraAllRowsData.length - 1; r >= 1; r--) {
+    // heraAllRowsData[r][1]: Cột thứ 2 (chỉ số 1 trong JS) - Thường là cột Họ tên / Mã định danh
     if (heraAllRowsData[r][1] && String(heraAllRowsData[r][1]).trim() !== "") {
-      actualLastRow = r + 1;
+      actualLastRow = r + 1; // Quy đổi từ index 0 (JS) sang số dòng 1-indexed của Sheets
       break;
     }
   }
 
+  // Nếu duyệt xong mà không có dòng dữ liệu hợp lệ nào
   if (actualLastRow <= 1) {
     return { message: "Không tìm thấy dòng dữ liệu nhân sự hợp lệ nào." };
   }
 
+  // --- E. Khởi tạo mốc thời gian đối soát theo múi giờ kịch bản ---
   const scriptTimeZone = Session.getScriptTimeZone();
   const todayStr = Utilities.formatDate(
     new Date(),
     scriptTimeZone,
-    "yyyy-MM-dd",
+    "yyyy-MM-dd", // Chuẩn định dạng ISO
   );
   const todayDisplayStr = Utilities.formatDate(
     new Date(),
     scriptTimeZone,
-    "dd/MM/yyyy",
+    "dd/MM/yyyy", // Chuẩn định dạng hiển thị ngày/tháng VN
   );
 
   const readyForDevOps = [];
