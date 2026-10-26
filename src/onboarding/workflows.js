@@ -465,47 +465,11 @@ function handleAvatarUpdateWorkflow() {
     }
   }
 
-  // 5. Kiểm tra nếu không có ứng viên MỚI nào cần xử lý
-  if (readyForDevOps.length === 0 && missingForTA.length === 0) {
-    if (alreadyProcessed.length > 0) {
-      const dialogTemplate = HtmlService.createTemplateFromFile(
-        "onboarding/dialog-templates/ta-reminder-dialog",
-      );
-      dialogTemplate.candidates = alreadyProcessed;
-      dialogTemplate.noticeType = "PROCESSED";
-      dialogTemplate.uc06Url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit`;
-
-      const calculatedHeight = Math.min(
-        185 + alreadyProcessed.length * 38,
-        480,
-      );
-      const htmlOutput = dialogTemplate
-        .evaluate()
-        .setWidth(680)
-        .setHeight(calculatedHeight);
-
-      SpreadsheetApp.getUi().showModalDialog(
-        htmlOutput,
-        `ℹ️ Danh sách nhân sự đã xử lý Avatar (${alreadyProcessed.length} nhân sự)`,
-      );
-
-      return {
-        ok: true,
-        suppressPopup: true,
-        message: `Đã hiển thị ${alreadyProcessed.length} nhân sự đã được xử lý và khóa trước đó.`,
-      };
-    }
-
-    throw new WorkflowError(
-      "NO_CANDIDATES_FOUND",
-      `Không tìm thấy nhân sự onboard hôm nay (${todayDisplayStr}) thuộc quản lý của bạn (${currentAllocCode}).
-      \nHãy kiểm tra và đảm bảo cột Offer Status đang ở trạng thái On-boarded`,
-    );
-  }
-
+  // =========================================================================
+  // 5. GỬI MAIL DEVOPS & KHÓA DÒNG (NẾU CÓ ỨNG VIÊN ĐỦ ĐIỀU KIỆN)
+  // =========================================================================
   let summaryMsg = [];
 
-  // 6. Gửi Mail Digest cho DevOps & KHÓA DÒNG tương ứng
   if (readyForDevOps.length > 0) {
     const devopsRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.DEVOPS);
     const mailTemplate = getAvatarUpdateDigestTemplate(
@@ -535,43 +499,52 @@ function handleAvatarUpdateWorkflow() {
     });
 
     summaryMsg.push(
-      `✅ Đã gửi email nhắc DevOps cập nhật Avatar thành công cho ${readyForDevOps.length} nhân sự (đã khóa dòng tương ứng).`,
+      `✅ Đã gửi email nhắc DevOps cho ${readyForDevOps.length} nhân sự (đã khóa dòng).`,
     );
   }
 
-  // 7. Bật Modal HTML nhắc nhở bổ sung link cho TA
+  // =========================================================================
+  // 6. KIỂM TRA ĐIỀU KIỆN HIỂN THỊ DIALOG TỔNG QUAN
+  // =========================================================================
+  const totalCount =
+    readyForDevOps.length + missingForTA.length + alreadyProcessed.length;
+
+  // Nếu cả 3 mảng đều rỗng -> Không có ai onboard hôm nay
+  if (totalCount === 0) {
+    throw new WorkflowError(
+      "NO_CANDIDATES_FOUND",
+      `Không tìm thấy nhân sự onboard hôm nay (${todayDisplayStr}) thuộc quản lý của bạn (${currentAllocCode}).\nHãy kiểm tra và đảm bảo cột Offer Status đang ở trạng thái On-boarded.`,
+    );
+  }
+
+  // Khởi tạo dialog và truyền cả 3 mảng để hiển thị đầy đủ thông tin cho TA
+  const dialogTemplate = HtmlService.createTemplateFromFile(
+    "onboarding/dialog-templates/ta-reminder-dialog",
+  );
+  dialogTemplate.readyForDevOps = readyForDevOps;
+  dialogTemplate.missingForTA = missingForTA;
+  dialogTemplate.alreadyProcessed = alreadyProcessed;
+  dialogTemplate.uc06Url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit`;
+
+  const htmlOutput = dialogTemplate.evaluate().setWidth(720).setHeight(460);
+
+  // Đặt tiêu đề dialog phù hợp với tình trạng dữ liệu
+  let dialogTitle = `📋 Báo cáo Avatar Onboard (${todayDisplayStr})`;
   if (missingForTA.length > 0) {
-    const dialogTemplate = HtmlService.createTemplateFromFile(
-      "onboarding/dialog-templates/ta-reminder-dialog",
-    );
-    dialogTemplate.candidates = missingForTA;
-    dialogTemplate.noticeType = "MISSING";
-    dialogTemplate.uc06Url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit`;
-
-    const calculatedHeight = Math.min(180 + missingForTA.length * 38, 480);
-    const htmlOutput = dialogTemplate
-      .evaluate()
-      .setWidth(680)
-      .setHeight(calculatedHeight);
-
-    SpreadsheetApp.getUi().showModalDialog(
-      htmlOutput,
-      `⚠️ Nhắc nhở bổ sung Avatar cho TA (${missingForTA.length} nhân sự)`,
-    );
-
-    if (readyForDevOps.length === 0) {
-      summaryMsg.push(
-        `⚠️ Đã hiển thị danh sách ${missingForTA.length} nhân sự thiếu link Avatar trên UC06.`,
-      );
-    }
+    dialogTitle = `⚠️ Cần bổ sung Avatar cho ${missingForTA.length} nhân sự`;
+  } else if (readyForDevOps.length > 0) {
+    dialogTitle = `🎉 Đã gửi cập nhật Avatar cho ${readyForDevOps.length} nhân sự`;
   }
+
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, dialogTitle);
 
   return {
     ok: true,
     status: missingForTA.length > 0 ? "HAS_MISSING" : "SUCCESS",
-    alreadyProcessed: alreadyProcessed,
     readyForDevOps: readyForDevOps,
-    suppressPopup: readyForDevOps.length === 0 && missingForTA.length > 0,
+    missingForTA: missingForTA,
+    alreadyProcessed: alreadyProcessed,
+    suppressPopup: true, // Vì Modal Dialog đã cung cấp toàn bộ kết quả trực quan
     message: summaryMsg.join("\n\n"),
   };
 }
