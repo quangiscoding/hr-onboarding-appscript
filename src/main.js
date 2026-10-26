@@ -57,11 +57,11 @@ function onOpen() {
     .addItem("🔓 Unlock Selected Row", "dev_unlockCurrentRow")
     .addToUi();
 
-  ui.createMenu("🚀 AI Recruitment")
-    .addItem("1. Mở AI Introduction Generator", "showSidebar")
-    .addSeparator()
-    .addItem("2. Cài đặt Outline API Token cá nhân", "promptSetupOutlineToken")
-    .addToUi();
+  // ui.createMenu("🚀 AI Recruitment")
+  //   .addItem("1. Mở AI Introduction Generator", "showSidebar")
+  //   .addSeparator()
+  //   .addItem("2. Cài đặt Outline API Token cá nhân", "promptSetupOutlineToken")
+  //   .addToUi();
 }
 
 /** 1. Menu: Tạo Draft Welcome Email */

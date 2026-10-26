@@ -155,7 +155,7 @@ function handleTaNotificationWorkflow(data) {
  * @returns {{ ok: true, message: string, draftId: string, hasAttachment: boolean }}
  */
 function handleWelcomeEmailWorkflow(data) {
-  const recipientEmail = data.workingEmail || data.personalEmail;
+  const recipientEmail = data.personalEmail || data.workingEmail;
 
   try {
     // 1. Lấy thông tin PDF & Blob đính kèm
