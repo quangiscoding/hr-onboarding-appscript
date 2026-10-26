@@ -252,7 +252,7 @@ function handleAvatarUpdateWorkflow() {
   const currentAllocCode = currentUserEmail.split("@")[0].trim();
 
   // =========================================================================
-  // 2. TRA CỨU FILE UC06, CHECK 1:1 & CHỈ GHI VÀO CỘT G & H (KHÔNG CHẠM VÀO A:F)
+  // 2. TRA CỨU FILE UC06, CHECK TỈ LỆ & CHỈ GHI VÀO CỘT G (TRÁNH GÃY QUERY A1)
   // =========================================================================
   let avatarMap = {};
   let uc06SheetUrl = "";
@@ -268,49 +268,57 @@ function handleAvatarUpdateWorkflow() {
     if (lastRowUC06 > 1 && lastColUC06 > 0) {
       const uc06ColMap = getHeaderColumnMap(uc06Sheet);
       const emailColNumber = uc06ColMap[normalizeHeaderKey("Email Address")];
-      const pictureColNumber = uc06ColMap[normalizeHeaderKey("Picture")];
-      const checkColNumber = uc06ColMap[normalizeHeaderKey("Check 1:1")]; // Cột G (index 7)
-      const statusColNumber = uc06ColMap[normalizeHeaderKey("Ảnh 1:1")]; // Cột H (index 8)
+      const pictureColNumber = uc06ColMap[normalizeHeaderKey("Picture")]; // Cột F
+      const checkColNumber = uc06ColMap[normalizeHeaderKey("Check 1:1")]; // Cột G
+      const squareImgColNumber = uc06ColMap[normalizeHeaderKey("Ảnh 1:1")]; // Cột H
 
       if (emailColNumber && pictureColNumber) {
         const emailColIdx = emailColNumber - 1;
         const pictureColIdx = pictureColNumber - 1;
+        const squareImgColIdx = squareImgColNumber
+          ? squareImgColNumber - 1
+          : -1;
+
         const pictureColLetter = getColumnLetterFromIndex(pictureColNumber);
+        // Nếu có cột H thì lấy ký tự cột H, nếu chưa thì fallback về cột Picture
+        const squareColLetter = squareImgColNumber
+          ? getColumnLetterFromIndex(squareImgColNumber)
+          : pictureColLetter;
 
         // Đọc toàn bộ bảng tính hiện có về RAM
         const uc06Data = uc06Sheet
           .getRange(2, 1, lastRowUC06 - 1, lastColUC06)
           .getValues();
 
-        // Mảng 2 chiều CHỈ ghi riêng vào 2 cột G và H: [[Check, Status], ...]
-        const statusOutputData = [];
+        // Mảng 2 chiều CHỈ ghi riêng vào Cột G (Check 1:1)
+        const checkColumnOutputs = [];
         let hasChanges = false;
 
         for (let i = 0; i < uc06Data.length; i++) {
           const row = uc06Data[i];
           const rawEmail = row[emailColIdx];
-
           const currentCheckVal = checkColNumber
             ? String(row[checkColNumber - 1] || "")
             : "";
-          const currentStatusVal = statusColNumber
-            ? String(row[statusColNumber - 1] || "")
-            : "";
 
           if (!rawEmail) {
-            statusOutputData.push([currentCheckVal, currentStatusVal]);
+            checkColumnOutputs.push([currentCheckVal]);
             continue;
           }
 
           const personalEmail = String(rawEmail).trim().toLowerCase();
           const pictureUrl = String(row[pictureColIdx] || "").trim();
+          const squareBackupUrl =
+            squareImgColIdx >= 0
+              ? String(row[squareImgColIdx] || "").trim()
+              : "";
           const uc06RowNumber = i + 2;
 
           let isSquare = false;
           let dimensions = null;
           let newCheckVal = currentCheckVal;
-          let newStatusVal = currentStatusVal;
 
+          // Kiểm tra ảnh gốc ở cột Picture (F)
           if (pictureUrl) {
             const fileId = extractDriveFileId_(pictureUrl);
             if (fileId) {
@@ -320,38 +328,37 @@ function handleAvatarUpdateWorkflow() {
                 newCheckVal = isSquare
                   ? "1:1"
                   : `${dimensions.width}x${dimensions.height}`;
-                newStatusVal = isSquare ? "Đạt" : "Sai tỉ lệ";
               }
             }
+          } else {
+            newCheckVal = "";
           }
 
-          if (
-            newCheckVal !== currentCheckVal ||
-            newStatusVal !== currentStatusVal
-          ) {
+          if (newCheckVal !== currentCheckVal) {
             hasChanges = true;
           }
-
-          statusOutputData.push([newCheckVal, newStatusVal]);
+          checkColumnOutputs.push([newCheckVal]);
 
           if (personalEmail) {
             avatarMap[personalEmail] = {
               pictureUrl: pictureUrl,
+              squareBackupUrl: squareBackupUrl,
               uc06RowNumber: uc06RowNumber,
-              // Link mở thẳng vào ô ảnh trên sheet UC06 (vd: ...#gid=0&range=F5)
+              // Link mở thẳng vào ô ảnh gốc (cột F)
               uc06RowLink: `${uc06SheetUrl}&range=${pictureColLetter}${uc06RowNumber}`,
+              // Link mở thẳng vào ô ảnh 1:1 (cột H) để TA dán link bổ sung
+              uc06SquareLink: `${uc06SheetUrl}&range=${squareColLetter}${uc06RowNumber}`,
               isSquare: isSquare,
               dimensions: dimensions,
             };
           }
         }
 
-        // CHỈ GHI ĐÚNG 2 CỘT G & H: bảo toàn hoàn toàn công thức QUERY ở ô A1
-        if (hasChanges && checkColNumber && statusColNumber) {
-          const startCol = Math.min(checkColNumber, statusColNumber);
+        // CHỈ GHI ĐÚNG CỘT G: bảo toàn hoàn toàn công thức QUERY ở ô A1 và dữ liệu cột H
+        if (hasChanges && checkColNumber) {
           uc06Sheet
-            .getRange(2, startCol, statusOutputData.length, 2)
-            .setValues(statusOutputData);
+            .getRange(2, checkColNumber, checkColumnOutputs.length, 1)
+            .setValues(checkColumnOutputs);
         }
       }
     }
@@ -424,7 +431,7 @@ function handleAvatarUpdateWorkflow() {
   const alreadyProcessed = [];
 
   // =========================================================================
-  // 4. QUÉT MẢNG TRÊN RAM & PHÂN LOẠI
+  // 4. QUÉT MẢNG TRÊN RAM & PHÂN LOẠI NGHIỆP VỤ ẢNH 1:1
   // =========================================================================
   for (let r = actualLastRow; r >= 2; r--) {
     let candidateData;
@@ -486,26 +493,44 @@ function handleAvatarUpdateWorkflow() {
     const uc06Info = avatarMap[cleanPersonalEmail] || null;
 
     candidateData.avatarUrl = uc06Info ? uc06Info.pictureUrl : "";
+    candidateData.squareBackupUrl = uc06Info ? uc06Info.squareBackupUrl : "";
     candidateData.uc06RowNumber = uc06Info ? uc06Info.uc06RowNumber : null;
     candidateData.uc06RowLink = uc06Info ? uc06Info.uc06RowLink : "";
+    candidateData.uc06SquareLink = uc06Info ? uc06Info.uc06SquareLink : "";
     candidateData.isSquare = uc06Info ? uc06Info.isSquare : false;
     candidateData.dimensions = uc06Info ? uc06Info.dimensions : null;
 
-    // PHÂN LOẠI ĐIỀU KIỆN
-    // Nếu thiếu ảnh HOẶC ảnh sai tỉ lệ 1:1 -> đưa vào missingForTA để TA xử lý
-    if (!candidateData.avatarUrl || !candidateData.isSquare) {
+    // --- PHÂN LOẠI ĐIỀU KIỆN ---
+    if (!candidateData.uc06RowNumber) {
+      // 1. Chưa có dòng trên sheet UC06
+      candidateData.issueReason = "NOT_IN_SHEET";
+      missingForTA.push(candidateData);
+    } else if (candidateData.avatarUrl && candidateData.isSquare) {
+      // 2. Ảnh gốc ở cột F đã chuẩn 1:1 -> Gửi ảnh gốc
+      candidateData.finalAvatarUrl = candidateData.avatarUrl;
+      readyForDevOps.push(candidateData);
+    } else if (candidateData.squareBackupUrl) {
+      // 3. Ảnh gốc sai tỉ lệ, NHƯNG cột H (Ảnh 1:1) ĐÃ CÓ ẢNH -> Gửi ảnh ở cột H
+      candidateData.finalAvatarUrl = candidateData.squareBackupUrl;
+      readyForDevOps.push(candidateData);
+    } else if (!candidateData.avatarUrl) {
+      // 4. Có dòng nhưng chưa có bất kỳ ảnh nào
+      candidateData.issueReason = "EMPTY_IMAGE";
       missingForTA.push(candidateData);
     } else {
-      readyForDevOps.push(candidateData);
+      // 5. Ảnh gốc sai tỉ lệ và cột H chưa có ảnh -> Nhắc TA vào cột H bổ sung
+      candidateData.issueReason = "INVALID_RATIO_MISSING_BACKUP";
+      missingForTA.push(candidateData);
     }
   }
 
   // =========================================================================
-  // 5. GỬI MAIL DEVOPS & KHÓA DÒNG (CHỈ GỬI CHO NHÂN SỰ ĐẠT CHUẨN ẢNH 1:1)
+  // 5. GỬI MAIL DEVOPS & KHÓA DÒNG (CHỈ GỬI CHO NHÂN SỰ ĐÃ CÓ ẢNH VUÔNG)
   // =========================================================================
   let summaryMsg = [];
   if (readyForDevOps.length > 0) {
     const devopsRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.DEVOPS);
+    // Lưu ý: template email sử dụng link ảnh vuông (finalAvatarUrl)
     const mailTemplate = getAvatarUpdateDigestTemplate(
       readyForDevOps,
       sheetUrl,

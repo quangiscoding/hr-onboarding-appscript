@@ -268,12 +268,12 @@
                   Thêm ảnh nhân sự tại dòng #<?= c.uc06RowNumber ?> ↗
                 </a>
                 <? } else if (!c.isSquare) { ?>
-                <!-- TH3: Có ảnh nhưng sai tỉ lệ 1:1 -->
+                <!-- TH3: Có ảnh nhưng sai tỉ lệ 1:1 (Click nhảy thẳng vào Cột H 'Ảnh 1:1' của dòng đó) -->
                 <a
-                  href="<?= c.uc06RowLink ?>"
+                  href="<?= c.uc06SquareLink || c.uc06RowLink ?>"
                   target="_blank"
                   class="link-warning-ratio"
-                  title="Kích thước hiện tại: <?= c.dimensions ? c.dimensions.width + 'x' + c.dimensions.height : 'sai tỉ lệ' ?>. Bấm để thay ảnh vuông 1:1"
+                  title="Kích thước hiện tại: <?= c.dimensions ? c.dimensions.width + 'x' + c.dimensions.height : 'sai tỉ lệ' ?>. Bấm để bổ sung ảnh vuông vào cột 'Ảnh 1:1'"
                 >
                   Ảnh sai tỉ lệ, cập nhật ↗
                 </a>
