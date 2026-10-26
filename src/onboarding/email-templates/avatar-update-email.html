@@ -9,6 +9,7 @@
   "
 >
   <p style="margin: 0 0 12px 0">Hi IT Ops Team,</p>
+
   <p style="margin: 0 0 16px 0">
     Nhờ team hỗ trợ cập nhật avatar cho
     <strong><?= it.candidates.length ?></strong> nhân sự mới onboard ngày
@@ -66,22 +67,23 @@
           <span style="font-size: 11px; color: #888888"><?= item.squad ?></span>
         </td>
         <td style="padding: 10px 8px; font-weight: bold">
-          <? if (item.avatarUrl) { ?>
+          <? if (item.finalAvatarUrl) { ?>
           <a
-            href="<?= item.avatarUrl ?>"
+            href="<?= item.finalAvatarUrl ?>"
             target="_blank"
             style="color: #0d6efd; text-decoration: underline"
           >
-            Xem ảnh Drive
+            Xem ảnh Drive ↗
           </a>
-          <? if (item.uc06RowLink) { ?>
+          <? if (item.finalAvatarCellLink) { ?>
           <br /><span style="font-size: 11px; font-weight: normal">
             <a
-              href="<?= item.uc06RowLink ?>"
+              href="<?= item.finalAvatarCellLink ?>"
               target="_blank"
               style="color: #666666; text-decoration: underline"
             >
-              (Link Avatar Dòng #<?= item.uc06RowNumber ?>)
+              (Dòng #<?= item.uc06RowNumber ?><? if (item.isFromSquareBackup) {
+              ?> - Cột Ảnh 1:1<? } ?>)
             </a>
           </span>
           <? } ?> <? } else { ?>
