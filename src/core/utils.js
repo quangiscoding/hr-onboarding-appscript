@@ -384,6 +384,31 @@ function getGuidePdfFileInfo(employmentType, onboardingType, customFileName) {
   }
 }
 
+/**
+ * Trích xuất Google Drive / Docs / Sheets / Folder ID chuẩn xác và chống bắt nhầm chuỗi thừa.
+ * Hỗ trợ URL đầy đủ, URL có query params, và mã ID thô.
+ * @param {string} url - Link Google Drive hoặc chuỗi ID thuần
+ * @returns {string|null} ID hợp lệ hoặc null
+ */
+function extractDriveFileId_(url) {
+  if (!url) return null;
+  const str = String(url).trim();
+
+  // 1. Khớp theo URL chuẩn: Sau /d/ hoặc /folders/ hoặc ?id=
+  // Giới hạn độ dài ID từ 25-50 ký tự, chặn biên bằng [/&#?] hoặc hết chuỗi
+  const urlMatch = str.match(
+    /(?:\/(?:d|folders)\/|[?&]id=)([-\w]{25,50})(?:[/?&#]|$)/,
+  );
+  if (urlMatch) return urlMatch[1];
+
+  // 2. Khớp chuỗi ID thô (toàn bộ chuỗi chỉ gồm ký tự Base64, độ dài đúng chuẩn 25-50)
+  if (/^[-\w]{25,50}$/.test(str)) {
+    return str;
+  }
+
+  return null;
+}
+
 /* ------------------------------------------------------------------ */
 /* DEVELOPER METADATA LOCK HELPERS                                    */
 /* ------------------------------------------------------------------ */
