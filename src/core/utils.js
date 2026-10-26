@@ -195,9 +195,23 @@ function getImageDimensionsFromDriveId_(fileId) {
     }
 
     if (width > 0 && height > 0) {
-      const ratio = Number((width / height).toFixed(2));
-      const isSquare = Math.abs(ratio - 1.0) <= 0.02; // Ngưỡng dung sai ~2%
-      return { width, height, ratio, isSquare };
+      // 1. Tính toán trên số thực chính xác (không làm tròn trước)
+      const rawRatio = width / height;
+      const pixelDiff = Math.abs(width - height);
+      const ratioDiff = Math.abs(rawRatio - 1.0);
+
+      // 2. Tiêu chí: Lệch <= 4 pixel HOẶC lệch tỉ lệ <= 2% (0.02)
+      const isSquare = pixelDiff <= 4 || ratioDiff <= 0.02;
+
+      // 3. Làm tròn ratio để hiển thị/ghi log cho gọn
+      const displayRatio = Number(rawRatio.toFixed(2));
+
+      return {
+        width: width,
+        height: height,
+        ratio: displayRatio,
+        isSquare: isSquare,
+      };
     }
   } catch (err) {
     Logger.log("❌ Lỗi đọc file ID: " + fileId + " - Chi tiết: " + err.message);

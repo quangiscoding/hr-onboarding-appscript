@@ -91,7 +91,6 @@
         background: #cbd5e0;
         border-radius: 3px;
       }
-
       table {
         width: 100%;
         border-collapse: collapse;
@@ -139,7 +138,14 @@
       .link-action:hover {
         color: #1a365d;
       }
-
+      .link-warning-ratio {
+        color: #b45309;
+        font-weight: 600;
+        text-decoration: underline;
+      }
+      .link-warning-ratio:hover {
+        color: #78350f;
+      }
       .link-add-new {
         color: #c53030;
         font-weight: 600;
@@ -176,14 +182,14 @@
       <? if (readyForDevOps && readyForDevOps.length > 0) { ?>
       <div class="card card-success">
         <strong>✅ Đã gửi DevOps: <?= readyForDevOps.length ?> nhân sự</strong>
-        Đã gửi email cập nhật avatar thành công.
+        Đã gửi ảnh chuẩn 1:1 thành công.
       </div>
       <? } ?> <? if (missingForTA && missingForTA.length > 0) { ?>
       <div class="card card-warning">
         <strong
           >⚠️ Cần bổ sung Avatar: <?= missingForTA.length ?> nhân sự</strong
         >
-        Chưa có link ảnh trong file ảnh nhân sự mới.
+        Chưa có link ảnh trong file ảnh nhân sự mới hoặc sai tỉ lệ.
       </div>
       <? } ?> <? if (alreadyProcessed && alreadyProcessed.length > 0) { ?>
       <div class="card card-info">
@@ -219,17 +225,17 @@
       <? } ?>
     </div>
 
-    <!-- TAB 1: DANH SÁCH CẦN BỔ SUNG AVATAR -->
+    <!-- TAB 1: DANH SÁCH CẦN XỬ LÝ AVATAR (THIẾU HOẶC SAI TỈ LỆ) -->
     <? if (missingForTA && missingForTA.length > 0) { ?>
     <div id="tab-missing" class="tab-content active">
       <div class="table-container">
         <table>
           <thead>
             <tr>
-              <th style="width: 10%">Dòng</th>
-              <th style="width: 28%">Họ và Tên</th>
-              <th style="width: 32%">Email Cá Nhân</th>
-              <th style="width: 30%">Hành động</th>
+              <th style="width: 8%">Dòng</th>
+              <th style="width: 25%">Họ và Tên</th>
+              <th style="width: 27%">Email Cá Nhân</th>
+              <th style="width: 40%">Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -241,24 +247,35 @@
               </td>
               <td><?= c.personalEmail || c.workingEmail ?></td>
               <td>
-                <? if (c.uc06RowLink) { ?>
-                <!-- Đã có email, bấm nhảy thẳng vào ô cột Picture -->
-                <a
-                  href="<?= c.uc06RowLink ?>"
-                  target="_blank"
-                  class="link-action"
-                >
-                  Điền link ảnh tại đây ↗
-                </a>
-                <? } else { ?>
-                <!-- Chưa có dòng nào, bấm mở file UC06 để thêm dòng -->
+                <? if (!c.uc06RowNumber) { ?>
+                <!-- TH1: Chưa có dòng trong sheet Employee Avatar -->
                 <a
                   href="<?= uc06Url ?>"
                   target="_blank"
                   class="link-add-new"
-                  title="Nhân sự này chưa có trong bảng, bấm để mở file thêm dòng"
+                  title="Bấm để mở file Employee Avatar và thêm dòng mới"
                 >
-                  Thêm nhân sự vào sheet ảnh↗
+                  Thêm nhân sự vào sheet Employee Avatar ↗
+                </a>
+                <? } else if (!c.avatarUrl) { ?>
+                <!-- TH2: Đã có dòng nhưng chưa có ảnh -->
+                <a
+                  href="<?= c.uc06RowLink ?>"
+                  target="_blank"
+                  class="link-action"
+                  title="Bấm để nhảy thẳng vào cột ảnh của dòng này"
+                >
+                  Thêm ảnh nhân sự tại dòng #<?= c.uc06RowNumber ?> ↗
+                </a>
+                <? } else if (!c.isSquare) { ?>
+                <!-- TH3: Có ảnh nhưng sai tỉ lệ 1:1 -->
+                <a
+                  href="<?= c.uc06RowLink ?>"
+                  target="_blank"
+                  class="link-warning-ratio"
+                  title="Kích thước hiện tại: <?= c.dimensions ? c.dimensions.width + 'x' + c.dimensions.height : 'sai tỉ lệ' ?>. Bấm để thay ảnh vuông 1:1"
+                >
+                  Ảnh sai tỉ lệ, cập nhật ↗
                 </a>
                 <? } ?>
               </td>
@@ -345,7 +362,7 @@
           class="link-action"
           style="font-size: 13px"
         >
-          📂 Mở file ảnh nhân sự mới (UC06) ↗
+          📂 Mở file Employee Avatar (UC06) ↗
         </a>
       </div>
       <button class="btn-close" onclick="google.script.host.close()">
