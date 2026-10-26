@@ -1,110 +1,385 @@
-<div
-  style="
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-    color: #333333;
-    max-width: 680px;
-    margin: 0;
-  "
->
-  <p style="margin: 0 0 12px 0">Hi <?= it.taName ?>,</p>
-
-  <p style="margin: 0 0 16px 0">
-    Hệ thống ghi nhận có <strong><?= it.candidates.length ?></strong> nhân sự
-    mới onboard HÔM NAY (<strong><?= it.todayStr ?></strong>) do bạn phụ trách
-    <strong>CHƯA CÓ LINK AVATAR</strong> trên file UC06:
-  </p>
-
-  <table
-    style="
-      width: 100%;
-      border-collapse: collapse;
-      margin: 0 0 20px 0;
-      border-top: 2px solid #ef403e;
-      font-size: 13px;
-    "
-  >
-    <thead>
-      <tr
-        style="
-          background-color: #f8f9fa;
-          text-align: left;
-          border-bottom: 1px solid #dddddd;
-        "
-      >
-        <th style="padding: 10px 8px; color: #444444">Dòng Hera</th>
-        <th style="padding: 10px 8px; color: #444444">Họ và tên</th>
-        <th style="padding: 10px 8px; color: #444444">Chức vụ / Squad</th>
-        <th style="padding: 10px 8px; color: #444444">Email Cá Nhân</th>
-        <th style="padding: 10px 8px; color: #444444">Trạng thái Link UC06</th>
-      </tr>
-    </thead>
-    <tbody>
-      <? it.candidates.forEach(function(item) { ?>
-      <tr style="border-bottom: 1px solid #eeeeee">
-        <td style="padding: 10px 8px; font-weight: bold; color: #666666">
-          <a
-            href="<?= item.rowLink ?>"
-            target="_blank"
-            style="color: #0d6efd; text-decoration: underline"
-            >#<?= item.rowNumber ?></a
-          >
-        </td>
-        <td style="padding: 10px 8px; font-weight: bold; color: #111111">
-          <?= item.fullName ?>
-        </td>
-        <td style="padding: 10px 8px; color: #555555">
-          <?= item.position ?><br />
-          <span style="font-size: 11px; color: #888888"><?= item.squad ?></span>
-        </td>
-        <td style="padding: 10px 8px; color: #111111">
-          <?= item.personalEmail || "N/A" ?>
-        </td>
-        <td style="padding: 10px 8px; font-weight: bold; color: #ef403e">
-          <? if (item.uc06RowLink) { ?>
-          <a
-            href="<?= item.uc06RowLink ?>"
-            target="_blank"
-            style="color: #ef403e; text-decoration: underline"
-            >⚠️ Bổ sung link ở UC06 (Dòng #<?= item.uc06RowNumber ?>)</a
-          >
-          <? } else { ?> ⚠️ Chưa có dòng/email trên UC06 <? } ?>
-        </td>
-      </tr>
-      <? }); ?>
-    </tbody>
-  </table>
-
-  <p style="margin: 0 0 16px 0">
-    Nhờ bạn vui lòng tải/cập nhật link ảnh avatar của các nhân sự trên vào file
-    <a
-      href="https://docs.google.com/spreadsheets/d/1NoTqsI8oiV0ilqlhLYiAKK6igsyw1n4Z50OxDR3eKcw/edit"
-      target="_blank"
-      style="color: #0d6efd; font-weight: bold; text-decoration: underline"
-      >Hệ thống UC06</a
-    >
-    để DevOps cập nhật lên tài khoản công ty nhé!
-  </p>
-
-  <div style="text-align: center; margin: 20px 0">
-    <a
-      href="https://docs.google.com/spreadsheets/d/1NoTqsI8oiV0ilqlhLYiAKK6igsyw1n4Z50OxDR3eKcw/edit"
-      target="_blank"
-      style="
-        background-color: #ef403e;
-        color: #ffffff;
-        padding: 10px 22px;
-        text-decoration: none;
-        border-radius: 6px;
-        font-weight: bold;
+<!doctype html>
+<html>
+  <head>
+    <base target="_top" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         font-size: 13px;
-        display: inline-block;
-      "
-    >
-      Mở File UC06 Cập Nhật Avatar
-    </a>
-  </div>
+        color: #2d3748;
+        padding: 16px;
+        background-color: #ffffff;
+      }
+      .summary-cards {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .card {
+        flex: 1;
+        padding: 10px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .card-success {
+        background: #e6fffa;
+        border: 1px solid #b2f5ea;
+        color: #234e52;
+      }
+      .card-warning {
+        background: #fffaf0;
+        border: 1px solid #feebc8;
+        color: #744210;
+      }
+      .card-info {
+        background: #ebf8ff;
+        border: 1px solid #bee3f8;
+        color: #2a4365;
+      }
+      .card strong {
+        font-size: 14px;
+        display: block;
+        margin-bottom: 2px;
+      }
 
-  <p style="margin: 0">Cảm ơn bạn!</p>
-</div>
+      /* Tabs Navigation */
+      .tab-nav {
+        display: flex;
+        border-bottom: 2px solid #e2e8f0;
+        margin-bottom: 12px;
+      }
+      .tab-btn {
+        padding: 8px 14px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        color: #718096;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+      }
+      .tab-btn.active {
+        color: #ef403e;
+        border-bottom-color: #ef403e;
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+
+      /* Table Styles */
+      .table-container {
+        max-height: 280px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+      }
+      .table-container::-webkit-scrollbar {
+        width: 6px;
+      }
+      .table-container::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 3px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background-color: #f7fafc;
+        color: #4a5568;
+        text-align: left;
+        padding: 8px 10px;
+        border-bottom: 1px solid #e2e8f0;
+        font-weight: 600;
+      }
+      td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #edf2f7;
+      }
+      tr:hover {
+        background-color: #f8fafc;
+      }
+
+      .badge {
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 11px;
+        display: inline-block;
+      }
+      .badge-success {
+        background: #c6f6d5;
+        color: #22543d;
+      }
+      .badge-locked {
+        background: #e2e8f0;
+        color: #4a5568;
+      }
+
+      /* Action Links (Verb phrases) */
+      .link-action {
+        color: #2b6cb0;
+        font-weight: 600;
+        text-decoration: underline;
+      }
+      .link-action:hover {
+        color: #1a365d;
+      }
+      .link-warning-ratio {
+        color: #c53030;
+        font-weight: 600;
+        text-decoration: underline;
+      }
+      .link-warning-ratio:hover {
+        color: #9b2c2c;
+      }
+      .link-add-new {
+        color: #c53030;
+        font-weight: 600;
+        text-decoration: underline;
+      }
+      .link-add-new:hover {
+        color: #9b2c2c;
+      }
+
+      .footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 14px;
+      }
+      .btn-close {
+        background-color: #ef403e;
+        color: #fff;
+        border: none;
+        padding: 8px 18px;
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn-close:hover {
+        background-color: #d32f2f;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 1. THẺ THỐNG KÊ NHANH -->
+    <div class="summary-cards">
+      <? if (readyForDevOps && readyForDevOps.length > 0) { ?>
+      <div class="card card-success">
+        <strong>✅ Đã gửi DevOps: <?= readyForDevOps.length ?> nhân sự</strong>
+        Đã gửi ảnh chuẩn 1:1 thành công.
+      </div>
+      <? } ?> <? if (missingForTA && missingForTA.length > 0) { ?>
+      <div class="card card-warning">
+        <strong>⚠️ Cần xử lý Avatar: <?= missingForTA.length ?> nhân sự</strong>
+        Thiếu ảnh hoặc ảnh chưa đạt tỉ lệ 1:1.
+      </div>
+      <? } ?> <? if (alreadyProcessed && alreadyProcessed.length > 0) { ?>
+      <div class="card card-info">
+        <strong
+          >ℹ️ Đã hoàn tất trước đó: <?= alreadyProcessed.length ?> nhân
+          sự</strong
+        >
+        Đã xử lý xong ở các đợt quét trước.
+      </div>
+      <? } ?>
+    </div>
+
+    <!-- 2. ĐIỀU HƯỚNG TAB -->
+    <div class="tab-nav">
+      <? if (missingForTA && missingForTA.length > 0) { ?>
+      <button class="tab-btn active" onclick="switchTab(event, 'tab-missing')">
+        ⚠️ Cần cập nhật Avatar (<?= missingForTA.length ?>)
+      </button>
+      <? } ?> <? if (readyForDevOps && readyForDevOps.length > 0) { ?>
+      <button
+        class="tab-btn <?= (!missingForTA || missingForTA.length === 0) ? 'active' : '' ?>"
+        onclick="switchTab(event, 'tab-ready')"
+      >
+        ✅ Đã gửi DevOps hôm nay (<?= readyForDevOps.length ?>)
+      </button>
+      <? } ?> <? if (alreadyProcessed && alreadyProcessed.length > 0) { ?>
+      <button
+        class="tab-btn <?= (!missingForTA || missingForTA.length === 0) && (!readyForDevOps || readyForDevOps.length === 0) ? 'active' : '' ?>"
+        onclick="switchTab(event, 'tab-locked')"
+      >
+        🔒 Đã xử lý trước đó (<?= alreadyProcessed.length ?>)
+      </button>
+      <? } ?>
+    </div>
+
+    <!-- TAB 1: DANH SÁCH CẦN XỬ LÝ AVATAR (THIẾU HOẶC SAI TỈ LỆ) -->
+    <? if (missingForTA && missingForTA.length > 0) { ?>
+    <div id="tab-missing" class="tab-content active">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 8%">Dòng</th>
+              <th style="width: 25%">Họ và Tên</th>
+              <th style="width: 27%">Email Cá Nhân</th>
+              <th style="width: 40%">Hướng dẫn xử lý</th>
+            </tr>
+          </thead>
+          <tbody>
+            <? missingForTA.forEach(function(c) { ?>
+            <tr>
+              <td><strong>#<?= c.rowNumber ?></strong></td>
+              <td>
+                <strong><?= c.fullName ?></strong>
+              </td>
+              <td><?= c.personalEmail || c.workingEmail ?></td>
+              <td>
+                <? if (c.issueReason === 'INVALID_RATIO') { ?>
+                <!-- Có ảnh nhưng sai tỉ lệ 1:1 -->
+                <a
+                  href="<?= c.uc06RowLink ?>"
+                  target="_blank"
+                  class="link-warning-ratio"
+                  title="Click để mở đúng ô ảnh trên UC06 và thay ảnh mới"
+                >
+                  ⚠️ Đổi ảnh vuông 1:1 (hiện <?= c.dimensions ?
+                  c.dimensions.width + 'x' + c.dimensions.height : 'sai tỉ lệ'
+                  ?>) ↗
+                </a>
+                <? } else if (c.uc06RowLink) { ?>
+                <!-- Chưa có link ảnh nhưng đã có dòng trên UC06 -->
+                <a
+                  href="<?= c.uc06RowLink ?>"
+                  target="_blank"
+                  class="link-action"
+                >
+                  👉 Bổ sung link ảnh tại đây ↗
+                </a>
+                <? } else { ?>
+                <!-- Chưa có email trong file UC06 -->
+                <a
+                  href="<?= uc06Url ?>"
+                  target="_blank"
+                  class="link-add-new"
+                  title="Nhân sự này chưa có trong bảng, bấm để mở file thêm dòng"
+                >
+                  ➕ Mở file để thêm dòng mới ↗
+                </a>
+                <? } ?>
+              </td>
+            </tr>
+            <? }); ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <? } ?>
+
+    <!-- TAB 2: DANH SÁCH VỪA GỬI DEVOPS THÀNH CÔNG -->
+    <? if (readyForDevOps && readyForDevOps.length > 0) { ?>
+    <div
+      id="tab-ready"
+      class="tab-content <?= (!missingForTA || missingForTA.length === 0) ? 'active' : '' ?>"
+    >
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 10%">Dòng</th>
+              <th style="width: 32%">Họ và Tên</th>
+              <th style="width: 38%">Email</th>
+              <th style="width: 20%">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            <? readyForDevOps.forEach(function(c) { ?>
+            <tr>
+              <td>#<?= c.rowNumber ?></td>
+              <td>
+                <strong><?= c.fullName ?></strong>
+              </td>
+              <td><?= c.personalEmail || c.workingEmail ?></td>
+              <td>
+                <span class="badge badge-success">Đã gửi mail & Khóa</span>
+              </td>
+            </tr>
+            <? }); ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <? } ?>
+
+    <!-- TAB 3: DANH SÁCH ĐÃ KHÓA TỪ TRƯỚC -->
+    <? if (alreadyProcessed && alreadyProcessed.length > 0) { ?>
+    <div
+      id="tab-locked"
+      class="tab-content <?= (!missingForTA || missingForTA.length === 0) && (!readyForDevOps || readyForDevOps.length === 0) ? 'active' : '' ?>"
+    >
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 10%">Dòng</th>
+              <th style="width: 35%">Họ và Tên</th>
+              <th style="width: 40%">Email</th>
+              <th style="width: 15%">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            <? alreadyProcessed.forEach(function(c) { ?>
+            <tr>
+              <td>#<?= c.rowNumber ?></td>
+              <td><?= c.fullName ?></td>
+              <td><?= c.personalEmail || c.workingEmail ?></td>
+              <td><span class="badge badge-locked">Đã hoàn tất</span></td>
+            </tr>
+            <? }); ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <? } ?>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <div>
+        <a
+          href="<?= uc06Url ?>"
+          target="_blank"
+          class="link-action"
+          style="font-size: 13px"
+        >
+          📂 Mở file ảnh nhân sự mới (UC06) ↗
+        </a>
+      </div>
+      <button class="btn-close" onclick="google.script.host.close()">
+        Đóng lại
+      </button>
+    </div>
+
+    <script>
+      function switchTab(evt, tabId) {
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((el) => el.classList.remove("active"));
+        document
+          .querySelectorAll(".tab-btn")
+          .forEach((el) => el.classList.remove("active"));
+        document.getElementById(tabId).classList.add("active");
+        evt.currentTarget.classList.add("active");
+      }
+    </script>
+  </body>
+</html>

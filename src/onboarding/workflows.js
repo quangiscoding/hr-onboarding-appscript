@@ -251,12 +251,13 @@ function handleAvatarUpdateWorkflow() {
     .trim();
   const currentAllocCode = currentUserEmail.split("@")[0].trim();
 
-  // 2. TRA CỨU FILE UC06 (Lấy trước dữ liệu Avatar về RAM để tra cứu nhanh)
+  // =========================================================================
+  // 2. TRA CỨU FILE UC06, CHECK 1:1 & CHỈ GHI VÀO CỘT G & H (TRÁNH GÃY QUERY A1)
+  // =========================================================================
   let avatarMap = {};
   let uc06SheetUrl = "";
 
   try {
-    // 2.1. Mở bảng tính UC06 và lấy link gốc đến Sheet đầu tiên
     const uc06Ss = SpreadsheetApp.openById(SPREADSHEET_UC06_ID);
     const uc06Sheet = uc06Ss.getSheets()[0];
     uc06SheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit#gid=${uc06Sheet.getSheetId()}`;
@@ -264,87 +265,123 @@ function handleAvatarUpdateWorkflow() {
     const lastRowUC06 = uc06Sheet.getLastRow();
     const lastColUC06 = uc06Sheet.getLastColumn();
 
-    // 2.2. Kiểm tra bảng tính có dữ liệu hay không (dòng > 1 và cột > 0)
     if (lastRowUC06 > 1 && lastColUC06 > 0) {
-      // Đọc hàng tiêu đề để tìm vị trí cột "Email Address" và "Picture" động
       const uc06ColMap = getHeaderColumnMap(uc06Sheet);
       const emailColNumber = uc06ColMap[normalizeHeaderKey("Email Address")];
       const pictureColNumber = uc06ColMap[normalizeHeaderKey("Picture")];
 
-      // Chỉ thực hiện khi tìm thấy cả 2 cột cần thiết
+      const checkColNumber = uc06ColMap[normalizeHeaderKey("Check 1:1")]; // Thường là Cột 7 (G)
+      const statusColNumber = uc06ColMap[normalizeHeaderKey("Ảnh 1:1")]; // Thường là Cột 8 (H)
+
       if (emailColNumber && pictureColNumber) {
-        // emailColIdx & pictureColIdx (0-indexed): Dùng để truy xuất phần tử trong mảng Javascript (row[...])
         const emailColIdx = emailColNumber - 1;
         const pictureColIdx = pictureColNumber - 1;
-
-        // pictureColLetter (1-indexed): Đổi số thứ tự cột trên Sheet sang ký tự A1 (VD: 1 -> "A", 27 -> "AA")
-        // Dùng để tạo đường link trực tiếp đến đúng ô (cell) chứa avatar trên Google Sheets
         const pictureColLetter = getColumnLetterFromIndex(pictureColNumber);
 
-        // Đọc toàn bộ bảng dữ liệu UC06 (từ dòng 2 đến hết) vào bộ nhớ RAM một lần duy nhất (Batch Read)
+        // Đọc toàn bộ dữ liệu hiện tại để tra cứu
         const uc06Data = uc06Sheet
           .getRange(2, 1, lastRowUC06 - 1, lastColUC06)
           .getValues();
 
-        // Duyệt qua từng dòng để xây dựng từ điển tra cứu avatarMap theo Email
+        // Mảng 2 chiều CHỈ DÀNH RIÊNG để ghi vào Cột G và H: [[Check, Status], [Check, Status], ...]
+        const statusOutputData = [];
+        let hasChanges = false;
+
         for (let i = 0; i < uc06Data.length; i++) {
           const row = uc06Data[i];
           const rawEmail = row[emailColIdx];
-          if (!rawEmail) continue; // Bỏ qua nếu dòng này không có email
+
+          // Giá trị hiện tại đang có ở cột G và H trên sheet
+          const currentCheckVal = checkColNumber
+            ? String(row[checkColNumber - 1] || "")
+            : "";
+          const currentStatusVal = statusColNumber
+            ? String(row[statusColNumber - 1] || "")
+            : "";
+
+          if (!rawEmail) {
+            statusOutputData.push([currentCheckVal, currentStatusVal]);
+            continue;
+          }
 
           const personalEmail = String(rawEmail).trim().toLowerCase();
           const pictureUrl = String(row[pictureColIdx] || "").trim();
+          const uc06RowNumber = i + 2;
+
+          let isSquare = false;
+          let dimensions = null;
+          let newCheckVal = currentCheckVal;
+          let newStatusVal = currentStatusVal;
+
+          if (pictureUrl) {
+            const fileId = extractDriveFileId_(pictureUrl);
+            if (fileId) {
+              dimensions = getImageDimensionsFromDriveId_(fileId);
+              if (dimensions) {
+                isSquare = dimensions.isSquare;
+                newCheckVal = isSquare
+                  ? "1:1"
+                  : `${dimensions.width}x${dimensions.height}`;
+                newStatusVal = isSquare ? "Đạt" : "Sai tỉ lệ";
+              }
+            }
+          }
+
+          if (
+            newCheckVal !== currentCheckVal ||
+            newStatusVal !== currentStatusVal
+          ) {
+            hasChanges = true;
+          }
+
+          statusOutputData.push([newCheckVal, newStatusVal]);
 
           if (personalEmail) {
-            // Chỉ số dòng hiển thị thực tế trên Google Sheets (dữ liệu bắt đầu từ dòng 2, nên dòng = i + 2)
-            const uc06RowNumber = i + 2;
-
-            // Lưu thông tin vào map: Khóa tra cứu là Email cá nhân dạng chữ thường
             avatarMap[personalEmail] = {
               pictureUrl: pictureUrl,
               uc06RowNumber: uc06RowNumber,
-              // Link mở trực tiếp đến ô chứa ảnh trên sheet UC06 (VD: ...#gid=0&range=F5)
               uc06RowLink: `${uc06SheetUrl}&range=${pictureColLetter}${uc06RowNumber}`,
+              isSquare: isSquare,
+              dimensions: dimensions,
             };
           }
+        }
+
+        // CHỈ GHI ĐÚNG VÀO 2 CỘT G & H (Bắt đầu từ Cột checkColNumber, độ rộng 2 cột)
+        // Tuyệt đối không ghi đè vào các cột A:F để bảo toàn công thức QUERY ở ô A1
+        if (hasChanges && checkColNumber && statusColNumber) {
+          const startCol = Math.min(checkColNumber, statusColNumber);
+          uc06Sheet
+            .getRange(2, startCol, statusOutputData.length, 2)
+            .setValues(statusOutputData);
         }
       }
     }
   } catch (e) {
-    // Ghi log cảnh báo nếu có lỗi xảy ra (ví dụ: không có quyền truy cập file UC06, sai ID,...)
-    Logger.log("⚠️ Lỗi tải bảng tra cứu Avatar UC06: " + e.message);
+    Logger.log("⚠️ Lỗi tra cứu và ghi nhận Avatar UC06: " + e.message);
   }
 
-  // 3. ĐỌC BATCH TOÀN BỘ SHEET HERA & METADATA VỀ RAM (1 LẦN DUY NHẤT)
+  // 3. ĐỌC BATCH TOÀN BỘ SHEET HERA & METADATA VỀ RAM
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getActiveSheet();
   const sheetUrl = ss.getUrl();
-  const rawLastRow = sheet.getLastRow(); // Dòng cuối cùng có format/data
+  const rawLastRow = sheet.getLastRow();
 
-  // Kiểm tra Sheet rỗng (chỉ có 0 hoặc 1 dòng tiêu đề) -> Dừng sớm
   if (rawLastRow <= 1) return { message: "Sheet dữ liệu Hera hiện đang rỗng." };
 
-  // --- A. Lấy bản đồ cột động + Tải toàn bộ bảng tính vào RAM (Batch Read) ---
-  // heraColMap: Từ điển ánh xạ tiêu đề cột -> số thứ tự cột 1-indexed (VD: {"fullname": 1})
   const heraColMap = getHeaderColumnMap(sheet);
-
-  // heraAllRowsData: Mảng 2 chiều chứa toàn bộ dữ liệu dòng 1 đến hết bảng tính
   const heraAllRowsData = sheet
     .getRange(1, 1, rawLastRow, sheet.getLastColumn())
     .getValues();
 
-  // --- B. Đóng gói Cache Context cho hàm getNormalizedInput ---
-  // Truyền object này vào các hàm chuẩn hóa để đọc dữ liệu trên RAM, tránh gọi API Sheet nhiều lần
   const cachedContext = {
     colMap: heraColMap,
     allRowsData: heraAllRowsData,
-    sheetUrl: sheetUrl, // Đã có từ đầu hàm
-    sheetId: sheet.getSheetId(), // Lấy 1 lần duy nhất
-    currentUserEmail: Session.getEffectiveUser().getEmail(), // Lấy 1 lần duy nhất
+    sheetUrl: sheetUrl,
+    sheetId: sheet.getSheetId(),
+    currentUserEmail: Session.getEffectiveUser().getEmail(),
   };
 
-  // --- C. Tải toàn bộ trạng thái Lock Metadata về RAM một lần duy nhất ---
-  // Giúp thao tác kiểm tra lock ở Bước 4 đạt tốc độ O(1), hạn chế gọi API độc lập từng dòng
   const lockedKeysSet = new Set();
   try {
     const allMetadata = sheet.getDeveloperMetadata();
@@ -355,44 +392,40 @@ function handleAvatarUpdateWorkflow() {
       if (val) lockedKeysSet.add(val);
     });
   } catch (errMeta) {
-    // Không ném lỗi: Nếu tải lô thất bại, Bước 4 sẽ fallback tự động sang kiểm tra đơn lẻ từng ô
     Logger.log("⚠️ Không tải được Metadata theo lô: " + errMeta.message);
   }
 
-  // --- D. Xác định dòng dữ liệu thực tế (actualLastRow) dựa trên RAM ---
-  // sheet.getLastRow() thường tính cả dòng rỗng có viền/format. Quét ngược để tìm dòng có text thật.
   let actualLastRow = 1;
   for (let r = heraAllRowsData.length - 1; r >= 1; r--) {
-    // heraAllRowsData[r][1]: Cột thứ 2 (chỉ số 1 trong JS) - Thường là cột Họ tên / Mã định danh
     if (heraAllRowsData[r][1] && String(heraAllRowsData[r][1]).trim() !== "") {
-      actualLastRow = r + 1; // Quy đổi từ index 0 (JS) sang số dòng 1-indexed của Sheets
+      actualLastRow = r + 1;
       break;
     }
   }
 
-  // Nếu duyệt xong mà không có dòng dữ liệu hợp lệ nào
   if (actualLastRow <= 1) {
     return { message: "Không tìm thấy dòng dữ liệu nhân sự hợp lệ nào." };
   }
 
-  // --- E. Khởi tạo mốc thời gian đối soát theo múi giờ kịch bản ---
   const scriptTimeZone = Session.getScriptTimeZone();
   const todayStr = Utilities.formatDate(
     new Date(),
     scriptTimeZone,
-    "yyyy-MM-dd", // Chuẩn định dạng ISO
+    "yyyy-MM-dd",
   );
   const todayDisplayStr = Utilities.formatDate(
     new Date(),
     scriptTimeZone,
-    "dd/MM/yyyy", // Chuẩn định dạng hiển thị ngày/tháng VN
+    "dd/MM/yyyy",
   );
 
   const readyForDevOps = [];
   const missingForTA = [];
-  const alreadyProcessed = []; // Mảng lưu các nhân sự đã gửi/khóa trước đó
+  const alreadyProcessed = [];
 
-  // 4. QUÉT MẢNG TRÊN RAM
+  // =========================================================================
+  // 4. QUÉT MẢNG TRÊN RAM & PHÂN LOẠI
+  // =========================================================================
   for (let r = actualLastRow; r >= 2; r--) {
     let candidateData;
     try {
@@ -411,7 +444,6 @@ function handleAvatarUpdateWorkflow() {
       workingEmail,
       rowNumber,
     } = candidateData;
-
     const targetLockEmail = personalEmail || workingEmail;
     if (!fullName || !personalEmail) continue;
 
@@ -421,17 +453,17 @@ function handleAvatarUpdateWorkflow() {
       .replace(/[-_ \t]/g, "");
     if (rawStatus !== "onboarded") continue;
 
-    // Fast Check 2: Ngày Onboard trùng HÔM NAY
+    // Fast Check 2: Ngày Onboard hôm nay
     if (startDate !== todayDisplayStr && startDate !== todayStr) continue;
 
-    // Fast Check 3: Alloc Code của TA trùng người đang thao tác
+    // Fast Check 3: Trùng Alloc Code TA thao tác
     const taAllocCode = String(taEmail || "")
       .split("@")[0]
       .trim()
       .toLowerCase();
     if (taAllocCode !== currentAllocCode) continue;
 
-    // 🔒 Fast Check 4: Check Lock Metadata trực tiếp qua RAM Set
+    // Fast Check 4: Check Lock
     let isLocked = false;
     if (lockedKeysSet.size > 0) {
       const lockKey = `${TRIGGER_TYPE}_${rowNumber}_${targetLockEmail.toLowerCase()}`;
@@ -444,32 +476,37 @@ function handleAvatarUpdateWorkflow() {
       );
     }
 
-    // Nếu ĐÃ KHÓA -> Đưa vào danh sách đã xử lý
     if (isLocked) {
       alreadyProcessed.push(candidateData);
       continue;
     }
 
-    // Tra cứu UC06 theo Email cá nhân trên RAM Map
+    // Tra cứu thông tin avatar từ UC06
     const cleanPersonalEmail = personalEmail.toLowerCase();
     const uc06Info = avatarMap[cleanPersonalEmail] || null;
 
     candidateData.avatarUrl = uc06Info ? uc06Info.pictureUrl : "";
     candidateData.uc06RowNumber = uc06Info ? uc06Info.uc06RowNumber : null;
     candidateData.uc06RowLink = uc06Info ? uc06Info.uc06RowLink : "";
+    candidateData.isSquare = uc06Info ? uc06Info.isSquare : false;
+    candidateData.dimensions = uc06Info ? uc06Info.dimensions : null;
 
-    if (candidateData.avatarUrl) {
-      readyForDevOps.push(candidateData);
-    } else {
+    // PHÂN LOẠI ĐIỀU KIỆN:
+    if (!candidateData.avatarUrl) {
+      candidateData.issueReason = "MISSING";
       missingForTA.push(candidateData);
+    } else if (!candidateData.isSquare) {
+      candidateData.issueReason = "INVALID_RATIO";
+      missingForTA.push(candidateData);
+    } else {
+      readyForDevOps.push(candidateData);
     }
   }
 
   // =========================================================================
-  // 5. GỬI MAIL DEVOPS & KHÓA DÒNG (NẾU CÓ ỨNG VIÊN ĐỦ ĐIỀU KIỆN)
+  // 5. GỬI MAIL DEVOPS & KHÓA DÒNG CHO NHÂN SỰ ĐẠT CHUẨN 1:1
   // =========================================================================
   let summaryMsg = [];
-
   if (readyForDevOps.length > 0) {
     const devopsRecipients = getRecipientsByRole(CONFIG.RECIPIENT_ROLES.DEVOPS);
     const mailTemplate = getAvatarUpdateDigestTemplate(
@@ -499,17 +536,15 @@ function handleAvatarUpdateWorkflow() {
     });
 
     summaryMsg.push(
-      `✅ Đã gửi email nhắc DevOps cho ${readyForDevOps.length} nhân sự (đã khóa dòng).`,
+      `✅ Đã gửi email nhắc DevOps cập nhật ảnh cho ${readyForDevOps.length} nhân sự (đã khóa dòng).`,
     );
   }
 
   // =========================================================================
-  // 6. KIỂM TRA ĐIỀU KIỆN HIỂN THỊ DIALOG TỔNG QUAN
+  // 6. HIỂN THỊ MODAL DIALOG TỔNG QUAN
   // =========================================================================
   const totalCount =
     readyForDevOps.length + missingForTA.length + alreadyProcessed.length;
-
-  // Nếu cả 3 mảng đều rỗng -> Không có ai onboard hôm nay
   if (totalCount === 0) {
     throw new WorkflowError(
       "NO_CANDIDATES_FOUND",
@@ -517,7 +552,6 @@ function handleAvatarUpdateWorkflow() {
     );
   }
 
-  // Khởi tạo dialog và truyền cả 3 mảng để hiển thị đầy đủ thông tin cho TA
   const dialogTemplate = HtmlService.createTemplateFromFile(
     "onboarding/dialog-templates/ta-reminder-dialog",
   );
@@ -526,12 +560,11 @@ function handleAvatarUpdateWorkflow() {
   dialogTemplate.alreadyProcessed = alreadyProcessed;
   dialogTemplate.uc06Url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit`;
 
-  const htmlOutput = dialogTemplate.evaluate().setWidth(720).setHeight(460);
+  const htmlOutput = dialogTemplate.evaluate().setWidth(740).setHeight(480);
 
-  // Đặt tiêu đề dialog phù hợp với tình trạng dữ liệu
   let dialogTitle = `📋 Báo cáo Avatar Onboard (${todayDisplayStr})`;
   if (missingForTA.length > 0) {
-    dialogTitle = `⚠️ Cần bổ sung Avatar cho ${missingForTA.length} nhân sự`;
+    dialogTitle = `⚠️ Cần xử lý Avatar cho ${missingForTA.length} nhân sự`;
   } else if (readyForDevOps.length > 0) {
     dialogTitle = `🎉 Đã gửi cập nhật Avatar cho ${readyForDevOps.length} nhân sự`;
   }
@@ -544,7 +577,7 @@ function handleAvatarUpdateWorkflow() {
     readyForDevOps: readyForDevOps,
     missingForTA: missingForTA,
     alreadyProcessed: alreadyProcessed,
-    suppressPopup: true, // Vì Modal Dialog đã cung cấp toàn bộ kết quả trực quan
+    suppressPopup: true,
     message: summaryMsg.join("\n\n"),
   };
 }
