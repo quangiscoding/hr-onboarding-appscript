@@ -157,20 +157,27 @@ function findDriveFileIdByName_(name) {
   return null;
 }
 
-/** Trích Drive File ID từ nhiều dạng link Drive phổ biến */
+/**
+ * Trích xuất Google Drive / Docs / Sheets / Folder ID chuẩn xác và chống bắt nhầm chuỗi thừa.
+ * Hỗ trợ URL đầy đủ, URL có query params, và mã ID thô.
+ * @param {string} url - Link Google Drive hoặc chuỗi ID thuần
+ * @returns {string|null} ID hợp lệ hoặc null
+ */
 function extractDriveFileId_(url) {
   if (!url) return null;
-  const patterns = [
-    /\/file\/d\/([a-zA-Z0-9_-]+)/, // /file/d/<ID>/view
-    /[?&]id=([a-zA-Z0-9_-]+)/, // ?id=<ID>
-    /\/document\/d\/([a-zA-Z0-9_-]+)/, // docs.google.com/document/d/<ID>
-  ];
-  for (const p of patterns) {
-    const m = String(url).match(p);
-    if (m) return m[1];
+  const str = String(url).trim();
+
+  // 1. Khớp theo URL chuẩn: Sau /d/ hoặc /folders/ hoặc ?id=
+  // Giới hạn độ dài ID từ 25-50 ký tự, chặn biên bằng [/&#?] hoặc hết chuỗi
+  const urlMatch = str.match(
+    /(?:\/(?:d|folders)\/|[?&]id=)([-\w]{25,50})(?:[/?&#]|$)/,
+  );
+  if (urlMatch) return urlMatch[1];
+
+  // 2. Khớp chuỗi ID thô (toàn bộ chuỗi chỉ gồm ký tự Base64, độ dài đúng chuẩn 25-50)
+  if (/^[-\w]{25,50}$/.test(str)) {
+    return str;
   }
-  // Trả về nguyên chuỗi nếu nó tự là File ID (dạng uuid)
-  if (/^[a-zA-Z0-9_-]{20,}$/.test(String(url).trim()))
-    return String(url).trim();
+
   return null;
 }
