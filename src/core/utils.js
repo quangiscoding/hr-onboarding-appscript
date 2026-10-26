@@ -96,6 +96,115 @@ function getColumnLetterFromIndex(colIndex) {
   return letter;
 }
 
+/**
+ * Trích xuất width & height của file ảnh từ Google Drive ID bằng binary header.
+ * @param {string} fileId - ID của file trên Google Drive
+ * @returns {{ width: number, height: number, isSquare: boolean, ratio: number } | null}
+ */
+function getImageDimensionsFromDriveId_(fileId) {
+  try {
+    const file = DriveApp.getFileById(fileId);
+    const blob = file.getBlob();
+    const bytes = blob.getBytes();
+    const contentType = blob.getContentType().toLowerCase();
+
+    let width = 0;
+    let height = 0;
+
+    // 1. Định dạng PNG
+    if (contentType.includes("png")) {
+      if (bytes.length >= 24) {
+        width =
+          ((bytes[16] & 0xff) << 24) |
+          ((bytes[17] & 0xff) << 16) |
+          ((bytes[18] & 0xff) << 8) |
+          (bytes[19] & 0xff);
+        height =
+          ((bytes[20] & 0xff) << 24) |
+          ((bytes[21] & 0xff) << 16) |
+          ((bytes[22] & 0xff) << 8) |
+          (bytes[23] & 0xff);
+      }
+    }
+    // 2. Định dạng JPEG / JPG
+    else if (contentType.includes("jpeg") || contentType.includes("jpg")) {
+      let offset = 2;
+      while (offset < bytes.length) {
+        if ((bytes[offset] & 0xff) === 0xff) {
+          const marker = bytes[offset + 1] & 0xff;
+          // SOF0, SOF1, SOF2 markers chứa kích thước ảnh
+          if (
+            (marker >= 0xc0 && marker <= 0xc3) ||
+            (marker >= 0xc5 && marker <= 0xc7) ||
+            (marker >= 0xc9 && marker <= 0xcb) ||
+            (marker >= 0xcd && marker <= 0xcf)
+          ) {
+            height =
+              ((bytes[offset + 5] & 0xff) << 8) | (bytes[offset + 6] & 0xff);
+            width =
+              ((bytes[offset + 7] & 0xff) << 8) | (bytes[offset + 8] & 0xff);
+            break;
+          }
+          const length =
+            ((bytes[offset + 2] & 0xff) << 8) | (bytes[offset + 3] & 0xff);
+          offset += 2 + length;
+        } else {
+          offset++;
+        }
+      }
+    }
+    // 3. Định dạng GIF
+    else if (contentType.includes("gif")) {
+      if (bytes.length >= 10) {
+        width = (bytes[6] & 0xff) | ((bytes[7] & 0xff) << 8);
+        height = (bytes[8] & 0xff) | ((bytes[9] & 0xff) << 8);
+      }
+    }
+    // 4. Định dạng WEBP
+    else if (contentType.includes("webp")) {
+      if (bytes.length >= 30) {
+        // Simple VP8
+        if (
+          bytes[12] === 0x56 &&
+          bytes[13] === 0x50 &&
+          bytes[14] === 0x38 &&
+          bytes[15] === 0x20
+        ) {
+          width = ((bytes[26] & 0xff) | ((bytes[27] & 0xff) << 8)) & 0x3fff;
+          height = ((bytes[28] & 0xff) | ((bytes[29] & 0xff) << 8)) & 0x3fff;
+        }
+        // Extended VP8X
+        else if (
+          bytes[12] === 0x56 &&
+          bytes[13] === 0x50 &&
+          bytes[14] === 0x38 &&
+          bytes[15] === 0x58
+        ) {
+          width =
+            1 +
+            ((bytes[24] & 0xff) |
+              ((bytes[25] & 0xff) << 8) |
+              ((bytes[26] & 0xff) << 16));
+          height =
+            1 +
+            ((bytes[27] & 0xff) |
+              ((bytes[28] & 0xff) << 8) |
+              ((bytes[29] & 0xff) << 16));
+        }
+      }
+    }
+
+    if (width > 0 && height > 0) {
+      const ratio = Number((width / height).toFixed(2));
+      const isSquare = Math.abs(ratio - 1.0) <= 0.02; // Ngưỡng dung sai ~2%
+      return { width, height, ratio, isSquare };
+    }
+  } catch (err) {
+    Logger.log("❌ Lỗi đọc file ID: " + fileId + " - Chi tiết: " + err.message);
+  }
+  return null;
+}
+
 /* ------------------------------------------------------------------ */
 /* RECIPIENT HELPERS - danh sách người nhận email (sheet Data)          */
 /* ------------------------------------------------------------------ */
@@ -389,4 +498,44 @@ function dev_unlockCurrentRow() {
   });
 
   ui.alert(`🎉 Đã xóa thành công ${count} vết khóa cho Dòng ${rowNumber}!`);
+}
+
+/**
+ * Hàm chạy thử nghiệm độc lập trong Script Editor
+ */
+function test_getImageDimensions() {
+  // Thay bằng File ID thực tế lấy từ link cột F trên Sheet UC06 của bạn
+  const sampleTestIds = [
+    {
+      label: "Test Ảnh 1 (Dòng 2 UC06)",
+      id: "1KmXllBW8qy5g8WABjeRWME6AlX5Nkot8",
+    },
+    {
+      label: "Test Ảnh 2 (Dòng 3 UC06)",
+      id: "12eYdZzEDttN9Q01yC_p_CVTYlSQ6zz12",
+    },
+    {
+      label: "Test Ảnh 3 (Dòng 4 UC06)",
+      id: "18LTemcygQH-nxTgev1iGTs5wTSEFblUu",
+    },
+  ];
+
+  sampleTestIds.forEach((item) => {
+    Logger.log(`\n========================================`);
+    Logger.log(`🔍 Đang kiểm tra: ${item.label} (ID: ${item.id})`);
+
+    const result = getImageDimensionsFromDriveId_(item.id);
+
+    if (result) {
+      Logger.log(`- Kích thước: ${result.width} x ${result.height} px`);
+      Logger.log(`- Tỉ lệ (Width/Height): ${result.ratio}`);
+      Logger.log(
+        `- Kết luận: ${result.isSquare ? "✅ ĐẠT CHUẨN 1:1" : "❌ SAI TỈ LỆ 1:1"}`,
+      );
+    } else {
+      Logger.log(
+        `⚠️ Không đọc được metadata hoặc không có quyền truy cập file ID này.`,
+      );
+    }
+  });
 }
