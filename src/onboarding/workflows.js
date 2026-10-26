@@ -338,6 +338,9 @@ function handleAvatarUpdateWorkflow() {
   const cachedContext = {
     colMap: heraColMap,
     allRowsData: heraAllRowsData,
+    sheetUrl: sheetUrl, // Đã có từ đầu hàm
+    sheetId: sheet.getSheetId(), // Lấy 1 lần duy nhất
+    currentUserEmail: Session.getEffectiveUser().getEmail(), // Lấy 1 lần duy nhất
   };
 
   // --- C. Tải toàn bộ trạng thái Lock Metadata về RAM một lần duy nhất ---
