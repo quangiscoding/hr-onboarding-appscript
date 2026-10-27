@@ -60,6 +60,12 @@ function getWelcomeFrameDataUrl_() {
  * Được gọi từ sidebar qua google.script.run khi mở.
  * @returns {Object} { ok, error?, candidate: {...} }
  */
+/**
+ * Đọc thông tin ứng viên tại dòng đang chọn để fill form trong sidebar,
+ * đồng thời đối chiếu qua Sheet UC06 để lấy ảnh avatar nếu có.
+ * Được gọi từ sidebar qua google.script.run khi mở.
+ * @returns {Object} { ok, error?, candidate: {...} }
+ */
 function getSelectedCandidate() {
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -80,8 +86,7 @@ function getSelectedCandidate() {
         : "";
     };
 
-    // Cột CV: cell thường chứa HYPERLINK (text hiển thị là tên file, URL nằm trong link).
-    // Ưu tiên: hyperlink của cell -> URL trong formula HYPERLINK() -> giá trị hiển thị.
+    // Cột CV: cell thường chứa HYPERLINK
     let cvUrl = "";
     if (colMap[COLS.CV]) {
       const cvCell = sheet.getRange(rowIndex, colMap[COLS.CV]);
@@ -110,6 +115,8 @@ function getSelectedCandidate() {
       personalEmail: readCol(COLS.PERSONAL_EMAIL),
       phoneNumber: readCol("phonenumber"),
       cvUrl: cvUrl,
+      avatarBase64: null,
+      avatarSource: null,
     };
 
     if (!candidate.fullName) {
@@ -119,10 +126,86 @@ function getSelectedCandidate() {
       };
     }
 
+    // ------------------------------------------------------------------
+    // ĐỐI CHIẾU SANG SHEET UC06 ĐỂ LẤY AVATAR
+    // ------------------------------------------------------------------
+    const uc06AvatarUrl = findUc06AvatarUrl_(
+      candidate.personalEmail,
+      candidate.workingEmail,
+    );
+    if (uc06AvatarUrl) {
+      const base64Str = getDriveFileBase64(uc06AvatarUrl);
+      if (base64Str) {
+        candidate.avatarBase64 = `data:image/jpeg;base64,${base64Str}`;
+        candidate.avatarSource = "UC06";
+      }
+    }
+
     return { ok: true, candidate };
   } catch (error) {
     Logger.log("❌ getSelectedCandidate lỗi: " + error.toString());
     return { ok: false, error: error.toString() };
+  }
+}
+
+/**
+ * Helper tra cứu link ảnh trên sheet UC06 theo email cá nhân hoặc working email.
+ * Ưu tiên lấy cột "Ảnh 1:1" (đã cắt vuông), nếu không có mới lấy cột "Picture" (ảnh gốc).
+ * @param {string} personalEmail
+ * @param {string} workingEmail
+ * @returns {string} Drive URL hoặc rỗng
+ */
+function findUc06AvatarUrl_(personalEmail, workingEmail) {
+  try {
+    const uc06Id = CONFIG.SPREADSHEET_UC06_ID;
+    if (!uc06Id) return "";
+
+    const uc06Ss = SpreadsheetApp.openById(uc06Id);
+    const uc06Sheet = uc06Ss.getSheets()[0];
+    const lastRow = uc06Sheet.getLastRow();
+    const lastCol = uc06Sheet.getLastColumn();
+
+    if (lastRow <= 1 || lastCol <= 0) return "";
+
+    const uc06ColMap = getHeaderColumnMap(uc06Sheet);
+    const emailCol = uc06ColMap[normalizeHeaderKey("Email Address")];
+    const pictureCol = uc06ColMap[normalizeHeaderKey("Picture")];
+    const croppedCol = uc06ColMap[normalizeHeaderKey("Ảnh 1:1")];
+
+    if (!emailCol || (!pictureCol && !croppedCol)) return "";
+
+    const data = uc06Sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+    const searchEmails = [personalEmail, workingEmail]
+      .filter(Boolean)
+      .map((e) => String(e).trim().toLowerCase());
+
+    if (searchEmails.length === 0) return "";
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rawEmail = String(row[emailCol - 1] || "")
+        .trim()
+        .toLowerCase();
+      if (!rawEmail) continue;
+
+      if (searchEmails.includes(rawEmail)) {
+        // Ưu tiên 1: Cột "Ảnh 1:1"
+        const croppedUrl = croppedCol
+          ? String(row[croppedCol - 1] || "").trim()
+          : "";
+        if (croppedUrl) return croppedUrl;
+
+        // Ưu tiên 2: Cột "Picture" gốc
+        const rawPicUrl = pictureCol
+          ? String(row[pictureCol - 1] || "").trim()
+          : "";
+        if (rawPicUrl) return rawPicUrl;
+      }
+    }
+    return "";
+  } catch (err) {
+    Logger.log("⚠️ Không thể tra cứu avatar từ UC06: " + err.message);
+    return "";
   }
 }
 

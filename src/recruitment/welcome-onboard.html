@@ -263,6 +263,18 @@
           <div class="canvas-container">
             <canvas id="welcomeCanvas" width="1000" height="1000"></canvas>
           </div>
+          <!-- THÊM DÒNG NÀY ĐỂ BÁO TRẠNG THÁI AVATAR -->
+          <div
+            id="avatar-status-badge"
+            class="avatar-status-badge"
+            style="
+              font-size: 11px;
+              margin-top: 6px;
+              font-weight: 500;
+              color: #5f6368;
+              text-align: center;
+            "
+          ></div>
 
           <!-- NÚT UPLOAD ÁNH TRỰC TIẾP TỪ MÁY TÍNH -->
           <div style="margin-top: 8px">
@@ -734,6 +746,27 @@
             currentCandidate = res.candidate;
             renderCandidate(res.candidate);
             updateCvSheetStatus(res.candidate);
+
+            // NẠP ẢNH TỪ UC06 NẾU TÌM THẤY
+            const badge = document.getElementById("avatar-status-badge");
+            if (res.candidate.avatarBase64) {
+              avatarImg = new Image();
+              avatarImg.onload = function () {
+                avatarLoaded = true;
+                renderCanvas();
+              };
+              avatarImg.src = res.candidate.avatarBase64;
+              if (badge) {
+                badge.innerHTML =
+                  "✅ <span style='color: #137333;'>Đã tự động lấy ảnh từ Employee Avatar</span>";
+              }
+            } else {
+              if (badge) {
+                badge.innerHTML =
+                  "⚠️ <span style='color: #b3261e;'>Chưa có ảnh trên sheet Employee Avatar — Bạn có thể upload thủ công từ máy</span>";
+              }
+            }
+
             document.getElementById("main").style.display = "block";
           })
           .withFailureHandler(function (err) {
