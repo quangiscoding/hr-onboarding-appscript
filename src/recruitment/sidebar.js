@@ -230,62 +230,18 @@ function findUc06AvatarUrl_(personalEmail, workingEmail) {
 /* AI SUMMARIZE HANDLER (google.script.run)                            */
 /* ------------------------------------------------------------------ */
 /**
- * Handler cho nút "AI tóm tắt CV": đọc CV (upload hoặc cột CV) → AI → trả về Introduction.
- * @param {Object} formData - { candidate: Object, cvFile?: { dataBase64, fileName, mimeType } | null }
- * @returns {Object} { ok, introduction?, error? }
+ * Controller: Nhận request tóm tắt CV từ giao diện Sidebar
+ * @param {Object} formData
+ * @returns {{ ok: boolean, introduction?: string, error?: string }}
  */
 function summarizeCvToIntro(formData) {
-  const candidate = formData && formData.candidate;
-
-  if (!candidate || !candidate.fullName) {
+  try {
+    return OutlineCvSummarizerService.generateCandidateIntroduction(formData);
+  } catch (error) {
     return {
       ok: false,
-      error: "Thiếu thông tin ứng viên. Hãy chọn lại dòng và mở lại sidebar.",
+      error: error.message || error.toString(),
     };
-  }
-
-  let aiRes = null;
-  const timeStart = new Date(); // Mốc bắt đầu gọi AI
-
-  try {
-    const cvContent = readCvContent_(formData && formData.cvFile, candidate);
-
-    // Gọi AI
-    aiRes = callGeminiSummarizeCv_(cvContent, candidate);
-
-    const timeEnd = new Date(); // Mốc kết thúc
-
-    // Ghi log thành công
-    logAiCostWorkflow({
-      fullName: candidate.fullName,
-      provider: aiRes?.provider,
-      model: aiRes?.model,
-      timeStart: timeStart,
-      timeEnd: timeEnd,
-      inputTokens: aiRes?.inputTokens,
-      outputTokens: aiRes?.outputTokens,
-      status: "SUCCESS",
-    });
-
-    return { ok: true, introduction: aiRes.text };
-  } catch (error) {
-    const timeEnd = new Date(); // Mốc kết thúc (nếu lỗi)
-    Logger.log("❌ summarizeCvToIntro lỗi: " + error.toString());
-
-    // Ghi log thất bại
-    logAiCostWorkflow({
-      fullName: candidate?.fullName || "N/A",
-      provider: aiRes?.provider || "N/A",
-      model: aiRes?.model || "N/A",
-      timeStart: timeStart,
-      timeEnd: timeEnd,
-      inputTokens: aiRes?.inputTokens || 0,
-      outputTokens: aiRes?.outputTokens || 0,
-      status: "FAILED",
-      errorDetail: error.message || error.toString(),
-    });
-
-    return { ok: false, error: error.message || error.toString() };
   }
 }
 
