@@ -1,21 +1,3 @@
-/** ==========================================
- * RECRUITMENT/SIDEBAR.JS - MODULE AI RECRUITMENT (CONTROLLER)
- * ==========================================
- * Entry points public của module AI Recruitment — các hàm được bind qua
- * google.script.run (welcome-onboard.html) hoặc menu. KHÔNG ĐỔI TÊN.
- *  - showSidebar(): mở sidebar (menu "🚀 AI Recruitment")
- *  - getSelectedCandidate(): đọc dòng đang chọn trên sheet
- *  - summarizeCvToIntro(): nút "✨ AI tóm tắt CV"
- *  - submitIntroductionPost(): nút Submit -> tạo draft Outline
- *
- * Logic nội bộ nằm ở các file cùng thư mục:
- *  - recruitment/outline-api.js  (Outline documents.create)
- *  - recruitment/cv-reader.js    (đọc & trích text CV: PDF/DOCX/GDoc/TXT)
- *  - recruitment/ai-providers.js (OpenRouter + Gemini providers, retry/fallback)
- *
- * Phụ thuộc: core/config.js, core/utils.js (getHeaderColumnMap)
- */
-
 /* ------------------------------------------------------------------ */
 /* SIDEBAR ENTRY & DATA                                                */
 /* ------------------------------------------------------------------ */
@@ -37,6 +19,46 @@ function showSidebar() {
 }
 
 /**
+ * UI Controller: Popup cài đặt token Outline cho feature Recruitment
+ */
+function promptSetupOutlineToken() {
+  const ui = SpreadsheetApp.getUi();
+  const currentToken = OutlineApiService.getPersonalToken();
+
+  let msg =
+    "Nhập API Token cá nhân Outline của bạn để tạo bài draft dưới tên bạn.";
+  if (currentToken) {
+    const masked = OutlineApiUtil.maskToken(currentToken);
+    msg += `\n\n(Token hiện tại: ${masked})`;
+  }
+
+  const result = ui.prompt(
+    "🔑 Cài đặt Outline API Token",
+    msg,
+    ui.ButtonSet.OK_CANCEL,
+  );
+
+  if (result.getSelectedButton() === ui.Button.OK) {
+    const newToken = result.getResponseText().trim();
+    if (!newToken) {
+      ui.alert("⚠️ Bạn chưa nhập token. Cài đặt không thay đổi.");
+      return;
+    }
+
+    try {
+      OutlineApiService.setPersonalToken(newToken);
+      ui.alert(
+        "✅ Đã lưu Outline API Token cá nhân thành công!\nTừ giờ bài draft sẽ được tạo trực tiếp trên tài khoản Outline của bạn.",
+      );
+    } catch (err) {
+      ui.alert(`❌ Lỗi: ${err.message}`);
+    }
+  }
+}
+
+// ... các hàm showSidebar, handleSummarize khác của recruitment nằm ở đây ...
+
+/**
  * Đọc data URI khung Welcome Card mặc định từ file HTML riêng
  * (recruitment/welcome-frame.html — sinh bởi scripts/update-welcome-frame.sh
  * từ src/assets/frame.webp). Trả "" nếu file chưa có/nội dung không hợp lệ
@@ -55,11 +77,6 @@ function getWelcomeFrameDataUrl_() {
   }
 }
 
-/**
- * Đọc thông tin ứng viên tại dòng đang chọn để fill form trong sidebar.
- * Được gọi từ sidebar qua google.script.run khi mở.
- * @returns {Object} { ok, error?, candidate: {...} }
- */
 /**
  * Đọc thông tin ứng viên tại dòng đang chọn để fill form trong sidebar,
  * đồng thời đối chiếu qua Sheet UC06 để lấy ảnh avatar nếu có.
@@ -212,15 +229,6 @@ function findUc06AvatarUrl_(personalEmail, workingEmail) {
 /* ------------------------------------------------------------------ */
 /* AI SUMMARIZE HANDLER (google.script.run)                            */
 /* ------------------------------------------------------------------ */
-
-/**
- * Handler cho nút "AI tóm tắt CV": đọc CV (upload hoặc cột CV) → AI → trả về Introduction.
- * @param {Object} formData - { candidate: Object, cvFile?: { dataBase64, fileName, mimeType } | null }
- * @returns {Object} { ok, introduction?, error? }
- */
-/* ------------------------------------------------------------------ */
-/* AI SUMMARIZE HANDLER (google.script.run)                           */
-/* ------------------------------------------------------------------ */
 /**
  * Handler cho nút "AI tóm tắt CV": đọc CV (upload hoặc cột CV) → AI → trả về Introduction.
  * @param {Object} formData - { candidate: Object, cvFile?: { dataBase64, fileName, mimeType } | null }
@@ -311,10 +319,13 @@ function submitIntroductionPost(formData) {
     }
 
     // 1. Xây markdown của bài
-    const { title, text } = buildWelcomePostMarkdown(candidate, introduction);
+    const { title, text } = OutlineApiUtil.buildWelcomePostMarkdown(
+      candidate,
+      introduction,
+    );
 
     // 2. Tạo draft Outline
-    const doc = callOutlineCreateDocument_(title, text);
+    const doc = OutlineApiService.createDocument({ title, text });
 
     return {
       ok: true,
