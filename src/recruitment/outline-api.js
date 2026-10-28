@@ -117,7 +117,7 @@ function callOutlineCreateDocument_(title, text) {
   }
 
   const response = UrlFetchApp.fetch(
-    `${CONFIG.OUTLINE.BASE_URL}/api/documents.create`,
+    `${OUTLINE_CV_SUMMARIZER_CONFIG.OUTLINE.BASE_URL}/api/documents.create`,
     {
       method: "post",
       contentType: "application/json",

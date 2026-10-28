@@ -155,7 +155,7 @@ function logCandidateWorkflow(
  */
 function logAiCostWorkflow(data) {
   try {
-    const config = CONFIG?.LOG?.AI_COST;
+    const config = OUTLINE_CV_SUMMARIZER_CONFIG?.LOG;
     if (!config) return;
 
     let userEmail = "";
@@ -169,8 +169,11 @@ function logAiCostWorkflow(data) {
 
     const provider = data?.provider || "N/A";
     const model = data?.model || "N/A";
-    const pricing = CONFIG?.AI_PRICING?.[model] ||
-      CONFIG?.AI_PRICING?.DEFAULT || { input: 0, output: 0 };
+    const pricing = OUTLINE_CV_SUMMARIZER_CONFIG?.AI_PRICING?.[model] ||
+      OUTLINE_CV_SUMMARIZER_CONFIG?.AI_PRICING?.DEFAULT || {
+        input: 0,
+        output: 0,
+      };
 
     const inputTokens = Number(data?.inputTokens) || 0;
     const outputTokens = Number(data?.outputTokens) || 0;

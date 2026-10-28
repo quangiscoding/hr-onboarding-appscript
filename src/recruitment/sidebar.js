@@ -319,7 +319,10 @@ function submitIntroductionPost(formData) {
     return {
       ok: true,
       message: `Đã tạo draft "${title}" trên Outline! Ảnh ứng viên hãy chèn trực tiếp trên Outline nhé.`,
-      url: doc && doc.url ? doc.url : `${CONFIG.OUTLINE.BASE_URL}/drafts`,
+      url:
+        doc && doc.url
+          ? doc.url
+          : `${OUTLINE_CV_SUMMARIZER_CONFIG.OUTLINE.BASE_URL}/drafts`,
     };
   } catch (error) {
     Logger.log("❌ submitIntroductionPost lỗi: " + error.toString());

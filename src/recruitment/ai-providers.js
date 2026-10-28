@@ -2,8 +2,6 @@
  * RECRUITMENT/AI-PROVIDERS.JS - LỚI GỌI AI (OPENROUTER / GEMINI)
  * ==========================================
  * Sinh phần Introduction từ CV qua AI, hỗ trợ nhiều provider theo thứ tự
- * cấu hình trong CONFIG.AI_PROVIDERS (mặc định: openrouter trước, gemini dự phòng).
- *
  * Mỗi provider có cơ chế chống rate limit:
  *  - Xoay vòng API key (property chính + _2..10, hoặc 1 property nhiều key cách phẩy)
  *  - Retry với backoff khi gặp 429
@@ -14,7 +12,6 @@
 
 /**
  * Gọi AI sinh phần Introduction từ CV.
- * Provider thử theo thứ tự trong CONFIG.AI_PROVIDERS; provider đầu lỗi sẽ
  * chuyển sang provider kế. Return text hoặc throw Error gộp tất cả lỗi.
  * @param {Object} cvContent - Kết quả từ readCvContent_: { kind: "pdf_inline", pdfBase64, fileName } hoặc { kind: "text", text }
  * @param {Object} candidate - Thông tin ứng viên để AI viết cho đúng ngữ cảnh
@@ -22,7 +19,7 @@
  */
 function callGeminiSummarizeCv_(cvContent, candidate) {
   const prompt = buildGeminiPrompt_(candidate);
-  const providers = CONFIG.AI_PROVIDERS || ["gemini"];
+  const providers = OUTLINE_CV_SUMMARIZER_CONFIG.AI_PROVIDERS || ["gemini"];
   const errors = [];
 
   for (const provider of providers) {
@@ -104,11 +101,12 @@ function callOpenRouter_(cvContent, prompt) {
   }
 
   const models = (
-    CONFIG.OPENROUTER.MODELS && CONFIG.OPENROUTER.MODELS.length
-      ? CONFIG.OPENROUTER.MODELS
+    OUTLINE_CV_SUMMARIZER_CONFIG.OPENROUTER.MODELS &&
+    OUTLINE_CV_SUMMARIZER_CONFIG.OPENROUTER.MODELS.length
+      ? OUTLINE_CV_SUMMARIZER_CONFIG.OPENROUTER.MODELS
       : ["google/gemini-2.5-flash"]
   ).filter(Boolean);
-  const delays = CONFIG.GEMINI.RETRY_DELAYS_MS || [];
+  const delays = OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI.RETRY_DELAYS_MS || [];
   const keys = getOpenRouterApiKeys_();
   const errors = [];
 
@@ -163,7 +161,7 @@ function callOpenRouter_(cvContent, prompt) {
  */
 function callOpenRouterOnce_(model, contentParts, apiKey) {
   const response = UrlFetchApp.fetch(
-    `${CONFIG.OPENROUTER.BASE_URL}/chat/completions`,
+    `${OUTLINE_CV_SUMMARIZER_CONFIG.OPENROUTER.BASE_URL}/chat/completions`,
     {
       method: "post",
       contentType: "application/json",
@@ -243,7 +241,7 @@ function getOpenRouterApiKeys_() {
 /* ------------------------------------------------------------------ */
 
 /**
- * Provider GEMINI: với mỗi model trong CONFIG.GEMINI.MODELS — xoay vòng key và
+ * Provider GEMINI: với mỗi model trong .MODELS — xoay vòng key và
  * retry theo RETRY_DELAYS_MS khi gặp 429; lỗi khác thì chuyển model kế.
  */
 function callGeminiProvider_(cvContent, prompt) {
@@ -258,11 +256,12 @@ function callGeminiProvider_(cvContent, prompt) {
   }
 
   const models = (
-    CONFIG.GEMINI.MODELS && CONFIG.GEMINI.MODELS.length
-      ? CONFIG.GEMINI.MODELS
-      : [CONFIG.GEMINI.MODEL || "gemini-3.1-flash"]
+    OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI.MODELS &&
+    OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI.MODELS.length
+      ? OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI.MODELS
+      : [OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI.MODEL || "gemini-3.1-flash"]
   ).filter(Boolean);
-  const delays = CONFIG.GEMINI.RETRY_DELAYS_MS || [];
+  const delays = OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI.RETRY_DELAYS_MS || [];
   const keys = getGeminiApiKeys_(); // xoay vòng khi gặp 429
   const errors = [];
 
@@ -332,7 +331,7 @@ function callGeminiProvider_(cvContent, prompt) {
  */
 function callGeminiOnce_(model, promptParts, apiKey) {
   const response = UrlFetchApp.fetch(
-    `${CONFIG.GEMINI.BASE_URL}/models/${model}:generateContent?key=${apiKey}`,
+    `${OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI.BASE_URL}/models/${model}:generateContent?key=${apiKey}`,
     {
       method: "post",
       contentType: "application/json",
