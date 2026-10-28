@@ -4,7 +4,7 @@
 const OUTLINE_CV_SUMMARIZER_CONFIG = {
   GATEWAY: {
     WEB_APP_URL:
-      "https://script.google.com/a/macros/kyanon.digital/s/AKfycbyaDkp6IqB4tL8rjumxdQY396oazyGkEedrDZ3knQlpL_OrxZ4u5s_FvOGEqcvEblW_/exec",
+      "https://script.google.com/a/macros/kyanon.digital/s/AKfycbzXI9boKKgZJpN52VeRzwhbuynNP_Z-Aof4t-MSl228jubtWjuVAdrONf7zz6IhkTQ/exec",
   },
 
   OUTLINE: {
@@ -12,7 +12,7 @@ const OUTLINE_CV_SUMMARIZER_CONFIG = {
     PUBLISH: false,
   },
 
-  AI_PROVIDERS: ["gemini", "openrouter"],
+  AI_PROVIDERS: ["openrouter", "gemini"],
 
   GEMINI: {
     MODELS: ["gemini-flash-latest", "gemini-2.5-flash", "gemini-3.8-flash"],
