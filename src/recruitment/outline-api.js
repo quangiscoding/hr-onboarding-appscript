@@ -110,10 +110,10 @@ function callOutlineCreateDocument_(title, text) {
   const payload = {
     title: title,
     text: text,
-    publish: CONFIG.OUTLINE.PUBLISH === true,
+    publish: OUTLINE_CV_SUMMARIZER_CONFIG.OUTLINE.PUBLISH === true,
   };
-  if (payload.publish && CONFIG.OUTLINE.COLLECTION_ID) {
-    payload.collectionId = CONFIG.OUTLINE.COLLECTION_ID;
+  if (payload.publish && OUTLINE_CV_SUMMARIZER_CONFIG.OUTLINE.COLLECTION_ID) {
+    payload.collectionId = OUTLINE_CV_SUMMARIZER_CONFIG.OUTLINE.COLLECTION_ID;
   }
 
   const response = UrlFetchApp.fetch(

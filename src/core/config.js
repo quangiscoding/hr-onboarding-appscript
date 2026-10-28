@@ -33,54 +33,6 @@ const CONFIG = {
     HOA_CAU: "Floor 1, Room 1.2, 09 Hoa Cau, Cau Kieu Ward, Ho Chi Minh City",
   },
 
-  /**
-   * Outline Wiki (AI Recruitment module)
-   * ⚠️ API token KHÔNG hardcode ở đây — đặt Script Property "OUTLINE_API_TOKEN"
-   * trong Apps Script (Project Settings → Script Properties) thay vì commit lên git.
-   * publish: false -> document nằm trong Drafts cá nhân của tài khoản token.
-   */
-  OUTLINE: {
-    BASE_URL: "https://outline.kyanon.digital",
-    PUBLISH: false, // false = tạo draft (mục Drafts), true = publish vào collection
-    // COLLECTION_ID: "", // chỉ cần khi PUBLISH = true
-  },
-
-  /**
-   * AI provider cho việc tóm tắt CV — thử theo thứ tự, provider đầu lỗi
-   * (rate limit, key thiếu, API lỗi...) sẽ tự chuyển sang provider kế.
-   * Chọn: "openrouter" | "gemini"
-   */
-  AI_PROVIDERS: ["openrouter", "gemini"],
-
-  /**
-   * OpenRouter (ưu tiên dùng — 1 API key thống nhất cho mọi model, free tier
-   * rộng hơn). ⚠️ Key đặt Script Property "OPENROUTER_API_KEY" — KHÔNG hardcode.
-   * Lấy key tại https://openrouter.ai/settings/keys
-   */
-  OPENROUTER: {
-    BASE_URL: "https://openrouter.ai/api/v1",
-    MODELS: ["google/gemini-2.5-flash"],
-  },
-
-  /**
-   * Google Gemini (AI provider dự phòng)
-   * ⚠️ API key đặt Script Property "GEMINI_API_KEY" — KHÔNG hardcode.
-   * Lấy key miễn phí tại https://aistudio.google.com/apikey
-   */
-  GEMINI: {
-    // Thử lần lượt theo thứ tự: model chính bị rate limit (429), quá tải (503)
-    // hoặc không tồn tại (404) sẽ tự chuyển sang model dự phòng tiếp theo.
-    // "gemini-flash-latest": alias tự trỏ model flash mới nhất, "gemini-2.5-flash": ổn định nhất.
-    MODELS: [
-      "gemini-flash-latest",
-      "gemini-2.5-flash",
-      "gemini-3.8-flash",
-      "gemini-3.7-flash",
-    ],
-    BASE_URL: "https://generativelanguage.googleapis.com/v1beta",
-    RETRY_DELAYS_MS: [2000, 5000], // backoff giữa các lần retry khi gặp 429
-  },
-
   /** Cấu hình tab log: tên sheet + header của từng luồng */
   LOG: {
     INTERNAL: {
@@ -119,47 +71,7 @@ const CONFIG = {
         "Error Details",
       ],
     },
-    // 1. AI_COST nằm BÊN TRONG LOG:
-    AI_COST: {
-      SHEET_NAME: "AI Cost Log",
-      HEADERS: [
-        "Timestamp",
-        "User Call",
-        "Fullname",
-        "Provider",
-        "Model",
-        "Time Start", // Mới thêm
-        "Time End", // Mới thêm
-        "Latency (s)", // Mới thêm
-        "Input Tokens",
-        "Output Tokens",
-        "Price Input ($/1M)",
-        "Price Output ($/1M)",
-        "Total Cost ($)",
-        "Status",
-        "Error Details",
-      ],
-    },
   },
-
-  // 2. AI_PRICING nằm NGANG CẤP với LOG (bên ngoài LOG):
-  AI_PRICING: {
-    // Gemini 2.5 Flash ($0.30 Input / $2.50 Output)
-    "gemini-2.5-flash": { input: 0.3, output: 2.5 },
-    "gemini-flash-latest": { input: 0.3, output: 2.5 },
-    "google/gemini-2.5-flash": { input: 0.3, output: 2.5 },
-
-    // Gemini 2.5 Flash-Lite ($0.10 Input / $0.40 Output)
-    "gemini-2.5-flash-lite": { input: 0.1, output: 0.4 },
-
-    // Gemini 3.x Flash ($0.75 Input / $3.75 Output)
-    "gemini-3.8-flash": { input: 0.75, output: 3.75 },
-    "gemini-3.7-flash": { input: 0.75, output: 3.75 },
-
-    DEFAULT: { input: 0.3, output: 2.5 },
-  },
-
-  // Sheet UC06 - Avatar Update Reminder
   SPREADSHEET_UC06_ID: "1NoTqsI8oiV0ilqlhLYiAKK6igsyw1n4Z50OxDR3eKcw",
 };
 
