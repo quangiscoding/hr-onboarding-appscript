@@ -1,163 +1,63 @@
 /**
  * services/ai-provider.service.js
- * Quản lý các nhà cung cấp AI Model, cơ chế retry, rotate keys.
+ * Quản lý gửi request qua Gateway độc lập
  */
 class AiProviderService {
   /**
-   * Gọi AI sinh phần Introduction từ CV theo danh sách provider cấu hình.
-   * @param {Object} cvContent - { kind: "pdf_inline", pdfBase64, fileName } hoặc { kind: "text", text }
+   * Bắn HTTP request sang Gateway Web App
+   * @param {Object} params - { provider, model, promptParts }
+   * @returns {Object}
+   */
+  static callGateway({ provider, model, promptParts }) {
+    const gatewayUrl = OUTLINE_CV_SUMMARIZER_CONFIG.GATEWAY.WEB_APP_URL;
+
+    const payload = {
+      userEmail: Session.getActiveUser().getEmail(),
+      sourceApp: "Recruitment Onboarding",
+      provider: provider,
+      model: model,
+      promptParts: promptParts,
+    };
+
+    const response = UrlFetchApp.fetch(gatewayUrl, {
+      method: "post",
+      contentType: "application/json",
+      headers: {
+        Authorization: "Bearer " + ScriptApp.getOAuthToken(),
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true,
+    });
+
+    const statusCode = response.getResponseCode();
+    const rawText = response.getContentText() || "{}";
+    let body = {};
+    try {
+      body = JSON.parse(rawText);
+    } catch (e) {
+      throw new Error(
+        `Gateway phản hồi không đúng JSON (HTTP ${statusCode}): ${rawText}`,
+      );
+    }
+
+    if (statusCode !== 200 || !body.ok) {
+      throw new Error(body.error || `Gateway lỗi (HTTP ${statusCode})`);
+    }
+
+    return body;
+  }
+
+  /**
+   * Tóm tắt CV ứng viên theo danh sách provider cấu hình
+   * @param {Object} cvContent - { kind, pdfBase64, text, fileName }
    * @param {Object} candidate - Thông tin ứng viên
    * @returns {{ text: string, provider: string, model: string, inputTokens: number, outputTokens: number }}
    */
   static summarizeCv(cvContent, candidate) {
     const prompt = AiProviderUtil.buildWelcomePrompt(candidate);
-    const providers = OUTLINE_CV_SUMMARIZER_CONFIG.AI_PROVIDERS || [
-      "openrouter",
-      "gemini",
-    ];
-    const errors = [];
 
-    for (const provider of providers) {
-      try {
-        if (provider === "openrouter") {
-          return this.callOpenRouter(cvContent, prompt);
-        }
-        if (provider === "gemini") {
-          return this.callGemini(cvContent, prompt);
-        }
-        errors.push(`Không biết provider "${provider}" — bỏ qua.`);
-      } catch (e) {
-        errors.push(`[${provider}] ${e.message}`);
-        Logger.log(`⚠️ Provider ${provider} lỗi, chuyển kế tiếp: ${e.message}`);
-      }
-    }
-
-    throw new Error("Tất cả AI provider đều lỗi:\n" + errors.join("\n"));
-  }
-
-  /* ---------------- OPENROUTER ---------------- */
-
-  static callOpenRouter(cvContent, prompt) {
-    const contentParts = [{ type: "text", text: prompt }];
-    if (cvContent.kind === "pdf_inline") {
-      contentParts.push({
-        type: "file",
-        file: {
-          filename: cvContent.fileName || "cv.pdf",
-          file_data: `data:application/pdf;base64,${cvContent.pdfBase64}`,
-        },
-      });
-    } else {
-      contentParts[0].text +=
-        "\n\nCV content:\n" + String(cvContent.text || "").slice(0, 15000);
-    }
-
-    const config = OUTLINE_CV_SUMMARIZER_CONFIG.OPENROUTER;
-    const models = (
-      config.MODELS && config.MODELS.length
-        ? config.MODELS
-        : ["google/gemini-2.5-flash"]
-    ).filter(Boolean);
-    const delays = OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI.RETRY_DELAYS_MS || [
-      2000, 5000,
-    ];
-    const keys = AiProviderUtil.extractApiKeysFromProps("OPENROUTER_API_KEY");
-
-    if (keys.length === 0) {
-      throw new Error('Thiếu Script Property "OPENROUTER_API_KEY".');
-    }
-
-    const errors = [];
-    for (const model of models) {
-      for (let attempt = 0; attempt <= delays.length; attempt++) {
-        if (attempt > 0) {
-          Logger.log(
-            `⏳ OpenRouter ${model}: rate limit, retry sau ${delays[attempt - 1]}ms`,
-          );
-          Utilities.sleep(delays[attempt - 1]);
-        }
-        const key = keys[attempt % keys.length];
-        const res = this.callOpenRouterOnce_(
-          model,
-          contentParts,
-          key,
-          config.BASE_URL,
-        );
-
-        if (res.ok) {
-          return {
-            text: res.text,
-            provider: "openrouter",
-            model: model,
-            inputTokens: res.inputTokens,
-            outputTokens: res.outputTokens,
-          };
-        }
-
-        if (res.status !== 429) {
-          errors.push(
-            `${model} [key #${(attempt % keys.length) + 1}]: ${res.message}`,
-          );
-          break;
-        }
-        errors.push(
-          `${model} [key #${(attempt % keys.length) + 1}] (attempt ${attempt + 1}): ${res.message}`,
-        );
-      }
-    }
-
-    throw new Error("OpenRouter thất bại:\n" + errors.join("\n"));
-  }
-
-  static callOpenRouterOnce_(model, contentParts, apiKey, baseUrl) {
-    const response = UrlFetchApp.fetch(`${baseUrl}/chat/completions`, {
-      method: "post",
-      contentType: "application/json",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      payload: JSON.stringify({
-        model: model,
-        messages: [{ role: "user", content: contentParts }],
-        max_tokens: 1024,
-      }),
-      muteHttpExceptions: true,
-    });
-
-    const statusCode = response.getResponseCode();
-    const body = JSON.parse(response.getContentText() || "{}");
-
-    if (statusCode !== 200 || !body.choices || !body.choices[0]) {
-      const errMsg =
-        body.error && body.error.message
-          ? body.error.message
-          : response.getContentText();
-      return { ok: false, status: statusCode, message: errMsg };
-    }
-
-    const text = String(
-      (body.choices[0].message && body.choices[0].message.content) || "",
-    ).trim();
-    if (!text) {
-      return {
-        ok: false,
-        status: statusCode,
-        message: "OpenRouter trả về nội dung rỗng.",
-      };
-    }
-
-    const usage = body.usage || {};
-    return {
-      ok: true,
-      text: text,
-      inputTokens: usage.prompt_tokens || 0,
-      outputTokens: usage.completion_tokens || 0,
-    };
-  }
-
-  /* ---------------- GEMINI DIRECT ---------------- */
-
-  static callGemini(cvContent, prompt) {
     const promptParts = [{ text: prompt }];
-    if (cvContent.kind === "pdf_inline") {
+    if (cvContent && cvContent.kind === "pdf_inline") {
       promptParts.push({
         inline_data: {
           mime_type: "application/pdf",
@@ -166,112 +66,61 @@ class AiProviderService {
       });
     } else {
       promptParts[0].text +=
-        "\n\nCV content:\n" + String(cvContent.text || "").slice(0, 15000);
+        "\n\nCV content:\n" +
+        String((cvContent && cvContent.text) || "").slice(0, 15000);
     }
 
-    const config = OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI;
-    const models = (
-      config.MODELS && config.MODELS.length
-        ? config.MODELS
-        : ["gemini-2.5-flash"]
-    ).filter(Boolean);
-    const delays = config.RETRY_DELAYS_MS || [2000, 5000];
-    const keys = AiProviderUtil.extractApiKeysFromProps("GEMINI_API_KEY");
-
-    if (keys.length === 0) {
-      throw new Error('Thiếu Script Property "GEMINI_API_KEY".');
-    }
-
+    const providers = OUTLINE_CV_SUMMARIZER_CONFIG.AI_PROVIDERS || ["gemini"];
     const errors = [];
-    for (const model of models) {
-      for (let attempt = 0; attempt <= delays.length; attempt++) {
-        if (attempt > 0) {
-          Logger.log(
-            `⏳ Gemini ${model}: rate limit, retry sau ${delays[attempt - 1]}ms`,
-          );
-          Utilities.sleep(delays[attempt - 1]);
-        }
-        const key = keys[attempt % keys.length];
-        const res = this.callGeminiOnce_(
-          model,
-          promptParts,
-          key,
-          config.BASE_URL,
-        );
 
-        if (res.ok) {
-          return {
-            text: res.text,
-            provider: "gemini",
-            model: model,
-            inputTokens: res.inputTokens,
-            outputTokens: res.outputTokens,
-          };
-        }
+    for (const provider of providers) {
+      try {
+        const models =
+          provider === "openrouter"
+            ? OUTLINE_CV_SUMMARIZER_CONFIG.OPENROUTER?.MODELS
+            : OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI?.MODELS;
 
-        if (res.status !== 429) {
-          errors.push(
-            `${model} [key #${(attempt % keys.length) + 1}]: ${res.message}`,
-          );
-          break;
-        }
-        errors.push(
-          `${model} [key #${(attempt % keys.length) + 1}] (attempt ${attempt + 1}): ${res.message}`,
+        const targetModel = models && models.length ? models[0] : null;
+
+        return this.callGateway({
+          provider: provider,
+          model: targetModel,
+          promptParts: promptParts,
+        });
+      } catch (err) {
+        errors.push(`[${provider}] ${err.message}`);
+        Logger.log(
+          `⚠️ Provider ${provider} qua Gateway lỗi, thử provider kế: ${err.message}`,
         );
       }
     }
 
-    throw new Error("Gemini API thất bại:\n" + errors.join("\n"));
-  }
-
-  static callGeminiOnce_(model, promptParts, apiKey, baseUrl) {
-    const response = UrlFetchApp.fetch(
-      `${baseUrl}/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: "post",
-        contentType: "application/json",
-        payload: JSON.stringify({
-          contents: [{ parts: promptParts }],
-          generationConfig: {},
-        }),
-        muteHttpExceptions: true,
-      },
+    throw new Error(
+      "Tất cả AI provider qua Gateway đều thất bại:\n" + errors.join("\n"),
     );
+  }
+}
 
-    const statusCode = response.getResponseCode();
-    const body = JSON.parse(response.getContentText() || "{}");
+function testAiGatewayConnection() {
+  try {
+    Logger.log("🔄 Đang gửi test request sang Gateway...");
 
-    if (statusCode !== 200 || !body.candidates || !body.candidates[0]) {
-      const errMsg =
-        body.error && body.error.message
-          ? body.error.message
-          : response.getContentText();
-      return { ok: false, status: statusCode, message: errMsg };
-    }
+    const res = AiProviderService.callGateway({
+      provider: "gemini",
+      model: "gemini-2.5-flash",
+      promptParts: [{ text: "Trả lời đúng 1 từ: PONG" }],
+    });
 
-    const parts =
-      body.candidates[0].content && body.candidates[0].content.parts;
-    const text =
-      parts &&
-      parts
-        .map((p) => p.text || "")
-        .join("")
-        .trim();
-
-    if (!text) {
-      return {
-        ok: false,
-        status: statusCode,
-        message: "Gemini trả về nội dung rỗng.",
-      };
-    }
-
-    const usage = body.usageMetadata || {};
-    return {
-      ok: true,
-      text: text,
-      inputTokens: usage.promptTokenCount || 0,
-      outputTokens: usage.candidatesTokenCount || 0,
-    };
+    Logger.log("✅ KẾT NỐI THÀNH CÔNG!");
+    Logger.log("Phản hồi từ AI: " + res.text);
+    Logger.log("Provider: " + res.provider + " | Model: " + res.model);
+    Logger.log(
+      "Input Tokens: " +
+        res.inputTokens +
+        " | Output Tokens: " +
+        res.outputTokens,
+    );
+  } catch (e) {
+    Logger.log("❌ KẾT NỐI THẤT BẠI: " + e.message);
   }
 }
