@@ -4,7 +4,7 @@
 const OUTLINE_CV_SUMMARIZER_CONFIG = {
   GATEWAY: {
     WEB_APP_URL:
-      "https://script.google.com/a/macros/kyanon.digital/s/AKfycbwF7OZ9KYVm_whEzHpp9Ytg6VG6eDhcgGRmSsbaCSsm_cuatA-XdxYCoQDcYdiQ3tdP/exec",
+      "https://script.google.com/a/macros/kyanon.digital/s/AKfycbwqPVlgbzfCnb4ITwu5JWZknHmf5FKcdkTc2JHtJy8cvPnMLl0F5UoGUnl2qcaRZFfI/exec",
   },
 
   OUTLINE: {
