@@ -172,349 +172,88 @@ class OnboardingService {
 
   /* --- LUỒNG 4: AVATAR UPDATE --- */
   static handleAvatarUpdate() {
-    const SPREADSHEET_UC06_ID = ONBOARDING_CONFIG.SPREADSHEET_UC06_ID;
-    const TRIGGER_TYPE = ONBOARDING_CONFIG.TRIGGERS.AVATAR_UPDATE;
+    const TRIGGER = ONBOARDING_CONFIG.TRIGGERS.AVATAR_UPDATE;
+    const currentUser = Session.getActiveUser().getEmail().toLowerCase().trim();
+    const currentAllocCode = currentUser.split("@")[0].trim();
 
-    const currentUserEmail = Session.getActiveUser()
-      .getEmail()
-      .toLowerCase()
-      .trim();
-    const currentAllocCode = currentUserEmail.split("@")[0].trim();
+    // 1. Lấy dữ liệu từ Repo/Util
+    const avatarMap = AvatarUpdateUtil.loadMapAndSync(
+      ONBOARDING_CONFIG.SPREADSHEET_UC06_ID,
+    );
+    const { candidates, sheetUrl, todayDisplay } =
+      OnboardingUtil.getTodayOnboardCandidates(currentAllocCode, TRIGGER);
 
-    let avatarMap = {};
-    let uc06SheetUrl = "";
-
-    try {
-      const uc06Ss = SpreadsheetApp.openById(SPREADSHEET_UC06_ID);
-      const uc06Sheet = uc06Ss.getSheets()[0];
-      uc06SheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit#gid=${uc06Sheet.getSheetId()}`;
-      const lastRowUC06 = uc06Sheet.getLastRow();
-      const lastColUC06 = uc06Sheet.getLastColumn();
-
-      if (lastRowUC06 > 1 && lastColUC06 > 0) {
-        const uc06ColMap = getHeaderColumnMap(uc06Sheet);
-        const emailColNumber = uc06ColMap[normalizeHeaderKey("Email Address")];
-        const pictureColNumber = uc06ColMap[normalizeHeaderKey("Picture")];
-        const checkColNumber = uc06ColMap[normalizeHeaderKey("Check 1:1")];
-        const squareImgColNumber =
-          uc06ColMap[normalizeHeaderKey("Ảnh 1:1")] ||
-          uc06ColMap[normalizeHeaderKey("Anh 1:1")] ||
-          uc06ColMap[normalizeHeaderKey("Picture 1:1")] ||
-          (checkColNumber ? checkColNumber + 1 : null);
-
-        if (emailColNumber && pictureColNumber) {
-          const emailColIdx = emailColNumber - 1;
-          const pictureColIdx = pictureColNumber - 1;
-          const squareImgColIdx = squareImgColNumber
-            ? squareImgColNumber - 1
-            : -1;
-          const pictureColLetter = getColumnLetterFromIndex(pictureColNumber);
-          const squareColLetter = squareImgColNumber
-            ? getColumnLetterFromIndex(squareImgColNumber)
-            : pictureColLetter;
-
-          const uc06Data = uc06Sheet
-            .getRange(2, 1, lastRowUC06 - 1, lastColUC06)
-            .getValues();
-
-          const checkColumnOutputs = [];
-          let hasChanges = false;
-
-          for (let i = 0; i < uc06Data.length; i++) {
-            const row = uc06Data[i];
-            const rawEmail = row[emailColIdx];
-            const currentCheckVal = checkColNumber
-              ? String(row[checkColNumber - 1] || "")
-              : "";
-
-            if (!rawEmail) {
-              checkColumnOutputs.push([currentCheckVal]);
-              continue;
-            }
-
-            const personalEmail = String(rawEmail).trim().toLowerCase();
-            const pictureUrl = String(row[pictureColIdx] || "").trim();
-            const squareBackupUrl =
-              squareImgColIdx >= 0
-                ? String(row[squareImgColIdx] || "").trim()
-                : "";
-            const uc06RowNumber = i + 2;
-            let isSquare = false;
-            let dimensions = null;
-            let newCheckVal = currentCheckVal;
-
-            if (pictureUrl) {
-              const fileId = extractDriveFileId_(pictureUrl);
-              if (fileId) {
-                dimensions = getImageDimensionsFromDriveId_(fileId);
-                if (dimensions) {
-                  isSquare = dimensions.isSquare;
-                  newCheckVal = isSquare
-                    ? "1:1"
-                    : `${dimensions.width}x${dimensions.height}`;
-                }
-              }
-            } else {
-              newCheckVal = "";
-            }
-
-            if (newCheckVal !== currentCheckVal) {
-              hasChanges = true;
-            }
-            checkColumnOutputs.push([newCheckVal]);
-
-            if (personalEmail) {
-              avatarMap[personalEmail] = {
-                pictureUrl,
-                squareBackupUrl,
-                uc06RowNumber,
-                uc06RowLink: `${uc06SheetUrl}&range=${pictureColLetter}${uc06RowNumber}`,
-                uc06SquareLink: `${uc06SheetUrl}&range=${squareColLetter}${uc06RowNumber}`,
-                isSquare,
-                dimensions,
-              };
-            }
-          }
-
-          if (hasChanges && checkColNumber) {
-            uc06Sheet
-              .getRange(2, checkColNumber, checkColumnOutputs.length, 1)
-              .setValues(checkColumnOutputs);
-          }
-        }
-      }
-    } catch (e) {
-      Logger.log("⚠️ Lỗi tra cứu và ghi nhận Avatar UC06: " + e.message);
+    if (!candidates.length) {
+      throw new WorkflowError(
+        "NO_CANDIDATES_FOUND",
+        `Không tìm thấy nhân sự onboard hôm nay (${todayDisplay}) thuộc quản lý của bạn.`,
+      );
     }
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getActiveSheet();
-    const sheetUrl = ss.getUrl();
-    const rawLastRow = sheet.getLastRow();
+    // 2. Phân loại theo nghiệp vụ
+    const ready = [];
+    const missing = [];
+    const alreadyProcessed = candidates.filter((c) => c.isLocked);
 
-    if (rawLastRow <= 1) {
-      return { ok: false, message: "Sheet dữ liệu Hera hiện đang rỗng." };
-    }
-
-    const heraColMap = getHeaderColumnMap(sheet);
-    const heraAllRowsData = sheet
-      .getRange(1, 1, rawLastRow, sheet.getLastColumn())
-      .getValues();
-    const cachedContext = {
-      colMap: heraColMap,
-      allRowsData: heraAllRowsData,
-      sheetUrl: sheetUrl,
-      sheetId: sheet.getSheetId(),
-      currentUserEmail: Session.getEffectiveUser().getEmail(),
-    };
-
-    const lockedKeysSet = new Set();
-    try {
-      const allMetadata = sheet.getDeveloperMetadata();
-      allMetadata.forEach((meta) => {
-        const key = meta.getKey();
-        const val = meta.getValue();
-        if (key) lockedKeysSet.add(key);
-        if (val) lockedKeysSet.add(val);
+    candidates
+      .filter((c) => !c.isLocked)
+      .forEach((c) => {
+        const uc06 = avatarMap[c.personalEmail.toLowerCase()];
+        AvatarUpdateUtil.classifyCandidate(c, uc06) === "READY"
+          ? ready.push(c)
+          : missing.push(c);
       });
-    } catch (errMeta) {
-      Logger.log("⚠️ Không tải được Metadata theo lô: " + errMeta.message);
-    }
 
-    let actualLastRow = 1;
-    for (let r = heraAllRowsData.length - 1; r >= 1; r--) {
-      if (
-        heraAllRowsData[r][1] &&
-        String(heraAllRowsData[r][1]).trim() !== ""
-      ) {
-        actualLastRow = r + 1;
-        break;
-      }
-    }
-
-    if (actualLastRow <= 1) {
-      return {
-        ok: false,
-        message: "Không tìm thấy dòng dữ liệu nhân sự hợp lệ nào.",
-      };
-    }
-
-    const scriptTimeZone = Session.getScriptTimeZone();
-    const todayStr = Utilities.formatDate(
-      new Date(),
-      scriptTimeZone,
-      "yyyy-MM-dd",
-    );
-    const todayDisplayStr = Utilities.formatDate(
-      new Date(),
-      scriptTimeZone,
-      "dd/MM/yyyy",
-    );
-
-    const readyForDevOps = [];
-    const missingForTA = [];
-    const alreadyProcessed = [];
-
-    for (let r = actualLastRow; r >= 2; r--) {
-      let candidateData;
-      try {
-        candidateData = OnboardingUtil.getNormalizedInput(
-          TRIGGER_TYPE,
-          r,
-          cachedContext,
-        );
-      } catch (err) {
-        continue;
-      }
-      if (!candidateData) continue;
-
-      const {
-        status,
-        startDate,
-        taEmail,
-        fullName,
-        personalEmail,
-        workingEmail,
-        rowNumber,
-      } = candidateData;
-
-      const targetLockEmail = personalEmail || workingEmail;
-      if (!fullName || !personalEmail) continue;
-
-      const rawStatus = String(status || "")
-        .toLowerCase()
-        .replace(/[-_ \t]/g, "");
-      if (rawStatus !== "onboarded") continue;
-      if (startDate !== todayDisplayStr && startDate !== todayStr) continue;
-
-      const taAllocCode = String(taEmail || "")
-        .split("@")[0]
-        .trim()
-        .toLowerCase();
-      if (taAllocCode !== currentAllocCode) continue;
-
-      let isLocked = false;
-      if (lockedKeysSet.size > 0) {
-        const lockKey = `${TRIGGER_TYPE}_${rowNumber}_${targetLockEmail.toLowerCase()}`;
-        isLocked = lockedKeysSet.has(lockKey);
-      } else {
-        isLocked = isRowLockedForWorkflow(
-          rowNumber,
-          TRIGGER_TYPE,
-          targetLockEmail,
-        );
-      }
-
-      if (isLocked) {
-        alreadyProcessed.push(candidateData);
-        continue;
-      }
-
-      const cleanPersonalEmail = personalEmail.toLowerCase();
-      const uc06Info = avatarMap[cleanPersonalEmail] || null;
-
-      candidateData.avatarUrl = uc06Info ? uc06Info.pictureUrl : "";
-      candidateData.squareBackupUrl = uc06Info ? uc06Info.squareBackupUrl : "";
-      candidateData.uc06RowNumber = uc06Info ? uc06Info.uc06RowNumber : null;
-      candidateData.uc06RowLink = uc06Info ? uc06Info.uc06RowLink : "";
-      candidateData.uc06SquareLink = uc06Info ? uc06Info.uc06SquareLink : "";
-      candidateData.isSquare = uc06Info ? uc06Info.isSquare : false;
-      candidateData.dimensions = uc06Info ? uc06Info.dimensions : null;
-
-      if (!candidateData.uc06RowNumber) {
-        candidateData.issueReason = "NOT_IN_SHEET";
-        missingForTA.push(candidateData);
-      } else if (candidateData.avatarUrl && candidateData.isSquare) {
-        candidateData.finalAvatarUrl = candidateData.avatarUrl;
-        candidateData.finalAvatarCellLink = candidateData.uc06RowLink;
-        candidateData.isFromSquareBackup = false;
-        readyForDevOps.push(candidateData);
-      } else if (candidateData.squareBackupUrl) {
-        candidateData.finalAvatarUrl = candidateData.squareBackupUrl;
-        candidateData.finalAvatarCellLink = candidateData.uc06SquareLink;
-        candidateData.isFromSquareBackup = true;
-        readyForDevOps.push(candidateData);
-      } else if (!candidateData.avatarUrl) {
-        candidateData.issueReason = "EMPTY_IMAGE";
-        missingForTA.push(candidateData);
-      } else {
-        candidateData.issueReason = "INVALID_RATIO_MISSING_BACKUP";
-        missingForTA.push(candidateData);
-      }
-    }
-
-    const summaryMsg = [];
-    if (readyForDevOps.length > 0) {
-      const devopsRecipients = getRecipientsByRole(
+    // 3. Gửi email & Khóa dòng cho nhóm Ready
+    if (ready.length > 0) {
+      const devops = getRecipientsByRole(
         ONBOARDING_CONFIG.RECIPIENT_ROLES.DEVOPS,
       );
-      const mailTemplate = getAvatarUpdateDigestTemplate(
-        readyForDevOps,
-        sheetUrl,
-        todayDisplayStr,
-      );
-      const to = (devopsRecipients?.to || []).join(",");
-      const cc = [(devopsRecipients?.cc || []).join(","), currentUserEmail]
+      const tpl = getAvatarUpdateDigestTemplate(ready, sheetUrl, todayDisplay);
+      const to = (devops?.to || []).join(",");
+      const cc = [(devops?.cc || []).join(","), currentUser]
         .filter(Boolean)
         .join(",");
 
-      OnboardingService.sendDirectEmail_(to, mailTemplate, cc);
+      OnboardingService.sendDirectEmail_(to, tpl, cc);
 
-      readyForDevOps.forEach((item) => {
+      ready.forEach((c) => {
         lockRowForWorkflow(
-          item.rowNumber,
-          TRIGGER_TYPE,
-          item.personalEmail || item.workingEmail,
+          c.rowNumber,
+          TRIGGER,
+          c.personalEmail || c.workingEmail,
         );
         logInternalWorkflow(
-          item,
-          [{ type: "DevOps Avatar Update", to: to }],
+          c,
+          [{ type: "DevOps Avatar Update", to }],
           "EMAIL_SENT",
           "",
         );
       });
-
-      summaryMsg.push(
-        `✅ Đã gửi email nhắc DevOps cho ${readyForDevOps.length} nhân sự (đã khóa dòng).`,
-      );
     }
 
-    const totalCount =
-      readyForDevOps.length + missingForTA.length + alreadyProcessed.length;
-    if (totalCount === 0) {
-      throw new WorkflowError(
-        "NO_CANDIDATES_FOUND",
-        `Không tìm thấy nhân sự onboard hôm nay (${todayDisplayStr}) thuộc quản lý của bạn (${currentAllocCode}).\nHãy kiểm tra và đảm bảo cột Offer Status đang ở trạng thái On-boarded.`,
-      );
-    }
-
-    let dialogTitle = `📋 Báo cáo Avatar Onboard (${todayDisplayStr})`;
-    if (missingForTA.length > 0) {
-      dialogTitle = `⚠️ Cần xử lý Avatar cho ${missingForTA.length} nhân sự`;
-    } else if (readyForDevOps.length > 0) {
-      dialogTitle = `🎉 Đã gửi cập nhật Avatar cho ${readyForDevOps.length} nhân sự`;
-    }
-
+    // 4. Trả kết quả hiển thị cho Controller
     return {
       ok: true,
       hasModal: true,
       modalConfig: {
         templatePath: ONBOARDING_CONFIG.TEMPLATES.DIALOG.TA_REMINDER,
-        title: dialogTitle,
+        title: missing.length
+          ? `⚠️ Cần xử lý Avatar cho ${missing.length} nhân sự`
+          : `🎉 Đã gửi cập nhật Avatar cho ${ready.length} nhân sự`,
         width: 740,
         height: 480,
         data: {
-          readyForDevOps,
-          missingForTA,
+          readyForDevOps: ready,
+          missingForTA: missing,
           alreadyProcessed,
-          uc06Url: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_UC06_ID}/edit`,
+          uc06Url: `https://docs.google.com/spreadsheets/d/${ONBOARDING_CONFIG.SPREADSHEET_UC06_ID}/edit`,
         },
       },
-      status: missingForTA.length > 0 ? "HAS_MISSING" : "SUCCESS",
-      readyForDevOps,
-      missingForTA,
-      alreadyProcessed,
-      message: summaryMsg.join("\n\n"),
+      status: missing.length ? "HAS_MISSING" : "SUCCESS",
+      message: ready.length
+        ? `✅ Đã gửi email nhắc DevOps cho ${ready.length} nhân sự.`
+        : "",
     };
   }
 }

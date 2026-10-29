@@ -155,6 +155,118 @@ class OnboardingUtil {
       currentUserEmail: ctx.currentUserEmail,
     };
   }
+
+  /**
+   * Tải toàn bộ dữ liệu Sheet và Metadata vào RAM để chạy batch tốc độ cao
+   */
+  static loadBatchContext() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getActiveSheet();
+    const sheetUrl = ss.getUrl();
+    const rawLastRow = sheet.getLastRow();
+
+    if (rawLastRow <= 1) {
+      return { isEmpty: true, message: "Sheet dữ liệu hiện đang rỗng." };
+    }
+
+    const colMap = getHeaderColumnMap(sheet);
+    const allRowsData = sheet
+      .getRange(1, 1, rawLastRow, sheet.getLastColumn())
+      .getValues();
+
+    const cachedContext = {
+      colMap,
+      allRowsData,
+      sheetUrl,
+      sheetId: sheet.getSheetId(),
+      currentUserEmail: Session.getEffectiveUser().getEmail(),
+    };
+
+    const lockedKeysSet = new Set();
+    try {
+      const allMetadata = sheet.getDeveloperMetadata();
+      allMetadata.forEach((meta) => {
+        const key = meta.getKey();
+        const val = meta.getValue();
+        if (key) lockedKeysSet.add(key);
+        if (val) lockedKeysSet.add(val);
+      });
+    } catch (err) {
+      Logger.log("⚠️ Không tải được Metadata theo lô: " + err.message);
+    }
+
+    let actualLastRow = 1;
+    for (let r = allRowsData.length - 1; r >= 1; r--) {
+      if (allRowsData[r][1] && String(allRowsData[r][1]).trim() !== "") {
+        actualLastRow = r + 1;
+        break;
+      }
+    }
+
+    return {
+      isEmpty: actualLastRow <= 1,
+      cachedContext,
+      lockedKeysSet,
+      actualLastRow,
+      sheetUrl,
+    };
+  }
+
+  /**
+   * Quét và lọc danh sách nhân sự Onboard hôm nay của TA đang thao tác
+   */
+  static getTodayOnboardCandidates(currentAllocCode, triggerType) {
+    const ctx = OnboardingUtil.loadBatchContext();
+    if (ctx.isEmpty) {
+      return { candidates: [], sheetUrl: "", todayDisplay: "" };
+    }
+
+    const scriptTz = Session.getScriptTimeZone();
+    const todayStr = Utilities.formatDate(new Date(), scriptTz, "yyyy-MM-dd");
+    const todayDisplay = Utilities.formatDate(
+      new Date(),
+      scriptTz,
+      "dd/MM/yyyy",
+    );
+
+    const list = [];
+    for (let r = ctx.actualLastRow; r >= 2; r--) {
+      let d;
+      try {
+        d = OnboardingUtil.getNormalizedInput(
+          triggerType,
+          r,
+          ctx.cachedContext,
+        );
+      } catch (e) {
+        continue;
+      }
+      if (!d || !d.fullName || !d.personalEmail) continue;
+
+      const isStatusOk =
+        String(d.status || "")
+          .toLowerCase()
+          .replace(/[-_ \t]/g, "") === "onboarded";
+      const isDateOk = d.startDate === todayDisplay || d.startDate === todayStr;
+      const isTaOk =
+        String(d.taEmail || "")
+          .split("@")[0]
+          .trim()
+          .toLowerCase() === currentAllocCode;
+
+      if (isStatusOk && isDateOk && isTaOk) {
+        const targetEmail = d.personalEmail || d.workingEmail;
+        const lockKey = `${triggerType}_${d.rowNumber}_${targetEmail.toLowerCase()}`;
+        d.isLocked =
+          ctx.lockedKeysSet.size > 0
+            ? ctx.lockedKeysSet.has(lockKey)
+            : isRowLockedForWorkflow(d.rowNumber, triggerType, targetEmail);
+        list.push(d);
+      }
+    }
+
+    return { candidates: list, sheetUrl: ctx.sheetUrl, todayDisplay };
+  }
 }
 
 /* Alias tương thích ngược cho code cũ */
