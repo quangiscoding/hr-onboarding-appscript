@@ -8,8 +8,14 @@ class EmailTemplateBuilder {
    * @private
    */
   static renderView_(fullPath, data) {
+    if (!fullPath || typeof fullPath !== "string") {
+      throw new WorkflowError(
+        "INVALID_TEMPLATE_PATH",
+        `Đường dẫn template HTML không hợp lệ: "${fullPath}". Hãy kiểm tra lại key trong ONBOARDING_CONFIG.TEMPLATES.EMAIL!`,
+        { fullPath, data },
+      );
+    }
     const template = HtmlService.createTemplateFromFile(fullPath);
-    // Gán cả direct keys và data.it để hỗ trợ cả cú pháp <?= fullName ?> lẫn <?= it.fullName ?>
     Object.assign(template, data);
     template.it = data;
     return template.evaluate().getContent();
@@ -131,11 +137,10 @@ class EmailTemplateBuilder {
   static getAvatarUpdateDigest(candidates, sheetUrl, todayStr) {
     const subject = `[Avatar Updated] Danh sách cập nhật Avatar nhân sự onboard ngày ${todayStr} (${candidates.length} nhân sự)`;
     const payload = { candidates, sheetUrl, todayStr };
-
     return {
       subject,
       htmlBody: this.renderView_(
-        ONBOARDING_CONFIG.TEMPLATES.EMAIL.AVATAR_DIGEST,
+        ONBOARDING_CONFIG.TEMPLATES.EMAIL.AVATAR_UPDATE, // ✅ Sửa thành AVATAR_UPDATE
         payload,
       ),
     };

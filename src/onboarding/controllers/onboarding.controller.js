@@ -40,7 +40,6 @@ class OnboardingController {
       const result = workflow.isBatch
         ? this.runBatch_(workflow)
         : this.runSingleRow_(triggerType, workflow);
-
       if (!result) return;
 
       if (result.hasModal && result.modalConfig) {
@@ -50,12 +49,24 @@ class OnboardingController {
         UIFeedback.notifySuccess("Thành công 🎉", result.message);
       }
     } catch (error) {
-      if (error instanceof WorkflowError) {
-        UIFeedback.notifyError("Lỗi ❌", error.userMessage);
-      } else {
-        Logger.log(`❌ Lỗi hệ thống [${triggerType}]: ${error.toString()}`);
-        UIFeedback.notifyError("❌ Lỗi hệ thống", error.message);
-      }
+      // 1. LẤY TOÀN BỘ STACK TRACE TỪ ERROR HOẶC LỖI GỐC (DETAILS)
+      const stackTrace =
+        error.stack ||
+        (error.details && error.details.stack) ||
+        "Không thể lấy Stack Trace";
+      const fullErrorMsg = error.userMessage || error.message || String(error);
+
+      // 2. GHI RA EXECUTION LOG (ĐẦY ĐỦ CẢ DÒNG VÀ FILE)
+      Logger.log(`❌ Lỗi hệ thống [${triggerType}]: ${fullErrorMsg}`);
+      Logger.log(`📍 Call Stack:\n${stackTrace}`);
+      console.error(`[${triggerType}] Exception Details:`, error);
+
+      // 3. HIỂN THỊ ALERT TRỰC TIẾP TRÊN SHEET KÈM VỊ TRÍ GÂY LỖI
+      SpreadsheetApp.getUi().alert(
+        `❌ Lỗi hệ thống [${triggerType}]`,
+        `Chi tiết lỗi: ${fullErrorMsg}\n\n📍 Vị trí phát sinh lỗi (Stack Trace):\n${stackTrace}`,
+        SpreadsheetApp.getUi().ButtonSet.OK,
+      );
     }
   }
 
