@@ -1,74 +1,67 @@
-/** ==========================================
- * CORE/UI-FEEDBACK.JS - LỚP HIỂN THỊ THÔNG BẢO DUY NHẤT
- * ==========================================
- * Quy tắc kiến trúc (docs/refactor-plan.md, Phase 1):
- * - Đây là nơi DUY NHẤT (cùng với main.js) được gọi SpreadsheetApp.getUi().
- * - Business logic (workflows.js) chỉ return kết quả / throw WorkflowError;
- *   tầng điều phối (main.js) gọi các hàm ở đây để hiển thị.
- * - Lợi ích: workflow tái sử dụng được từ Sidebar/Web App (nơi KHÔNG có getUi),
- *   và đổi hình thức thông báo (alert -> toast) chỉ cần sửa 1 file.
- */
-
 /**
- * Lỗi nghiệp vụ có chủ đích từ workflow: màn hình hiển thị `userMessage`,
- * log kỹ thuật dùng `logDetail`.
+ * CORE/UI-FEEDBACK.JS - Lớp hiển thị UI tập trung
  */
-class WorkflowError extends Error {
-  /**
-   * @param {string} code Mã lỗi ổn định (vd: MISSING_TA_EMAIL, NO_MATCHED_CANDIDATES)
-   * @param {string} userMessage Thông điệp an toàn để hiển thị cho người dùng
-   * @param {Object} [details] Dữ liệu thêm cho log
-   */
-  constructor(code, userMessage, details = {}) {
-    super(userMessage);
-    this.name = "WorkflowError";
-    this.code = code;
-    this.userMessage = userMessage;
-    this.details = details;
 
-    // ⚡ TỰ ĐỘNG GHI LOG NGHỆM THU KHI CÓ LỖI NGHIỆP VỤ (KÈM STACK TRACE)
-    Logger.log(
-      `❌ [WorkflowError - ${code}]: ${userMessage} ${Object.keys(details).length ? "| Details: " + JSON.stringify(details) : ""}`,
+/** Utility hiển thị giao diện tập trung */
+class UIFeedback {
+  /** Alert thành công */
+  static notifySuccess(title, message) {
+    SpreadsheetApp.getUi().alert(
+      title || "Thành công 🎉",
+      message,
+      SpreadsheetApp.getUi().ButtonSet.OK,
     );
-    if (details && details.originalError) {
-      Logger.log(`📌 Original Error: ${details.originalError}`);
+  }
+
+  /** Alert cảnh báo */
+  static notifyWarning(title, message) {
+    SpreadsheetApp.getUi().alert(
+      title || "⚠️ Lưu ý",
+      message,
+      SpreadsheetApp.getUi().ButtonSet.OK,
+    );
+  }
+
+  /** Alert báo lỗi */
+  static notifyError(title, message) {
+    SpreadsheetApp.getUi().alert(
+      title || "Lỗi ❌",
+      message,
+      SpreadsheetApp.getUi().ButtonSet.OK,
+    );
+  }
+
+  /** Confirm Yes/No: trả về true nếu chọn YES */
+  static confirmAction(title, message) {
+    const ui = SpreadsheetApp.getUi();
+    return ui.alert(title, message, ui.ButtonSet.YES_NO) === ui.Button.YES;
+  }
+
+  /** Mở Modal Dialog dùng chung từ file HTML */
+  static showModal(
+    templatePath,
+    data = {},
+    title = "Thông báo",
+    width = 740,
+    height = 480,
+  ) {
+    try {
+      const tpl = HtmlService.createTemplateFromFile(templatePath);
+      Object.assign(tpl, data);
+      tpl.it = data;
+
+      const html = tpl.evaluate().setWidth(width).setHeight(height);
+      SpreadsheetApp.getUi().showModalDialog(html, title);
+    } catch (err) {
+      Logger.log(`❌ Lỗi mở modal [${templatePath}]: ${err.message}`);
+      UIFeedback.notifyError("Lỗi hiển thị", err.message);
     }
-    Logger.log(`📍 Stack Trace: ${this.stack}`);
   }
 }
 
-/** Alert thông báo thành công (màn hình có UI) */
-function notifySuccess(title, message) {
-  SpreadsheetApp.getUi().alert(
-    title || "Thành công 🎉",
-    message,
-    SpreadsheetApp.getUi().ButtonSet.OK,
-  );
-}
-
-/** Alert thông báo cảnh báo / dừng nhẹ (thiếu dữ liệu...) */
-function notifyWarning(title, message) {
-  SpreadsheetApp.getUi().alert(
-    title || "⚠️ Lưu ý",
-    message,
-    SpreadsheetApp.getUi().ButtonSet.OK,
-  );
-}
-
-/** Alert thông báo lỗi */
-function notifyError(title, message) {
-  SpreadsheetApp.getUi().alert(
-    title || "Lỗi ❌",
-    message,
-    SpreadsheetApp.getUi().ButtonSet.OK,
-  );
-}
-
-/**
- * Hỏi xác nhận Yes/No trước khi thực hiện thao tác.
- * @returns {boolean} true nếu người dùng chọn YES
- */
-function confirmAction(title, message) {
-  const ui = SpreadsheetApp.getUi();
-  return ui.alert(title, message, ui.ButtonSet.YES_NO) === ui.Button.YES;
-}
+/* Aliases giữ tương thích ngược cho code cũ chưa refactor */
+const notifySuccess = UIFeedback.notifySuccess;
+const notifyWarning = UIFeedback.notifyWarning;
+const notifyError = UIFeedback.notifyError;
+const confirmAction = UIFeedback.confirmAction;
+const showCustomModalDialog = UIFeedback.showModal;
