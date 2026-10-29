@@ -166,7 +166,4 @@ function testOnboardingUtil() {
   Logger.log("✅ Kết quả format name: " + res.formattedName);
   Logger.log("✅ File PDF: " + res.customFileName);
   Logger.log("✅ Link dòng: " + res.rowLink);
-  Logger.log(
-    "📋 CHI TIẾT DỮ LIỆU ĐÃ CHUẨN HÓA:\n" + JSON.stringify(res, null, 2),
-  );
 }
