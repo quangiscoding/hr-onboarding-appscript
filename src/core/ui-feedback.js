@@ -1,9 +1,16 @@
 /**
  * CORE/UI-FEEDBACK.JS - Lớp hiển thị UI tập trung
  */
-
-/** Utility hiển thị giao diện tập trung */
 class UIFeedback {
+  /** Alert thông báo chung */
+  static alert(title, message) {
+    SpreadsheetApp.getUi().alert(
+      title || "Thông báo",
+      message,
+      SpreadsheetApp.getUi().ButtonSet.OK,
+    );
+  }
+
   /** Alert thành công */
   static notifySuccess(title, message) {
     SpreadsheetApp.getUi().alert(
@@ -37,6 +44,11 @@ class UIFeedback {
     return ui.alert(title, message, ui.ButtonSet.YES_NO) === ui.Button.YES;
   }
 
+  /** Alias ngắn gọn cho confirmAction */
+  static confirm(title, message) {
+    return UIFeedback.confirmAction(title, message);
+  }
+
   /** Mở Modal Dialog dùng chung từ file HTML */
   static showModal(
     templatePath,
@@ -49,7 +61,6 @@ class UIFeedback {
       const tpl = HtmlService.createTemplateFromFile(templatePath);
       Object.assign(tpl, data);
       tpl.it = data;
-
       const html = tpl.evaluate().setWidth(width).setHeight(height);
       SpreadsheetApp.getUi().showModalDialog(html, title);
     } catch (err) {
