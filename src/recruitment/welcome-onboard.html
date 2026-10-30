@@ -773,7 +773,24 @@
             document.getElementById("loading").style.display = "none";
             const box = document.getElementById("error-box");
             box.style.display = "block";
-            box.textContent = "Lỗi: " + err.message;
+
+            const errText = (err && (err.message || err.toString())) || "";
+            if (
+              errText.includes("PERMISSION_DENIED") ||
+              errText.includes("ScriptError")
+            ) {
+              box.innerHTML = `
+          <div style="line-height: 1.4;">
+            <b style="color: #b3261e;">⚠️ Xung đột tài khoản Google:</b><br/>
+            Trình duyệt đang ưu tiên tài khoản Google mặc định (Account 0) thay vì tài khoản công ty.<br/><br/>
+            <b>Cách xử lý nhanh:</b><br/>
+            • <b>Cách 1:</b> Mở Sheet này trên <b>Tab ẩn danh (Incognito)</b> bằng tài khoản Kyanon.<br/>
+            • <b>Cách 2 (Khuyên dùng):</b> Tạo riêng một <b>Profile Chrome/Brave riêng</b> chỉ đăng nhập duy nhất tài khoản Kyanon để dùng vĩnh viễn không bị lỗi.
+          </div>
+        `;
+            } else {
+              box.textContent = "Lỗi: " + errText;
+            }
           })
           .getSelectedCandidate();
       }
