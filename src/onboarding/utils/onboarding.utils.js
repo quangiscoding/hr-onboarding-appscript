@@ -24,16 +24,10 @@ class OnboardingUtil {
     const rowIndex = targetRow || (activeRange ? activeRange.getRow() : null);
 
     if (!rowIndex) {
-      throw new WorkflowError(
-        "NO_ROW_SELECTED",
-        "Vui lòng chọn một ô/dòng trên bảng tính!",
-      );
+      throw new WorkflowError("NO_ROW_SELECTED", "Vui lòng chọn một ô/dòng trên bảng tính!");
     }
     if (rowIndex < 2) {
-      throw new WorkflowError(
-        "INVALID_ROW",
-        "Vui lòng chọn dòng chứa dữ liệu nhân sự (không chọn dòng tiêu đề)!",
-      );
+      throw new WorkflowError("INVALID_ROW", "Vui lòng chọn dòng chứa dữ liệu nhân sự (không chọn dòng tiêu đề)!");
     }
 
     const lastCol = sheet.getLastColumn();
@@ -101,11 +95,7 @@ class OnboardingUtil {
    * @param {Object} [cachedContext=null]
    * @returns {Object} Payload nhân sự chuẩn hóa
    */
-  static getNormalizedInput(
-    triggerType = "MANUAL_TEST",
-    targetRow = null,
-    cachedContext = null,
-  ) {
+  static getNormalizedInput(triggerType = "MANUAL_TEST", targetRow = null, cachedContext = null) {
     // 1. Trích xuất ngữ cảnh dòng
     const ctx = OnboardingUtil.extractRowContext_(targetRow, cachedContext);
 
@@ -116,9 +106,7 @@ class OnboardingUtil {
     });
 
     // 3. Xử lý tên & thông tin liên hệ
-    const nameInfo = OnboardingUtil.formatCandidateName(
-      rowData[COLS.FULL_NAME],
-    );
+    const nameInfo = OnboardingUtil.formatCandidateName(rowData[COLS.FULL_NAME]);
     const allocCode = clean(rowData[COLS.ALLOC_CODE]);
     const workingEmail = formatKyanonEmail(allocCode);
     const okrFolderUrl = clean(rowData[COLS.LINK_FOLDER_OKRS]);
@@ -127,11 +115,7 @@ class OnboardingUtil {
     return {
       triggerType: triggerType,
       rowNumber: ctx.rowIndex,
-      rowLink: OnboardingUtil.buildRowDirectLink(
-        ctx.sheetUrl,
-        ctx.sheetId,
-        ctx.rowIndex,
-      ),
+      rowLink: OnboardingUtil.buildRowDirectLink(ctx.sheetUrl, ctx.sheetId, ctx.rowIndex),
       status: clean(rowData[COLS.OFFER_STATUS]),
       employmentType: clean(rowData[COLS.EMPLOYMENT_TYPE]),
       onboardingType: clean(rowData[COLS.ONBOARDING_TYPE]),
@@ -139,9 +123,7 @@ class OnboardingUtil {
       fullName: nameInfo.rawFullName,
       accentlessFullName: nameInfo.accentlessName,
       formattedName: nameInfo.formattedName,
-      customFileName: OnboardingUtil.buildGuidePdfFilename(
-        nameInfo.formattedName,
-      ),
+      customFileName: OnboardingUtil.buildGuidePdfFilename(nameInfo.formattedName),
       position: toTitleCase(rowData[COLS.TITLE]),
       squad: toTitleCase(rowData[COLS.SQUAD]),
       level: clean(rowData[COLS.LEVEL]),
@@ -170,9 +152,7 @@ class OnboardingUtil {
     }
 
     const colMap = getHeaderColumnMap(sheet);
-    const allRowsData = sheet
-      .getRange(1, 1, rawLastRow, sheet.getLastColumn())
-      .getValues();
+    const allRowsData = sheet.getRange(1, 1, rawLastRow, sheet.getLastColumn()).getValues();
 
     const cachedContext = {
       colMap,
@@ -223,21 +203,13 @@ class OnboardingUtil {
 
     const scriptTz = Session.getScriptTimeZone();
     const todayStr = Utilities.formatDate(new Date(), scriptTz, "yyyy-MM-dd");
-    const todayDisplay = Utilities.formatDate(
-      new Date(),
-      scriptTz,
-      "dd/MM/yyyy",
-    );
+    const todayDisplay = Utilities.formatDate(new Date(), scriptTz, "dd/MM/yyyy");
 
     const list = [];
     for (let r = ctx.actualLastRow; r >= 2; r--) {
       let d;
       try {
-        d = OnboardingUtil.getNormalizedInput(
-          triggerType,
-          r,
-          ctx.cachedContext,
-        );
+        d = OnboardingUtil.getNormalizedInput(triggerType, r, ctx.cachedContext);
       } catch (e) {
         continue;
       }
@@ -257,10 +229,7 @@ class OnboardingUtil {
       if (isStatusOk && isDateOk && isTaOk) {
         const targetEmail = d.personalEmail || d.workingEmail;
         const lockKey = `${triggerType}_${d.rowNumber}_${targetEmail.toLowerCase()}`;
-        d.isLocked =
-          ctx.lockedKeysSet.size > 0
-            ? ctx.lockedKeysSet.has(lockKey)
-            : isRowLockedForWorkflow(d.rowNumber, triggerType, targetEmail);
+        d.isLocked = ctx.lockedKeysSet.size > 0 ? ctx.lockedKeysSet.has(lockKey) : isRowLockedForWorkflow(d.rowNumber, triggerType, targetEmail);
         list.push(d);
       }
     }

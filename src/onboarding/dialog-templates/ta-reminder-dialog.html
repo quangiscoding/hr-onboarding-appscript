@@ -5,382 +5,257 @@
     <style>
       * {
         box-sizing: border-box;
-        margin: 0;
-        padding: 0;
       }
       body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
         font-size: 13px;
-        color: #2d3748;
+        color: #333333;
+        margin: 0;
         padding: 16px;
         background-color: #ffffff;
       }
-      .summary-cards {
-        display: flex;
-        gap: 10px;
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
         margin-bottom: 14px;
       }
-      .card {
-        flex: 1;
-        padding: 10px 12px;
+      .stat-card {
+        border: 1px solid #e5e7eb;
         border-radius: 6px;
+        padding: 10px 14px;
+        background: #f9fafb;
+      }
+      .stat-title {
         font-size: 12px;
-        line-height: 1.4;
+        color: #6b7280;
+        margin-bottom: 4px;
+        font-weight: 500;
       }
-      .card-success {
-        background: #e6fffa;
-        border: 1px solid #b2f5ea;
-        color: #234e52;
+      .stat-value {
+        font-size: 18px;
+        font-weight: bold;
       }
-      .card-warning {
-        background: #fffaf0;
-        border: 1px solid #feebc8;
-        color: #744210;
+      .val-total {
+        color: #111827;
       }
-      .card-info {
-        background: #ebf8ff;
-        border: 1px solid #bee3f8;
-        color: #2a4365;
+      .val-ready {
+        color: #16a34a;
       }
-      .card strong {
-        font-size: 14px;
-        display: block;
-        margin-bottom: 2px;
+      .val-missing {
+        color: #dc2626;
       }
 
-      /* Tabs Navigation */
-      .tab-nav {
-        display: flex;
-        border-bottom: 2px solid #e2e8f0;
-        margin-bottom: 12px;
-      }
-      .tab-btn {
-        padding: 8px 14px;
-        border: none;
-        background: none;
-        cursor: pointer;
-        font-weight: 600;
+      .header-notice {
+        padding: 10px 14px;
+        border-radius: 6px;
+        margin-bottom: 14px;
         font-size: 13px;
-        color: #718096;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -2px;
+        line-height: 1.5;
       }
-      .tab-btn.active {
-        color: #ef403e;
-        border-bottom-color: #ef403e;
+      .notice-warn {
+        background-color: #fef2f2;
+        border: 1px solid #fee2e2;
+        color: #991b1b;
       }
-      .tab-content {
-        display: none;
+      .notice-success {
+        background-color: #f0fdf4;
+        border: 1px solid #dcfce7;
+        color: #166534;
       }
-      .tab-content.active {
-        display: block;
+      .notice-info {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        color: #475569;
       }
 
-      /* Table Styles */
       .table-container {
         max-height: 280px;
         overflow-y: auto;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #e5e7eb;
         border-radius: 6px;
-      }
-      .table-container::-webkit-scrollbar {
-        width: 6px;
-      }
-      .table-container::-webkit-scrollbar-thumb {
-        background: #cbd5e0;
-        border-radius: 3px;
+        margin-bottom: 14px;
       }
       table {
         width: 100%;
         border-collapse: collapse;
+        text-align: left;
       }
       th {
         position: sticky;
         top: 0;
-        background-color: #f7fafc;
-        color: #4a5568;
-        text-align: left;
-        padding: 8px 10px;
-        border-bottom: 1px solid #e2e8f0;
+        background-color: #f9fafb;
+        color: #374151;
+        padding: 9px 10px;
+        border-bottom: 2px solid #e5e7eb;
         font-weight: 600;
+        z-index: 10;
       }
       td {
-        padding: 8px 10px;
-        border-bottom: 1px solid #edf2f7;
+        padding: 9px 10px;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
       }
       tr:hover {
-        background-color: #f8fafc;
+        background-color: #f9fafb;
       }
-
       .badge {
+        display: inline-block;
         padding: 3px 8px;
         border-radius: 4px;
+        font-size: 11.5px;
         font-weight: 600;
-        font-size: 11px;
+        white-space: nowrap;
+      }
+      .badge-ok {
+        background: #dcfce7;
+        color: #15803d;
+      }
+      .badge-not-square {
+        background: #fef3c7;
+        color: #b45309;
+      }
+      .badge-no-pic {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+      .badge-no-row {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+
+      .action-link {
+        color: #2563eb;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .action-link:hover {
+        text-decoration: underline;
+      }
+      .action-btn-crop {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        padding: 3px 8px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 600;
         display: inline-block;
       }
-      .badge-success {
-        background: #c6f6d5;
-        color: #22543d;
-      }
-      .badge-locked {
-        background: #e2e8f0;
-        color: #4a5568;
+      .action-btn-crop:hover {
+        background: #dbeafe;
       }
 
-      /* Action Links */
-      .link-action {
-        color: #2b6cb0;
-        font-weight: 600;
-        text-decoration: underline;
-      }
-      .link-action:hover {
-        color: #1a365d;
-      }
-      .link-warning-ratio {
-        color: #b45309;
-        font-weight: 600;
-        text-decoration: underline;
-      }
-      .link-warning-ratio:hover {
-        color: #78350f;
-      }
-      .link-add-new {
-        color: #c53030;
-        font-weight: 600;
-        text-decoration: underline;
-      }
-      .link-add-new:hover {
-        color: #9b2c2c;
-      }
-
-      .footer {
+      .footer-actions {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-top: 14px;
+      }
+      .btn-secondary {
+        color: #374151;
+        text-decoration: none;
+        font-size: 12.5px;
+        font-weight: 500;
+      }
+      .btn-secondary:hover {
+        text-decoration: underline;
       }
       .btn-close {
-        background-color: #ef403e;
-        color: #fff;
+        background-color: #4b5563;
+        color: #ffffff;
         border: none;
-        padding: 8px 18px;
-        font-size: 12px;
+        padding: 7px 18px;
+        font-size: 13px;
         font-weight: 600;
         border-radius: 4px;
         cursor: pointer;
       }
       .btn-close:hover {
-        background-color: #d32f2f;
+        background-color: #374151;
       }
     </style>
   </head>
   <body>
-    <!-- 1. THẺ THỐNG KÊ NHANH -->
-    <div class="summary-cards">
-      <? if (readyForDevOps && readyForDevOps.length > 0) { ?>
-      <div class="card card-success">
-        <strong>✅ Đã gửi DevOps: <?= readyForDevOps.length ?> nhân sự</strong>
-        Đã gửi ảnh chuẩn 1:1 thành công.
+    <!-- 1. THỐNG KÊ NHANH -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-title">👥 Tổng Onboard hôm nay</div>
+        <div class="stat-value val-total"><?= totalCount ?></div>
       </div>
-      <? } ?> <? if (missingForTA && missingForTA.length > 0) { ?>
-      <div class="card card-warning">
-        <strong
-          >⚠️ Cần bổ sung Avatar: <?= missingForTA.length ?> nhân sự</strong
-        >
-        Chưa có link ảnh trong file ảnh nhân sự mới hoặc sai tỉ lệ.
+      <div class="stat-card">
+        <div class="stat-title">✅ Đã đủ điều kiện 1:1</div>
+        <div class="stat-value val-ready"><?= readyCount ?></div>
       </div>
-      <? } ?> <? if (alreadyProcessed && alreadyProcessed.length > 0) { ?>
-      <div class="card card-info">
-        <strong
-          >ℹ️ Đã hoàn tất trước đó: <?= alreadyProcessed.length ?> nhân
-          sự</strong
-        >
-        Đã xử lý xong ở các đợt quét trước.
+      <div class="stat-card">
+        <div class="stat-title">⚠️ Chưa đủ điều kiện</div>
+        <div class="stat-value val-missing"><?= missingCount ?></div>
       </div>
-      <? } ?>
     </div>
 
-    <!-- 2. ĐIỀU HƯỚNG TAB -->
-    <div class="tab-nav">
-      <? if (missingForTA && missingForTA.length > 0) { ?>
-      <button class="tab-btn active" onclick="switchTab(event, 'tab-missing')">
-        ⚠️ Cần cập nhật Avatar (<?= missingForTA.length ?>)
-      </button>
-      <? } ?> <? if (readyForDevOps && readyForDevOps.length > 0) { ?>
-      <button
-        class="tab-btn <?= (!missingForTA || missingForTA.length === 0) ? 'active' : '' ?>"
-        onclick="switchTab(event, 'tab-ready')"
-      >
-        ✅ Đã gửi DevOps hôm nay (<?= readyForDevOps.length ?>)
-      </button>
-      <? } ?> <? if (alreadyProcessed && alreadyProcessed.length > 0) { ?>
-      <button
-        class="tab-btn <?= (!missingForTA || missingForTA.length === 0) && (!readyForDevOps || readyForDevOps.length === 0) ? 'active' : '' ?>"
-        onclick="switchTab(event, 'tab-locked')"
-      >
-        🔒 Đã xử lý trước đó (<?= alreadyProcessed.length ?>)
-      </button>
-      <? } ?>
+    <!-- 2. THÔNG BÁO TÌNH TRẠNG -->
+    <? if (noticeType === 'MISSING') { ?>
+    <div class="header-notice notice-warn">
+      ⚠️ <strong>CHƯA GỬI MAIL CHO DEVOPS:</strong> Còn <strong><?= missingCount ?></strong> bạn chưa có ảnh đạt chuẩn 1:1. Hệ thống chỉ gửi mail khi <strong>100%</strong> nhân sự đều đạt điều kiện. Vui lòng xử lý theo cột hành động bên dưới.
     </div>
-
-    <!-- TAB 1: DANH SÁCH CẦN XỬ LÝ AVATAR (THIẾU HOẶC SAI TỈ LỆ) -->
-    <? if (missingForTA && missingForTA.length > 0) { ?>
-    <div id="tab-missing" class="tab-content active">
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 8%">Dòng</th>
-              <th style="width: 25%">Họ và Tên</th>
-              <th style="width: 27%">Email Cá Nhân</th>
-              <th style="width: 40%">Hành động</th>
-            </tr>
-          </thead>
-          <tbody>
-            <? missingForTA.forEach(function(c) { ?>
-            <tr>
-              <td><strong>#<?= c.rowNumber ?></strong></td>
-              <td>
-                <strong><?= c.fullName ?></strong>
-              </td>
-              <td><?= c.personalEmail || c.workingEmail ?></td>
-              <td>
-                <? if (!c.uc06RowNumber) { ?>
-                <!-- TH1: Chưa có dòng trong sheet Employee Avatar -->
-                <a
-                  href="<?= uc06Url ?>"
-                  target="_blank"
-                  class="link-add-new"
-                  title="Bấm để mở file Employee Avatar và thêm dòng mới"
-                >
-                  Thêm nhân sự vào sheet Employee Avatar ↗
-                </a>
-                <? } else if (!c.avatarUrl) { ?>
-                <!-- TH2: Đã có dòng nhưng chưa có ảnh -->
-                <a
-                  href="<?= c.uc06RowLink ?>"
-                  target="_blank"
-                  class="link-action"
-                  title="Bấm để nhảy thẳng vào cột ảnh của dòng này"
-                >
-                  Thêm ảnh nhân sự tại dòng #<?= c.uc06RowNumber ?> ↗
-                </a>
-                <? } else if (!c.isSquare) { ?>
-                <!-- TH3: Có ảnh nhưng sai tỉ lệ 1:1 (Click nhảy thẳng vào Cột H 'Ảnh 1:1' của dòng đó) -->
-                <a
-                  href="<?= c.uc06SquareLink || c.uc06RowLink ?>"
-                  target="_blank"
-                  class="link-warning-ratio"
-                  title="Kích thước hiện tại: <?= c.dimensions ? c.dimensions.width + 'x' + c.dimensions.height : 'sai tỉ lệ' ?>. Bấm để bổ sung ảnh vuông vào cột 'Ảnh 1:1'"
-                >
-                  Ảnh sai tỉ lệ, cập nhật ↗
-                </a>
-                <? } ?>
-              </td>
-            </tr>
-            <? }); ?>
-          </tbody>
-        </table>
-      </div>
+    <? } else if (noticeType === 'SUCCESS') { ?>
+    <div class="header-notice notice-success">
+      🎉 <strong>HOÀN TẤT:</strong> Toàn bộ <strong><?= readyCount ?></strong> nhân sự onboard hôm nay đã đạt chuẩn Avatar 1:1 và đã được gửi email thông báo cho DevOps thành công.
     </div>
+    <? } else { ?>
+    <div class="header-notice notice-info">ℹ️ <strong>ĐÃ XỬ LÝ:</strong> Toàn bộ nhân sự onboard hôm nay đã được xử lý và khóa dòng từ các lần chạy trước.</div>
     <? } ?>
 
-    <!-- TAB 2: DANH SÁCH VỪA GỬI DEVOPS THÀNH CÔNG -->
-    <? if (readyForDevOps && readyForDevOps.length > 0) { ?>
-    <div
-      id="tab-ready"
-      class="tab-content <?= (!missingForTA || missingForTA.length === 0) ? 'active' : '' ?>"
-    >
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 10%">Dòng</th>
-              <th style="width: 32%">Họ và Tên</th>
-              <th style="width: 38%">Email</th>
-              <th style="width: 20%">Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody>
-            <? readyForDevOps.forEach(function(c) { ?>
-            <tr>
-              <td>#<?= c.rowNumber ?></td>
-              <td>
-                <strong><?= c.fullName ?></strong>
-              </td>
-              <td><?= c.personalEmail || c.workingEmail ?></td>
-              <td>
-                <span class="badge badge-success">Đã gửi mail & Khóa</span>
-              </td>
-            </tr>
-            <? }); ?>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <? } ?>
+    <!-- 3. BẢNG CHI TIẾT & HÀNH ĐỘNG CẦN LÀM -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 8%">Dòng</th>
+            <th style="width: 22%">Họ và Tên</th>
+            <th style="width: 28%">Email</th>
+            <th style="width: 17%">Tỉ lệ Avatar</th>
+            <th style="width: 25%">Hành động cần làm</th>
+          </tr>
+        </thead>
+        <tbody>
+          <? candidates.forEach(function(c) { ?>
+          <tr>
+            <td style="font-weight: 600; color: #4b5563">#<?= c.rowNumber ?></td>
+            <td style="font-weight: 600"><?= c.fullName ?></td>
+            <td style="color: #4b5563"><?= c.personalEmail || c.workingEmail ?></td>
 
-    <!-- TAB 3: DANH SÁCH ĐÃ KHÓA TỪ TRƯỚC -->
-    <? if (alreadyProcessed && alreadyProcessed.length > 0) { ?>
-    <div
-      id="tab-locked"
-      class="tab-content <?= (!missingForTA || missingForTA.length === 0) && (!readyForDevOps || readyForDevOps.length === 0) ? 'active' : '' ?>"
-    >
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 10%">Dòng</th>
-              <th style="width: 35%">Họ và Tên</th>
-              <th style="width: 40%">Email</th>
-              <th style="width: 15%">Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody>
-            <? alreadyProcessed.forEach(function(c) { ?>
-            <tr>
-              <td>#<?= c.rowNumber ?></td>
-              <td><?= c.fullName ?></td>
-              <td><?= c.personalEmail || c.workingEmail ?></td>
-              <td><span class="badge badge-locked">Đã hoàn tất</span></td>
-            </tr>
-            <? }); ?>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <? } ?>
+            <td>
+              <? if (c.isReady) { ?>
+              <span class="badge badge-ok">✅ Đạt chuẩn 1:1</span>
+              <? } else if (c.issueReason === 'NOT_IN_SHEET') { ?>
+              <span class="badge badge-no-row">Chưa có dòng</span>
+              <? } else if (c.issueReason === 'EMPTY_IMAGE') { ?>
+              <span class="badge badge-no-pic">Thiếu link ảnh</span>
+              <? } else { ?>
+              <span class="badge badge-not-square">⚠️ <?= c.dimensions ? c.dimensions.width + 'x' + c.dimensions.height : 'Chưa vuông' ?></span>
+              <? } ?>
+            </td>
 
-    <!-- FOOTER -->
-    <div class="footer">
-      <div>
-        <a
-          href="<?= uc06Url ?>"
-          target="_blank"
-          class="link-action"
-          style="font-size: 13px"
-        >
-          📂 Mở file Employee Avatar (UC06) ↗
-        </a>
-      </div>
-      <button class="btn-close" onclick="google.script.host.close()">
-        Đóng lại
-      </button>
+            <td>
+              <? if (c.isReady) { ?>
+              <span style="color: #16a34a; font-weight: 500">Sẵn sàng gửi mail</span>
+              <? } else if (c.issueReason === 'NOT_IN_SHEET') { ?>
+              <a href="<?= uc06Url ?>" target="_blank" class="action-link">➕ Mở UC06 thêm dòng</a>
+              <? } else if (c.issueReason === 'EMPTY_IMAGE') { ?>
+              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link">👉 Dán link ảnh (F)</a>
+              <? } else { ?>
+              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-btn-crop">✂️ Cắt ảnh 1:1 (H)</a>
+              <? } ?>
+            </td>
+          </tr>
+          <? }); ?>
+        </tbody>
+      </table>
     </div>
 
-    <script>
-      function switchTab(evt, tabId) {
-        document
-          .querySelectorAll(".tab-content")
-          .forEach((el) => el.classList.remove("active"));
-        document
-          .querySelectorAll(".tab-btn")
-          .forEach((el) => el.classList.remove("active"));
-        document.getElementById(tabId).classList.add("active");
-        evt.currentTarget.classList.add("active");
-      }
-    </script>
+    <div class="footer-actions">
+      <a href="<?= uc06Url ?>" target="_blank" class="btn-secondary">📂 Mở file Sheet Avatar (UC06) ↗</a>
+      <button class="btn-close" onclick="google.script.host.close()">Đóng thông báo</button>
+    </div>
   </body>
 </html>
