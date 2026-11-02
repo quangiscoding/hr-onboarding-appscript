@@ -243,6 +243,7 @@
     <div class="subtitle">Tạo draft bài đăng chào mừng nhân sự mới trên Outline Wiki</div>
     <div id="loading">Đang đọc dữ liệu ứng viên từ dòng đang chọn...</div>
     <div id="error-box" class="status"></div>
+
     <div id="main" style="display: none">
       <!-- 1. THÔNG TIN ỨNG VIÊN -->
       <div>
@@ -258,9 +259,11 @@
             <canvas id="welcomeCanvas" width="1000" height="1000"></canvas>
           </div>
           <div id="avatar-status-badge" class="avatar-status-badge" style="font-size: 11px; margin-top: 6px; font-weight: 500; color: #5f6368; text-align: center"></div>
+
           <div style="margin-top: 8px">
             <button class="btn-secondary" style="border-color: #1a73e8; font-weight: 600" onclick="document.getElementById('avatar-input').click()">📷 Upload Ảnh Ứng Viên từ máy</button>
             <input type="file" id="avatar-input" accept="image/*" onchange="handleAvatarUpload(this)" />
+
             <button class="btn-secondary" style="margin-top: 4px" onclick="document.getElementById('frame-input').click()">🎨 Chọn Khung Template khác (nếu cần)</button>
             <input type="file" id="frame-input" accept="image/*" onchange="handleFrameUpload(this)" />
           </div>
@@ -295,6 +298,7 @@
           <div class="cv-file-name" id="cv-file-name"></div>
           <input type="file" id="cv-input" accept="application/pdf,.doc,.docx,.txt" onchange="handleCvSelect(this)" />
         </div>
+
         <button class="btn-secondary" style="margin-top: 6px" onclick="document.getElementById('cv-input').click()">⬆️ Upload CV khác từ máy (PDF/Doc)</button>
         <button id="ai-btn" class="btn-ai" onclick="handleAiSummarize()">✨ AI tóm tắt CV → soạn Introduction</button>
       </div>
@@ -311,17 +315,11 @@
       </div>
 
       <button id="submit-btn" class="btn" onclick="handleSubmit()">Submit → Tạo draft trên Outline</button>
+
       <div id="status" class="status"></div>
     </div>
 
     <script>
-      // ------------------------------------------------------------------
-      // CẤU HÌNH WEBHOOK N8N
-      // Dùng URL /webhook-test/ khi đang bật "Listen for test event" trên canvas n8n
-      // Đổi thành URL /webhook/ khi đã Active workflow
-      // ------------------------------------------------------------------
-      const N8N_AI_WEBHOOK_URL = "https://n8n.poc.kyanon.dev/webhook/summarize-cv";
-
       let currentCandidate = null;
       let cvFileData = null;
 
@@ -334,7 +332,6 @@
           .replace(/đ/g, "d")
           .replace(/Đ/g, "D")
           .trim();
-
         const parts = accentless.split(/\s+/);
         if (parts.length === 1) return parts[0].toUpperCase();
         const ho = parts[0];
@@ -362,6 +359,7 @@
       function handleAvatarUpload(input) {
         const file = input.files && input.files[0];
         if (!file) return;
+
         const reader = new FileReader();
         reader.onload = function (e) {
           avatarImg = new Image();
@@ -377,6 +375,7 @@
       function handleFrameUpload(input) {
         const file = input.files && input.files[0];
         if (!file) return;
+
         const reader = new FileReader();
         reader.onload = function (e) {
           frameImg = new Image();
@@ -409,11 +408,13 @@
           ctx.arc(500, 445, 230, 0, Math.PI * 2, true);
           ctx.closePath();
           ctx.clip();
+
           const aspect = avatarImg.width / avatarImg.height;
           let drawW = 480 * zoom;
           let drawH = (480 / aspect) * zoom;
           let drawX = 500 - drawW / 2 + offsetX;
           let drawY = 445 - drawH / 2 + offsetY;
+
           ctx.drawImage(avatarImg, drawX, drawY, drawW, drawH);
           ctx.restore();
         }
@@ -442,11 +443,13 @@
           ctx.fillStyle = "#FFFFFF";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
+
           ctx.font = "bold 48px sans-serif";
           ctx.fillText(name, 500, 690);
 
           ctx.font = "bold 36px sans-serif";
           ctx.fillText(position, 500, 775);
+
           ctx.fillText(squad, 500, 830);
         }
       }
@@ -484,6 +487,7 @@
           ["Phone Number", candidate.phoneNumber],
           ["Dòng sheet", "#" + candidate.rowNumber],
         ];
+
         document.getElementById("candidate-card").innerHTML = rows
           .filter(([, v]) => v)
           .map(([label, value]) => `<div class="field"><span class="label">${label}</span><span class="value">${escapeHtml(value)}</span></div>`)
@@ -506,11 +510,13 @@
       function handleCvSelect(input) {
         const file = input.files && input.files[0];
         if (!file) return;
+
         if (file.size > 10 * 1024 * 1024) {
           showStatus("error", "⚠️ File CV vượt quá 10MB.");
           input.value = "";
           return;
         }
+
         const reader = new FileReader();
         reader.onload = function (e) {
           const base64 = e.target.result.split(",")[1];
@@ -539,8 +545,8 @@
         return str.length > n ? str.slice(0, n) + "..." : str;
       }
 
-      /* ---------------- AI SUMMARIZE (GỌI TRỰC TIẾP QUA N8N) ---------------- */
-      async function handleAiSummarize() {
+      /* ---------------- AI SUMMARIZE (GỌI QUA APPS SCRIPT BACKEND) ---------------- */
+      function handleAiSummarize() {
         if (!currentCandidate) return;
 
         const btn = document.getElementById("ai-btn");
@@ -548,7 +554,7 @@
         btn.innerHTML = '<span class="spinner"></span>AI đang đọc CV và soạn Introduction qua n8n...';
         clearStatus();
 
-        // Đóng gói payload đúng định dạng phẳng mà n8n Webhook mong đợi
+        // Đóng gói payload đúng định dạng
         const payload = {
           callerEmail: currentCandidate.callerEmail || "",
           spreadsheetId: currentCandidate.spreadsheetId || "",
@@ -557,33 +563,25 @@
           cvFile: cvFileData,
         };
 
-        try {
-          const response = await fetch(N8N_AI_WEBHOOK_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-          });
+        // Gọi về hàm callN8nAiGateway trên server .gs
+        google.script.run
+          .withSuccessHandler(function (res) {
+            btn.disabled = false;
+            btn.innerHTML = "✨ AI tóm tắt CV → soạn Introduction";
 
-          const data = await response.json().catch(() => ({}));
-
-          if (!response.ok) {
-            throw new Error(data.error || `HTTP ${response.status}: Lỗi phản hồi từ n8n`);
-          }
-
-          if (data && data.ok) {
-            document.getElementById("introduction").value = data.introduction || "";
-            showStatus("success", "✨ AI đã soạn Introduction và ghi log chi phí thành công!");
-          } else {
-            showStatus("error", "❌ " + escapeHtml((data && data.error) || "Lỗi xử lý AI từ n8n."));
-          }
-        } catch (err) {
-          showStatus("error", "❌ Không thể kết nối tới n8n Webhook: " + escapeHtml(err.message));
-        } finally {
-          btn.disabled = false;
-          btn.innerHTML = "✨ AI tóm tắt CV → soạn Introduction";
-        }
+            if (res && res.ok) {
+              document.getElementById("introduction").value = res.introduction || "";
+              showStatus("success", "✨ AI đã soạn Introduction và ghi log chi phí thành công!");
+            } else {
+              showStatus("error", "❌ " + escapeHtml((res && res.error) || "Lỗi xử lý AI từ n8n."));
+            }
+          })
+          .withFailureHandler(function (err) {
+            btn.disabled = false;
+            btn.innerHTML = "✨ AI tóm tắt CV → soạn Introduction";
+            showStatus("error", "❌ Lỗi kết nối tới Apps Script Backend: " + escapeHtml(err.message));
+          })
+          .callN8nAiGateway(payload);
       }
 
       /* ---------------- SUBMIT OUTLINE (GIỮ NGUYÊN APP SCRIPT) ---------------- */
@@ -593,10 +591,12 @@
           showStatus("error", "⚠️ Vui lòng nhập nội dung Introduction (hoặc bấm ✨ để AI soạn).");
           return;
         }
+
         const btn = document.getElementById("submit-btn");
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span>Đang tạo draft...';
         clearStatus();
+
         google.script.run
           .withSuccessHandler(function (res) {
             btn.disabled = false;
@@ -629,6 +629,7 @@
               box.textContent = (res && res.error) || "Không đọc được dữ liệu.";
               return;
             }
+
             currentCandidate = res.candidate;
             renderCandidate(res.candidate);
             updateCvSheetStatus(res.candidate);
@@ -649,6 +650,7 @@
                 badge.innerHTML = "⚠️ <span style='color: #b3261e;'>Chưa có ảnh trên sheet Employee Avatar — Bạn có thể upload thủ công từ máy</span>";
               }
             }
+
             document.getElementById("main").style.display = "block";
           })
           .withFailureHandler(function (err) {
@@ -656,21 +658,19 @@
             const box = document.getElementById("error-box");
             box.style.display = "block";
             const errMessage = (err && err.message) || String(err);
-
             if (/authorization is required|permission_denied/i.test(errMessage)) {
               box.className = "status error";
               box.innerHTML = `
-              <div style="line-height: 1.5;">
-                <b style="color: #b3261e;">⚠️ Xung đột tài khoản Google:</b><br/>
-                Trình duyệt đang ưu tiên tài khoản Google mặc định thay vì tài khoản công ty.<br/><br/>
-                <b>Cách xử lý:</b><br/>
-                • Mở Sheet trên <b>Tab ẩn danh (Incognito)</b> bằng tài khoản công ty.<br/>
-                • Hoặc tạo một <b>Profile trình duyệt riêng</b> chỉ đăng nhập duy nhất tài khoản công ty.
-              </div>
-            `;
+                <div style="line-height: 1.5;">
+                  <b style="color: #b3261e;">⚠️ Xung đột tài khoản Google:</b><br/>
+                  Trình duyệt đang ưu tiên tài khoản Google mặc định thay vì tài khoản công ty.<br/><br/>
+                  <b>Cách xử lý:</b><br/>
+                  • Mở Sheet trên <b>Tab ẩn danh (Incognito)</b> bằng tài khoản công ty.<br/>
+                  • Hoặc tạo một <b>Profile trình duyệt riêng</b> chỉ đăng nhập duy nhất tài khoản công ty.
+                </div>
+              `;
               return;
             }
-
             box.className = "status error";
             box.textContent = "Lỗi: " + errMessage;
           })
