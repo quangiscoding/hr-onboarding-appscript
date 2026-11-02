@@ -6,19 +6,33 @@
       * {
         box-sizing: border-box;
       }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* Chặn cuộn cả trang để cuộn nội bộ bảng */
+      }
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
         font-size: 13px;
         color: #333333;
-        margin: 0;
         padding: 16px;
         background-color: #ffffff;
+        display: flex;
+        flex-direction: column;
       }
+
+      /* KHỐI HEADER STICKY CỐ ĐỊNH */
+      .sticky-header-container {
+        flex-shrink: 0;
+      }
+
       .stats-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 12px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
       }
       .stat-card {
         border-radius: 6px;
@@ -66,7 +80,7 @@
       .header-notice {
         padding: 10px 14px;
         border-radius: 6px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
         font-size: 13px;
         line-height: 1.5;
       }
@@ -85,12 +99,15 @@
         border: 1px solid #e2e8f0;
         color: #475569;
       }
+
+      /* KHỐI BẢNG TỰ CO DÃN VÀ CUỘN ĐỘC LẬP */
       .table-container {
-        max-height: 280px;
+        flex: 1 1 auto;
         overflow-y: auto;
         border: 1px solid #e5e7eb;
         border-radius: 6px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
+        min-height: 120px;
       }
       table {
         width: 100%;
@@ -168,10 +185,14 @@
       .action-btn-crop:hover {
         background: #dbeafe;
       }
+
+      /* KHỐI FOOTER STICKY CỐ ĐỊNH Ở ĐÁY */
       .footer-actions {
+        flex-shrink: 0;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        padding-top: 4px;
       }
       .btn-secondary {
         color: #374151;
@@ -198,36 +219,37 @@
     </style>
   </head>
   <body>
-    <!-- 1. THỐNG KÊ NHANH -->
-    <div class="stats-grid">
-      <div class="stat-card card-total">
-        <div class="stat-title">Tổng Onboard hôm nay</div>
-        <div class="stat-value val-total"><?= totalCount ?></div>
+    <!-- HEADER STICKY (THỐNG KÊ + THÔNG BÁO) -->
+    <div class="sticky-header-container">
+      <div class="stats-grid">
+        <div class="stat-card card-total">
+          <div class="stat-title">Tổng Onboard hôm nay</div>
+          <div class="stat-value val-total"><?= totalCount ?></div>
+        </div>
+        <div class="stat-card card-ready">
+          <div class="stat-title">Đã đủ điều kiện</div>
+          <div class="stat-value val-ready"><?= readyCount ?></div>
+        </div>
+        <div class="stat-card card-missing">
+          <div class="stat-title">Chưa đủ điều kiện</div>
+          <div class="stat-value val-missing"><?= missingCount ?></div>
+        </div>
       </div>
-      <div class="stat-card card-ready">
-        <div class="stat-title">Đã đủ điều kiện</div>
-        <div class="stat-value val-ready"><?= readyCount ?></div>
+
+      <? if (noticeType === 'MISSING') { ?>
+      <div class="header-notice notice-warn">
+        <strong>CHƯA GỬI MAIL CHO DEVOPS:</strong> Còn <strong><?= missingCount ?></strong> nhân sự chưa đủ điều kiện (thiếu Alloc Code, thiếu Email hoặc ảnh chưa đạt 1:1). Hệ thống chỉ gửi mail khi <strong>100%</strong> đều đạt chuẩn.
       </div>
-      <div class="stat-card card-missing">
-        <div class="stat-title">Chưa đủ điều kiện</div>
-        <div class="stat-value val-missing"><?= missingCount ?></div>
+      <? } else if (noticeType === 'SUCCESS') { ?>
+      <div class="header-notice notice-success">
+        <strong>HOÀN TẤT:</strong> Toàn bộ <strong><?= readyCount ?></strong> nhân sự onboard hôm nay đã đủ điều kiện và đã được gửi email thông báo cho DevOps thành công.
       </div>
+      <? } else { ?>
+      <div class="header-notice notice-info"><strong>ĐÃ XỬ LÝ:</strong> Toàn bộ nhân sự onboard hôm nay đã được xử lý và khóa dòng từ các lần chạy trước.</div>
+      <? } ?>
     </div>
 
-    <!-- 2. THÔNG BÁO TÌNH TRẠNG -->
-    <? if (noticeType === 'MISSING') { ?>
-    <div class="header-notice notice-warn">
-      <strong>CHƯA GỬI MAIL CHO DEVOPS:</strong> Còn <strong><?= missingCount ?></strong> nhân sự chưa đủ điều kiện (thiếu Alloc Code, thiếu Email hoặc ảnh chưa đạt 1:1). Hệ thống chỉ gửi mail khi <strong>100%</strong> đều đạt chuẩn.
-    </div>
-    <? } else if (noticeType === 'SUCCESS') { ?>
-    <div class="header-notice notice-success">
-      <strong>HOÀN TẤT:</strong> Toàn bộ <strong><?= readyCount ?></strong> nhân sự onboard hôm nay đã đủ điều kiện và đã được gửi email thông báo cho DevOps thành công.
-    </div>
-    <? } else { ?>
-    <div class="header-notice notice-info"><strong>ĐÃ XỬ LÝ:</strong> Toàn bộ nhân sự onboard hôm nay đã được xử lý và khóa dòng từ các lần chạy trước.</div>
-    <? } ?>
-
-    <!-- 3. BẢNG CHI TIẾT & HÀNH ĐỘNG CẦN LÀM -->
+    <!-- BẢNG CHI TIẾT (TỰ ĐỘNG CUỘN ĐỘC LẬP) -->
     <div class="table-container">
       <table>
         <thead>
@@ -281,7 +303,7 @@
               <? } else if (c.issueReason === 'EMPTY_IMAGE') { ?>
               <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link">Thêm ảnh nhân sự vào sheet Employee Avatar</a>
               <? } else { ?>
-              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-btn-crop">Bổ sung ảnh tỉ lệ 1:1</a>
+              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link">Bổ sung ảnh tỉ lệ 1:1</a>
               <? } ?>
             </td>
           </tr>
@@ -290,6 +312,7 @@
       </table>
     </div>
 
+    <!-- FOOTER STICKY (NÚT BẤM & LINK NGOÀI) -->
     <div class="footer-actions">
       <a href="<?= uc06Url ?>" target="_blank" class="btn-secondary">Mở file Sheet Avatar (UC06)</a>
       <button class="btn-close" onclick="google.script.host.close()">Đóng thông báo</button>
