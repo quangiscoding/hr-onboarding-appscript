@@ -172,19 +172,6 @@
       .action-link:hover {
         text-decoration: underline;
       }
-      .action-btn-crop {
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-        color: #1d4ed8;
-        padding: 3px 8px;
-        border-radius: 4px;
-        text-decoration: none;
-        font-weight: 600;
-        display: inline-block;
-      }
-      .action-btn-crop:hover {
-        background: #dbeafe;
-      }
 
       /* KHỐI FOOTER STICKY CỐ ĐỊNH Ở ĐÁY */
       .footer-actions {
@@ -288,7 +275,7 @@
               <? } else if (c.issueReason === 'EMPTY_IMAGE') { ?>
               <span class="badge badge-no-pic">Thiếu link ảnh</span>
               <? } else { ?>
-              <span class="badge badge-not-square"><?= c.dimensions ? c.dimensions.width + 'x' + c.dimensions.height : 'Chưa vuông' ?></span>
+              <span class="badge badge-not-square">Ảnh sai tỉ lệ</span>
               <? } ?>
             </td>
             <td>
@@ -303,7 +290,7 @@
               <? } else if (c.issueReason === 'EMPTY_IMAGE') { ?>
               <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link">Thêm ảnh nhân sự vào sheet Employee Avatar</a>
               <? } else { ?>
-              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link">Bổ sung ảnh tỉ lệ 1:1</a>
+              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link" style="color: #b45309">Bổ sung ảnh tỉ lệ 1:1</a>
               <? } ?>
             </td>
           </tr>
