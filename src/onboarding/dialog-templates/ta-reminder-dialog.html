@@ -99,6 +99,7 @@
       tr:hover {
         background-color: #f9fafb;
       }
+
       .badge {
         display: inline-block;
         padding: 3px 8px;
@@ -122,6 +123,10 @@
       .badge-no-row {
         background: #f3f4f6;
         color: #6b7280;
+      }
+      .badge-no-alloc {
+        background: #fce7f3;
+        color: #be185d;
       }
 
       .action-link {
@@ -183,7 +188,7 @@
         <div class="stat-value val-total"><?= totalCount ?></div>
       </div>
       <div class="stat-card">
-        <div class="stat-title">✅ Đã đủ điều kiện 1:1</div>
+        <div class="stat-title">✅ Đã đủ điều kiện</div>
         <div class="stat-value val-ready"><?= readyCount ?></div>
       </div>
       <div class="stat-card">
@@ -195,11 +200,11 @@
     <!-- 2. THÔNG BÁO TÌNH TRẠNG -->
     <? if (noticeType === 'MISSING') { ?>
     <div class="header-notice notice-warn">
-      ⚠️ <strong>CHƯA GỬI MAIL CHO DEVOPS:</strong> Còn <strong><?= missingCount ?></strong> bạn chưa có ảnh đạt chuẩn 1:1. Hệ thống chỉ gửi mail khi <strong>100%</strong> nhân sự đều đạt điều kiện. Vui lòng xử lý theo cột hành động bên dưới.
+      ⚠️ <strong>CHƯA GỬI MAIL CHO DEVOPS:</strong> Còn <strong><?= missingCount ?></strong> nhân sự chưa đủ điều kiện (thiếu Alloc Code hoặc ảnh chưa đạt 1:1). Hệ thống chỉ gửi mail khi <strong>100%</strong> đều đạt chuẩn.
     </div>
     <? } else if (noticeType === 'SUCCESS') { ?>
     <div class="header-notice notice-success">
-      🎉 <strong>HOÀN TẤT:</strong> Toàn bộ <strong><?= readyCount ?></strong> nhân sự onboard hôm nay đã đạt chuẩn Avatar 1:1 và đã được gửi email thông báo cho DevOps thành công.
+      🎉 <strong>HOÀN TẤT:</strong> Toàn bộ <strong><?= readyCount ?></strong> nhân sự onboard hôm nay đã đủ điều kiện và đã được gửi email thông báo cho DevOps thành công.
     </div>
     <? } else { ?>
     <div class="header-notice notice-info">ℹ️ <strong>ĐÃ XỬ LÝ:</strong> Toàn bộ nhân sự onboard hôm nay đã được xử lý và khóa dòng từ các lần chạy trước.</div>
@@ -212,8 +217,8 @@
           <tr>
             <th style="width: 8%">Dòng</th>
             <th style="width: 22%">Họ và Tên</th>
-            <th style="width: 28%">Email</th>
-            <th style="width: 17%">Tỉ lệ Avatar</th>
+            <th style="width: 28%">Working / Personal Email</th>
+            <th style="width: 17%">Trạng thái</th>
             <th style="width: 25%">Hành động cần làm</th>
           </tr>
         </thead>
@@ -222,11 +227,19 @@
           <tr>
             <td style="font-weight: 600; color: #4b5563">#<?= c.rowNumber ?></td>
             <td style="font-weight: 600"><?= c.fullName ?></td>
-            <td style="color: #4b5563"><?= c.personalEmail || c.workingEmail ?></td>
-
+            <td style="color: #4b5563">
+              <? if (c.workingEmail) { ?> <?= c.workingEmail ?> <? } else { ?>
+              <span style="color: #be185d"
+                ><?= c.personalEmail ?>
+                (Chưa có Working Email)</span
+              >
+              <? } ?>
+            </td>
             <td>
               <? if (c.isReady) { ?>
               <span class="badge badge-ok">✅ Đạt chuẩn 1:1</span>
+              <? } else if (c.issueReason === 'MISSING_ALLOC_CODE') { ?>
+              <span class="badge badge-no-alloc">Thiếu Alloc Code</span>
               <? } else if (c.issueReason === 'NOT_IN_SHEET') { ?>
               <span class="badge badge-no-row">Chưa có dòng</span>
               <? } else if (c.issueReason === 'EMPTY_IMAGE') { ?>
@@ -235,10 +248,11 @@
               <span class="badge badge-not-square">⚠️ <?= c.dimensions ? c.dimensions.width + 'x' + c.dimensions.height : 'Chưa vuông' ?></span>
               <? } ?>
             </td>
-
             <td>
               <? if (c.isReady) { ?>
               <span style="color: #16a34a; font-weight: 500">Sẵn sàng gửi mail</span>
+              <? } else if (c.issueReason === 'MISSING_ALLOC_CODE') { ?>
+              <a href="<?= c.rowLink ?>" target="_blank" class="action-link" style="color: #be185d">📝 Điền Alloc Code tại Hera</a>
               <? } else if (c.issueReason === 'NOT_IN_SHEET') { ?>
               <a href="<?= uc06Url ?>" target="_blank" class="action-link">➕ Mở UC06 thêm dòng</a>
               <? } else if (c.issueReason === 'EMPTY_IMAGE') { ?>

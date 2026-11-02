@@ -6,6 +6,7 @@ class AvatarUpdateUtil {
   /** Map mô tả hành động chi tiết hiển thị trên Modal cho TA */
   static get ISSUE_MESSAGES() {
     return {
+      MISSING_ALLOC_CODE: "Nhân sự chưa có Alloc Code / Working Email.",
       NOT_IN_SHEET: "Nhân sự chưa được thêm vào sheet Employee Avatar.",
       EMPTY_IMAGE: "Nhân sự chưa có link ảnh",
       INVALID_RATIO_MISSING_BACKUP: "Ảnh của nhân sự chưa đúng tỉ lệ 1:1",
@@ -56,6 +57,14 @@ class AvatarUpdateUtil {
 
   /** Phân loại 1 ứng viên cụ thể */
   static classifyCandidate(candidate, uc06Info) {
+    // 0. ĐIỀU KIỆN TIÊN QUYẾT: PHẢI CÓ ALLOC CODE / WORKING EMAIL
+    const allocCode = String(candidate.allocCode || "").trim();
+    if (!allocCode) {
+      candidate.issueReason = "MISSING_ALLOC_CODE";
+      candidate.issueMessage = this.ISSUE_MESSAGES.MISSING_ALLOC_CODE;
+      return "MISSING";
+    }
+
     Object.assign(candidate, {
       avatarUrl: uc06Info?.pictureUrl || "",
       squareBackupUrl: uc06Info?.squareBackupUrl || "",
@@ -123,14 +132,13 @@ class AvatarUpdateUtil {
     const sheet = ss.getSheetByName("Cập nhật Avatar") || ss.getSheets()[0];
     const lastRow = sheet.getLastRow();
     const lastCol = sheet.getLastColumn();
+
     if (lastRow <= 1 || lastCol <= 0) return avatarMap;
 
     const colMap = getHeaderColumnMap(sheet);
     const emailCol = colMap[normalizeHeaderKey("Email Address")];
     const pictureCol = colMap[normalizeHeaderKey("Picture")];
     const checkCol = colMap[normalizeHeaderKey("Check 1:1")];
-
-    // Tìm cột Ảnh 1:1
     const squareCol = colMap[normalizeHeaderKey("Ảnh 1:1")];
 
     if (!emailCol || !pictureCol) return avatarMap;
@@ -139,9 +147,6 @@ class AvatarUpdateUtil {
       email: emailCol - 1,
       picture: pictureCol - 1,
       square: squareCol ? squareCol - 1 : -1,
-
-      // Đổi số cột (1-indexed) thành chữ cái (A, B... Z, AA)
-      // để tạo URL link trực tiếp đến ô trên Google Sheets (&range=F5, &range=H5)
       pictureColLetter: getColumnLetterFromIndex(pictureCol),
       squareColLetter: squareCol ? getColumnLetterFromIndex(squareCol) : "",
     };
@@ -165,7 +170,6 @@ class AvatarUpdateUtil {
     if (hasChanges && checkCol) {
       sheet.getRange(2, checkCol, checkOutputs.length, 1).setValues(checkOutputs);
     }
-
     return avatarMap;
   }
 
@@ -231,8 +235,8 @@ class AvatarUpdateUtil {
     const scriptTz = Session.getScriptTimeZone();
     const todayStr = Utilities.formatDate(new Date(), scriptTz, "yyyy-MM-dd");
     const todayDisplay = Utilities.formatDate(new Date(), scriptTz, "dd/MM/yyyy");
-    const list = [];
 
+    const list = [];
     for (let r = ctx.actualLastRow; r >= 2; r--) {
       let d;
       try {
@@ -240,19 +244,13 @@ class AvatarUpdateUtil {
       } catch (e) {
         continue;
       }
-
       if (!d || !d.fullName || !d.personalEmail) continue;
 
-      // 1. Trạng thái On-boarded
       const isStatusOk =
         String(d.status || "")
           .toLowerCase()
           .replace(/[-_ \t]/g, "") === "onboarded";
-
-      // 2. Ngày Onboard là hôm nay
       const isDateOk = d.startDate === todayDisplay || d.startDate === todayStr;
-
-      // 3. Đúng Alloc Code của TA
       const isTaOk =
         String(d.taEmail || "")
           .split("@")[0]
@@ -262,9 +260,7 @@ class AvatarUpdateUtil {
       if (isStatusOk && isDateOk && isTaOk) {
         const targetEmail = d.personalEmail || d.workingEmail;
         const lockKey = `${triggerType}_${d.rowNumber}_${targetEmail.toLowerCase()}`;
-
         d.isLocked = ctx.lockedKeysSet.size > 0 ? ctx.lockedKeysSet.has(lockKey) : isRowLockedForWorkflow(d.rowNumber, triggerType, targetEmail);
-
         list.push(d);
       }
     }
@@ -279,8 +275,8 @@ class AvatarUpdateUtil {
   static _extractCandidateRow(rowIndex, cachedContext, triggerType) {
     const colMap = cachedContext.colMap;
     const rowValues = cachedContext.allRowsData[rowIndex - 1] || [];
-
     const rowData = {};
+
     Object.keys(colMap).forEach((key) => {
       rowData[key] = rowValues[colMap[key] - 1];
     });
