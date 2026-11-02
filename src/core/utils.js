@@ -63,11 +63,7 @@ function formatKyanonEmail(alloc) {
 function formatDateValue(dateVal) {
   if (!dateVal) return "";
   if (dateVal instanceof Date) {
-    return Utilities.formatDate(
-      dateVal,
-      Session.getScriptTimeZone(),
-      "dd/MM/yyyy",
-    );
+    return Utilities.formatDate(dateVal, Session.getScriptTimeZone(), "dd/MM/yyyy");
   }
   return clean(dateVal);
 }
@@ -114,16 +110,8 @@ function getImageDimensionsFromDriveId_(fileId) {
     // 1. Định dạng PNG
     if (contentType.includes("png")) {
       if (bytes.length >= 24) {
-        width =
-          ((bytes[16] & 0xff) << 24) |
-          ((bytes[17] & 0xff) << 16) |
-          ((bytes[18] & 0xff) << 8) |
-          (bytes[19] & 0xff);
-        height =
-          ((bytes[20] & 0xff) << 24) |
-          ((bytes[21] & 0xff) << 16) |
-          ((bytes[22] & 0xff) << 8) |
-          (bytes[23] & 0xff);
+        width = ((bytes[16] & 0xff) << 24) | ((bytes[17] & 0xff) << 16) | ((bytes[18] & 0xff) << 8) | (bytes[19] & 0xff);
+        height = ((bytes[20] & 0xff) << 24) | ((bytes[21] & 0xff) << 16) | ((bytes[22] & 0xff) << 8) | (bytes[23] & 0xff);
       }
     }
     // 2. Định dạng JPEG / JPG
@@ -133,20 +121,12 @@ function getImageDimensionsFromDriveId_(fileId) {
         if ((bytes[offset] & 0xff) === 0xff) {
           const marker = bytes[offset + 1] & 0xff;
           // SOF0, SOF1, SOF2 markers chứa kích thước ảnh
-          if (
-            (marker >= 0xc0 && marker <= 0xc3) ||
-            (marker >= 0xc5 && marker <= 0xc7) ||
-            (marker >= 0xc9 && marker <= 0xcb) ||
-            (marker >= 0xcd && marker <= 0xcf)
-          ) {
-            height =
-              ((bytes[offset + 5] & 0xff) << 8) | (bytes[offset + 6] & 0xff);
-            width =
-              ((bytes[offset + 7] & 0xff) << 8) | (bytes[offset + 8] & 0xff);
+          if ((marker >= 0xc0 && marker <= 0xc3) || (marker >= 0xc5 && marker <= 0xc7) || (marker >= 0xc9 && marker <= 0xcb) || (marker >= 0xcd && marker <= 0xcf)) {
+            height = ((bytes[offset + 5] & 0xff) << 8) | (bytes[offset + 6] & 0xff);
+            width = ((bytes[offset + 7] & 0xff) << 8) | (bytes[offset + 8] & 0xff);
             break;
           }
-          const length =
-            ((bytes[offset + 2] & 0xff) << 8) | (bytes[offset + 3] & 0xff);
+          const length = ((bytes[offset + 2] & 0xff) << 8) | (bytes[offset + 3] & 0xff);
           offset += 2 + length;
         } else {
           offset++;
@@ -164,32 +144,14 @@ function getImageDimensionsFromDriveId_(fileId) {
     else if (contentType.includes("webp")) {
       if (bytes.length >= 30) {
         // Simple VP8
-        if (
-          bytes[12] === 0x56 &&
-          bytes[13] === 0x50 &&
-          bytes[14] === 0x38 &&
-          bytes[15] === 0x20
-        ) {
+        if (bytes[12] === 0x56 && bytes[13] === 0x50 && bytes[14] === 0x38 && bytes[15] === 0x20) {
           width = ((bytes[26] & 0xff) | ((bytes[27] & 0xff) << 8)) & 0x3fff;
           height = ((bytes[28] & 0xff) | ((bytes[29] & 0xff) << 8)) & 0x3fff;
         }
         // Extended VP8X
-        else if (
-          bytes[12] === 0x56 &&
-          bytes[13] === 0x50 &&
-          bytes[14] === 0x38 &&
-          bytes[15] === 0x58
-        ) {
-          width =
-            1 +
-            ((bytes[24] & 0xff) |
-              ((bytes[25] & 0xff) << 8) |
-              ((bytes[26] & 0xff) << 16));
-          height =
-            1 +
-            ((bytes[27] & 0xff) |
-              ((bytes[28] & 0xff) << 8) |
-              ((bytes[29] & 0xff) << 16));
+        else if (bytes[12] === 0x56 && bytes[13] === 0x50 && bytes[14] === 0x38 && bytes[15] === 0x58) {
+          width = 1 + ((bytes[24] & 0xff) | ((bytes[25] & 0xff) << 8) | ((bytes[26] & 0xff) << 16));
+          height = 1 + ((bytes[27] & 0xff) | ((bytes[28] & 0xff) << 8) | ((bytes[29] & 0xff) << 16));
         }
       }
     }
@@ -248,9 +210,7 @@ function getRecipientsMap() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.DATA_SHEET_NAME);
   if (!sheet) {
-    throw new Error(
-      `Không tìm thấy sheet "${CONFIG.DATA_SHEET_NAME}" để đọc danh sách recipient!`,
-    );
+    throw new Error(`Không tìm thấy sheet "${CONFIG.DATA_SHEET_NAME}" để đọc danh sách recipient!`);
   }
 
   const lastRow = sheet.getLastRow();
@@ -278,9 +238,7 @@ function getRecipientsMap() {
   }
 
   if (headerRowIdx === -1) {
-    throw new Error(
-      `Không tìm thấy cột "Role" trong sheet "${CONFIG.DATA_SHEET_NAME}"!`,
-    );
+    throw new Error(`Không tìm thấy cột "Role" trong sheet "${CONFIG.DATA_SHEET_NAME}"!`);
   }
 
   // 2. Duyệt các dòng bên dưới header, gom Send to / CC theo Role
@@ -369,12 +327,8 @@ function renderHtmlTemplate(templateName, data) {
  */
 function getGuidePdfFileInfo(employmentType, onboardingType, customFileName) {
   try {
-    const category = clean(employmentType).includes("intern")
-      ? "intern"
-      : "probation";
-    const location = clean(onboardingType).includes("danang")
-      ? "danang"
-      : "hcm";
+    const category = clean(employmentType).includes("intern") ? "intern" : "probation";
+    const location = clean(onboardingType).includes("danang") ? "danang" : "hcm";
     const lookupKey = `${category}_${location}`;
 
     const fileId = CONFIG.GUIDE_PDF_MAP[lookupKey];
@@ -410,9 +364,7 @@ function extractDriveFileId_(url) {
 
   // 1. Khớp theo URL chuẩn: Sau /d/ hoặc /folders/ hoặc ?id=
   // Giới hạn độ dài ID từ 25-50 ký tự, chặn biên bằng [/&#?] hoặc hết chuỗi
-  const urlMatch = str.match(
-    /(?:\/(?:d|folders)\/|[?&]id=)([-\w]{25,50})(?:[/?&#]|$)/,
-  );
+  const urlMatch = str.match(/(?:\/(?:d|folders)\/|[?&]id=)([-\w]{25,50})(?:[/?&#]|$)/);
   if (urlMatch) return urlMatch[1];
 
   // 2. Khớp chuỗi ID thô (toàn bộ chuỗi chỉ gồm ký tự Base64, độ dài đúng chuẩn 25-50)
@@ -455,9 +407,7 @@ function isRowLockedForWorkflow(rowNumber, triggerType, email) {
     const entireRowRange = sheet.getRange(`${rowNumber}:${rowNumber}`);
     const metadataList = entireRowRange.getDeveloperMetadata();
 
-    const isLockedOnRow = metadataList.some(
-      (meta) => meta.getKey() === targetKey && meta.getValue() === "COMPLETED",
-    );
+    const isLockedOnRow = metadataList.some((meta) => meta.getKey() === targetKey && meta.getValue() === "COMPLETED");
 
     if (isLockedOnRow) return true;
 
@@ -487,14 +437,8 @@ function lockRowForWorkflow(rowNumber, triggerType, email) {
     const entireRowRange = sheet.getRange(`${rowNumber}:${rowNumber}`);
 
     if (!isRowLockedForWorkflow(rowNumber, triggerType, email)) {
-      entireRowRange.addDeveloperMetadata(
-        targetKey,
-        "COMPLETED",
-        SpreadsheetApp.DeveloperMetadataVisibility.DOCUMENT,
-      );
-      Logger.log(
-        `[LOCK SUCCESS] Đã khóa "${targetKey}" cho Dòng ${rowNumber}:${rowNumber}`,
-      );
+      entireRowRange.addDeveloperMetadata(targetKey, "COMPLETED", SpreadsheetApp.DeveloperMetadataVisibility.DOCUMENT);
+      Logger.log(`[LOCK SUCCESS] Đã khóa "${targetKey}" cho Dòng ${rowNumber}:${rowNumber}`);
     }
   } catch (error) {
     Logger.log(`[lockRowForWorkflow Error]: ${error.stack}`);
@@ -510,9 +454,7 @@ function dev_unlockCurrentRow() {
   const activeRange = sheet.getActiveRange();
 
   if (!activeRange) {
-    ui.alert(
-      "⚠️ Vui lòng chọn một dòng chứa dữ liệu trên Sheet trước khi mở khóa!",
-    );
+    ui.alert("⚠️ Vui lòng chọn một dòng chứa dữ liệu trên Sheet trước khi mở khóa!");
     return;
   }
 
@@ -568,13 +510,9 @@ function test_getImageDimensions() {
     if (result) {
       Logger.log(`- Kích thước: ${result.width} x ${result.height} px`);
       Logger.log(`- Tỉ lệ (Width/Height): ${result.ratio}`);
-      Logger.log(
-        `- Kết luận: ${result.isSquare ? "✅ ĐẠT CHUẨN 1:1" : "❌ SAI TỈ LỆ 1:1"}`,
-      );
+      Logger.log(`- Kết luận: ${result.isSquare ? "✅ ĐẠT CHUẨN 1:1" : "❌ SAI TỈ LỆ 1:1"}`);
     } else {
-      Logger.log(
-        `⚠️ Không đọc được metadata hoặc không có quyền truy cập file ID này.`,
-      );
+      Logger.log(`⚠️ Không đọc được metadata hoặc không có quyền truy cập file ID này.`);
     }
   });
 }

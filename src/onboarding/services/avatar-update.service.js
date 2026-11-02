@@ -3,9 +3,7 @@
  * Service chuyên biệt xử lý Luồng 4: Cập nhật Avatar Onboard (All-or-Nothing Gatekeeper)
  */
 class AvatarUpdateService {
-  /**
-   * Điểm thực thi chính của luồng Avatar Update
-   */
+  /** Điểm thực thi chính của luồng Avatar Update */
   static execute() {
     const TRIGGER = ONBOARDING_CONFIG.TRIGGERS.AVATAR_UPDATE;
     const currentUser = Session.getActiveUser().getEmail().toLowerCase().trim();

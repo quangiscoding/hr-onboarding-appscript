@@ -119,7 +119,8 @@ class AvatarUpdateUtil {
     const avatarMap = {};
     if (!spreadsheetId) return avatarMap;
 
-    const sheet = SpreadsheetApp.openById(spreadsheetId).getSheets()[0];
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const sheet = ss.getSheetByName("Cập nhật Avatar") || ss.getSheets()[0];
     const lastRow = sheet.getLastRow();
     const lastCol = sheet.getLastColumn();
     if (lastRow <= 1 || lastCol <= 0) return avatarMap;
@@ -129,8 +130,8 @@ class AvatarUpdateUtil {
     const pictureCol = colMap[normalizeHeaderKey("Picture")];
     const checkCol = colMap[normalizeHeaderKey("Check 1:1")];
 
-    // Tìm cột Ảnh 1:1 an toàn qua nhiều biến thể
-    const squareCol = colMap[normalizeHeaderKey("Ảnh 1:1")] || colMap[normalizeHeaderKey("Picture 1:1")] || colMap[normalizeHeaderKey("Anh 1:1")] || (checkCol ? checkCol + 1 : null);
+    // Tìm cột Ảnh 1:1
+    const squareCol = colMap[normalizeHeaderKey("Ảnh 1:1")];
 
     if (!emailCol || !pictureCol) return avatarMap;
 
@@ -138,6 +139,9 @@ class AvatarUpdateUtil {
       email: emailCol - 1,
       picture: pictureCol - 1,
       square: squareCol ? squareCol - 1 : -1,
+
+      // Đổi số cột (1-indexed) thành chữ cái (A, B... Z, AA)
+      // để tạo URL link trực tiếp đến ô trên Google Sheets (&range=F5, &range=H5)
       pictureColLetter: getColumnLetterFromIndex(pictureCol),
       squareColLetter: squareCol ? getColumnLetterFromIndex(squareCol) : "",
     };
@@ -217,7 +221,7 @@ class AvatarUpdateUtil {
     };
   }
 
-  /** Quét và trích xuất danh sách nhân sự Onboard hôm nay của TA đang thao tác (chạy thuần RAM) */
+  /** Quét và trích xuất danh sách nhân sự Onboard hôm nay của TA đang thao tác */
   static getTodayOnboardCandidates(currentAllocCode, triggerType) {
     const ctx = this.loadBatchContext();
     if (ctx.isEmpty) {
