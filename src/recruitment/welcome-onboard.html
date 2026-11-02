@@ -243,9 +243,7 @@
   </head>
   <body>
     <h2>Welcome Onboard Generator 🚀</h2>
-    <div class="subtitle">
-      Tạo draft bài đăng chào mừng nhân sự mới trên Outline Wiki
-    </div>
+    <div class="subtitle">Tạo draft bài đăng chào mừng nhân sự mới trên Outline Wiki</div>
     <div id="loading">Đang đọc dữ liệu ứng viên từ dòng đang chọn...</div>
     <div id="error-box" class="status"></div>
 
@@ -264,95 +262,37 @@
             <canvas id="welcomeCanvas" width="1000" height="1000"></canvas>
           </div>
           <!-- THÊM DÒNG NÀY ĐỂ BÁO TRẠNG THÁI AVATAR -->
-          <div
-            id="avatar-status-badge"
-            class="avatar-status-badge"
-            style="
-              font-size: 11px;
-              margin-top: 6px;
-              font-weight: 500;
-              color: #5f6368;
-              text-align: center;
-            "
-          ></div>
+          <div id="avatar-status-badge" class="avatar-status-badge" style="font-size: 11px; margin-top: 6px; font-weight: 500; color: #5f6368; text-align: center"></div>
 
           <!-- NÚT UPLOAD ÁNH TRỰC TIẾP TỪ MÁY TÍNH -->
           <div style="margin-top: 8px">
-            <button
-              class="btn-secondary"
-              style="border-color: #1a73e8; font-weight: 600"
-              onclick="document.getElementById('avatar-input').click()"
-            >
-              📷 Upload Ảnh Ứng Viên từ máy
-            </button>
-            <input
-              type="file"
-              id="avatar-input"
-              accept="image/*"
-              onchange="handleAvatarUpload(this)"
-            />
+            <button class="btn-secondary" style="border-color: #1a73e8; font-weight: 600" onclick="document.getElementById('avatar-input').click()">📷 Upload Ảnh Ứng Viên từ máy</button>
+            <input type="file" id="avatar-input" accept="image/*" onchange="handleAvatarUpload(this)" />
 
-            <button
-              class="btn-secondary"
-              style="margin-top: 4px"
-              onclick="document.getElementById('frame-input').click()"
-            >
-              🎨 Chọn Khung Template khác (nếu cần)
-            </button>
-            <input
-              type="file"
-              id="frame-input"
-              accept="image/*"
-              onchange="handleFrameUpload(this)"
-            />
+            <button class="btn-secondary" style="margin-top: 4px" onclick="document.getElementById('frame-input').click()">🎨 Chọn Khung Template khác (nếu cần)</button>
+            <input type="file" id="frame-input" accept="image/*" onchange="handleFrameUpload(this)" />
           </div>
 
           <!-- THANH TRUỘT BỘ ĐIỀU CHỈNH -->
           <div style="margin-top: 10px">
             <div class="control-row">
               <label>Zoom:</label>
-              <input
-                type="range"
-                id="zoomScale"
-                min="0.4"
-                max="2.2"
-                step="0.05"
-                value="1.0"
-                oninput="renderCanvas()"
-              />
+              <input type="range" id="zoomScale" min="0.4" max="2.2" step="0.05" value="1.0" oninput="renderCanvas()" />
               <span id="zoomVal">1.0x</span>
             </div>
             <div class="control-row">
               <label>Trái / Phải:</label>
-              <input
-                type="range"
-                id="offsetX"
-                min="-200"
-                max="200"
-                step="2"
-                value="0"
-                oninput="renderCanvas()"
-              />
+              <input type="range" id="offsetX" min="-200" max="200" step="2" value="0" oninput="renderCanvas()" />
               <span id="xVal">0px</span>
             </div>
             <div class="control-row">
               <label>Lên / Xuống:</label>
-              <input
-                type="range"
-                id="offsetY"
-                min="-200"
-                max="200"
-                step="2"
-                value="0"
-                oninput="renderCanvas()"
-              />
+              <input type="range" id="offsetY" min="-200" max="200" step="2" value="0" oninput="renderCanvas()" />
               <span id="yVal">0px</span>
             </div>
           </div>
 
-          <button class="btn-download" onclick="downloadImage()">
-            ⬇️ Tải ảnh đã ghép về máy (.JPG)
-          </button>
+          <button class="btn-download" onclick="downloadImage()">⬇️ Tải ảnh đã ghép về máy (.JPG)</button>
         </div>
       </div>
 
@@ -362,42 +302,22 @@
         <div class="card">
           <div id="cv-sheet-status">Đang kiểm tra link CV trên sheet...</div>
           <div class="cv-file-name" id="cv-file-name"></div>
-          <input
-            type="file"
-            id="cv-input"
-            accept="application/pdf,.doc,.docx,.txt"
-            onchange="handleCvSelect(this)"
-          />
+          <input type="file" id="cv-input" accept="application/pdf,.doc,.docx,.txt" onchange="handleCvSelect(this)" />
         </div>
-        <button
-          class="btn-secondary"
-          style="margin-top: 6px"
-          onclick="document.getElementById('cv-input').click()"
-        >
-          ⬆️ Upload CV khác từ máy (PDF/Doc)
-        </button>
-        <button id="ai-btn" class="btn-ai" onclick="handleAiSummarize()">
-          ✨ AI tóm tắt CV → soạn Introduction
-        </button>
+        <button class="btn-secondary" style="margin-top: 6px" onclick="document.getElementById('cv-input').click()">⬆️ Upload CV khác từ máy (PDF/Doc)</button>
+        <button id="ai-btn" class="btn-ai" onclick="handleAiSummarize()">✨ AI tóm tắt CV → soạn Introduction</button>
       </div>
 
       <!-- 4. INTRODUCTION & SUBMIT OUTLINE -->
       <div class="section-title">Introduction</div>
-      <textarea
-        id="introduction"
-        placeholder="We are thrilled to welcome Ms./Mr. ... as our ...! 🎉 ..."
-      ></textarea>
+      <textarea id="introduction" placeholder="We are thrilled to welcome Ms./Mr. ... as our ...! 🎉 ..."></textarea>
       <div class="hint">
         <b>💡 HƯỚNG DẪN:</b><br />
-        1. Bấm <b>Upload Ảnh Ứng Viên</b> -> Căn chỉnh góc -> Bấm
-        <b>Tải ảnh về máy</b>.<br />
+        1. Bấm <b>Upload Ảnh Ứng Viên</b> -> Căn chỉnh góc -> Bấm <b>Tải ảnh về máy</b>.<br />
         2. Bấm <b>Submit</b> để tạo bài draft trên Outline Wiki.<br />
-        3. Mở draft trên Outline -> Kéo-thả (hoặc Ctrl+V) file ảnh vừa tải vào
-        bài.
+        3. Mở draft trên Outline -> Kéo-thả (hoặc Ctrl+V) file ảnh vừa tải vào bài.
       </div>
-      <button id="submit-btn" class="btn" onclick="handleSubmit()">
-        Submit → Tạo draft trên Outline
-      </button>
+      <button id="submit-btn" class="btn" onclick="handleSubmit()">Submit → Tạo draft trên Outline</button>
       <div id="status" class="status"></div>
     </div>
 
@@ -551,10 +471,7 @@
           alert("Vui lòng Upload Ảnh Ứng Viên trước khi tải về!");
           return;
         }
-        const name =
-          currentCandidate && currentCandidate.fullName
-            ? currentCandidate.fullName.replace(/\s+/g, "_")
-            : "Onboarding";
+        const name = currentCandidate && currentCandidate.fullName ? currentCandidate.fullName.replace(/\s+/g, "_") : "Onboarding";
         const link = document.createElement("a");
         link.download = `Welcome_${name}.jpg`;
         link.href = canvas.toDataURL("image/jpeg", 0.95);
@@ -585,10 +502,7 @@
         ];
         document.getElementById("candidate-card").innerHTML = rows
           .filter(([, v]) => v)
-          .map(
-            ([label, value]) =>
-              `<div class="field"><span class="label">${label}</span><span class="value">${escapeHtml(value)}</span></div>`,
-          )
+          .map(([label, value]) => `<div class="field"><span class="label">${label}</span><span class="value">${escapeHtml(value)}</span></div>`)
           .join("");
 
         // Cập nhật lại khung Canvas khi nạp xong dữ liệu candidate
@@ -624,10 +538,7 @@
           };
           const el = document.getElementById("cv-file-name");
           el.style.display = "block";
-          el.textContent =
-            "📄 Đã chọn file: " +
-            file.name +
-            " (sẽ dùng file này thay CV trên sheet)";
+          el.textContent = "📄 Đã chọn file: " + file.name + " (sẽ dùng file này thay CV trên sheet)";
         };
         reader.readAsDataURL(file);
       }
@@ -635,13 +546,9 @@
       function updateCvSheetStatus(candidate) {
         const el = document.getElementById("cv-sheet-status");
         if (candidate.cvUrl) {
-          el.innerHTML =
-            '✅ CV trên sheet: <i style="word-break: break-all; overflow-wrap: anywhere; display: inline-block;">' +
-            escapeHtml(truncate(candidate.cvUrl, 60)) +
-            "</i>";
+          el.innerHTML = '✅ CV trên sheet: <i style="word-break: break-all; overflow-wrap: anywhere; display: inline-block;">' + escapeHtml(truncate(candidate.cvUrl, 60)) + "</i>";
         } else {
-          el.innerHTML =
-            "⚠️ Cột CV trên sheet trống — hãy upload CV từ máy để dùng AI.";
+          el.innerHTML = "⚠️ Cột CV trên sheet trống — hãy upload CV từ máy để dùng AI.";
         }
       }
 
@@ -662,15 +569,9 @@
             btn.innerHTML = "✨ AI tóm tắt CV → soạn Introduction";
             if (res && res.ok) {
               document.getElementById("introduction").value = res.introduction;
-              showStatus(
-                "success",
-                "✨ AI đã soạn Introduction. Bạn có thể chỉnh tay trước khi Submit.",
-              );
+              showStatus("success", "✨ AI đã soạn Introduction. Bạn có thể chỉnh tay trước khi Submit.");
             } else {
-              showStatus(
-                "error",
-                "❌ " + escapeHtml((res && res.error) || "Lỗi không xác định."),
-              );
+              showStatus("error", "❌ " + escapeHtml((res && res.error) || "Lỗi không xác định."));
             }
           })
           .withFailureHandler(function (err) {
@@ -686,14 +587,9 @@
 
       /* ---------------- SUBMIT ---------------- */
       function handleSubmit() {
-        const introduction = document
-          .getElementById("introduction")
-          .value.trim();
+        const introduction = document.getElementById("introduction").value.trim();
         if (!introduction) {
-          showStatus(
-            "error",
-            "⚠️ Vui lòng nhập nội dung Introduction (hoặc bấm ✨ để AI soạn).",
-          );
+          showStatus("error", "⚠️ Vui lòng nhập nội dung Introduction (hoặc bấm ✨ để AI soạn).");
           return;
         }
         const btn = document.getElementById("submit-btn");
@@ -705,20 +601,9 @@
             btn.disabled = false;
             btn.innerHTML = "Submit → Tạo draft trên Outline";
             if (res && res.ok) {
-              showStatus(
-                "success",
-                escapeHtml(res.message) +
-                  (res.url
-                    ? '<br><a href="' +
-                      res.url +
-                      '" target="_blank">Mở draft trên Outline →</a>'
-                    : ""),
-              );
+              showStatus("success", escapeHtml(res.message) + (res.url ? '<br><a href="' + res.url + '" target="_blank">Mở draft trên Outline →</a>' : ""));
             } else {
-              showStatus(
-                "error",
-                "❌ " + escapeHtml((res && res.error) || "Lỗi không xác định."),
-              );
+              showStatus("error", "❌ " + escapeHtml((res && res.error) || "Lỗi không xác định."));
             }
           })
           .withFailureHandler(function (err) {
@@ -757,13 +642,11 @@
               };
               avatarImg.src = res.candidate.avatarBase64;
               if (badge) {
-                badge.innerHTML =
-                  "✅ <span style='color: #137333;'>Đã tự động lấy ảnh từ Employee Avatar</span>";
+                badge.innerHTML = "✅ <span style='color: #137333;'>Đã tự động lấy ảnh từ Employee Avatar</span>";
               }
             } else {
               if (badge) {
-                badge.innerHTML =
-                  "⚠️ <span style='color: #b3261e;'>Chưa có ảnh trên sheet Employee Avatar — Bạn có thể upload thủ công từ máy</span>";
+                badge.innerHTML = "⚠️ <span style='color: #b3261e;'>Chưa có ảnh trên sheet Employee Avatar — Bạn có thể upload thủ công từ máy</span>";
               }
             }
 
@@ -774,23 +657,26 @@
             const box = document.getElementById("error-box");
             box.style.display = "block";
 
-            const errText = (err && (err.message || err.toString())) || "";
-            if (
-              errText.includes("PERMISSION_DENIED") ||
-              errText.includes("ScriptError")
-            ) {
+            const errMessage = (err && err.message) || String(err);
+
+            // Bắt chính xác lỗi quyền / đa tài khoản do Google ném ra
+            if (/authorization is required|permission_denied/i.test(errMessage)) {
+              box.className = "status error";
               box.innerHTML = `
-          <div style="line-height: 1.4;">
-            <b style="color: #b3261e;">⚠️ Xung đột tài khoản Google:</b><br/>
-            Trình duyệt đang ưu tiên tài khoản Google mặc định (Account 0) thay vì tài khoản công ty.<br/><br/>
-            <b>Cách xử lý nhanh:</b><br/>
-            • <b>Cách 1:</b> Mở Sheet này trên <b>Tab ẩn danh (Incognito)</b> bằng tài khoản Kyanon.<br/>
-            • <b>Cách 2 (Khuyên dùng):</b> Tạo riêng một <b>Profile Chrome/Brave riêng</b> chỉ đăng nhập duy nhất tài khoản Kyanon để dùng vĩnh viễn không bị lỗi.
-          </div>
-        `;
-            } else {
-              box.textContent = "Lỗi: " + errText;
+      <div style="line-height: 1.5;">
+        <b style="color: #b3261e;">⚠️ Xung đột tài khoản Google:</b><br/>
+        Trình duyệt đang ưu tiên tài khoản Google mặc định thay vì tài khoản công ty chứa file này.<br/><br/>
+        <b>Cách xử lý:</b><br/>
+        • Mở Sheet trên <b>Tab ẩn danh (Incognito)</b> bằng tài khoản công ty.<br/>
+        • Hoặc tạo một <b>Profile trình duyệt riêng</b> chỉ đăng nhập duy nhất tài khoản công ty.
+      </div>
+    `;
+              return;
             }
+
+            // Các lỗi thực thi khác (nếu có)
+            box.className = "status error";
+            box.textContent = "Lỗi: " + errMessage;
           })
           .getSelectedCandidate();
       }
