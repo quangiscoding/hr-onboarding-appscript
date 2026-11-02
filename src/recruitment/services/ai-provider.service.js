@@ -35,9 +35,7 @@ class AiProviderService {
     try {
       body = JSON.parse(rawText);
     } catch (e) {
-      throw new Error(
-        `Gateway phản hồi không đúng JSON (HTTP ${statusCode}): ${rawText}`,
-      );
+      throw new Error(`Gateway phản hồi không đúng JSON (HTTP ${statusCode}): ${rawText}`);
     }
 
     if (statusCode !== 200 || !body.ok) {
@@ -65,9 +63,7 @@ class AiProviderService {
         },
       });
     } else {
-      promptParts[0].text +=
-        "\n\nCV content:\n" +
-        String((cvContent && cvContent.text) || "").slice(0, 15000);
+      promptParts[0].text += "\n\nCV content:\n" + String((cvContent && cvContent.text) || "").slice(0, 15000);
     }
 
     const providers = OUTLINE_CV_SUMMARIZER_CONFIG.AI_PROVIDERS || ["gemini"];
@@ -75,10 +71,7 @@ class AiProviderService {
 
     for (const provider of providers) {
       try {
-        const models =
-          provider === "openrouter"
-            ? OUTLINE_CV_SUMMARIZER_CONFIG.OPENROUTER?.MODELS
-            : OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI?.MODELS;
+        const models = provider === "openrouter" ? OUTLINE_CV_SUMMARIZER_CONFIG.OPENROUTER?.MODELS : OUTLINE_CV_SUMMARIZER_CONFIG.GEMINI?.MODELS;
 
         const targetModel = models && models.length ? models[0] : null;
 
@@ -89,15 +82,11 @@ class AiProviderService {
         });
       } catch (err) {
         errors.push(`[${provider}] ${err.message}`);
-        Logger.log(
-          `⚠️ Provider ${provider} qua Gateway lỗi, thử provider kế: ${err.message}`,
-        );
+        Logger.log(`⚠️ Provider ${provider} qua Gateway lỗi, thử provider kế: ${err.message}`);
       }
     }
 
-    throw new Error(
-      "Tất cả AI provider qua Gateway đều thất bại:\n" + errors.join("\n"),
-    );
+    throw new Error("Tất cả AI provider qua Gateway đều thất bại:\n" + errors.join("\n"));
   }
 }
 
@@ -114,12 +103,7 @@ function testAiGatewayConnection() {
     Logger.log("✅ KẾT NỐI THÀNH CÔNG!");
     Logger.log("Phản hồi từ AI: " + res.text);
     Logger.log("Provider: " + res.provider + " | Model: " + res.model);
-    Logger.log(
-      "Input Tokens: " +
-        res.inputTokens +
-        " | Output Tokens: " +
-        res.outputTokens,
-    );
+    Logger.log("Input Tokens: " + res.inputTokens + " | Output Tokens: " + res.outputTokens);
   } catch (e) {
     Logger.log("❌ KẾT NỐI THẤT BẠI: " + e.message);
   }
