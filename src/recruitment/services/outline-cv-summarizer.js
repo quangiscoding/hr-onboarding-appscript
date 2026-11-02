@@ -11,9 +11,7 @@ class OutlineCvSummarizerService {
   static generateCandidateIntroduction(formData) {
     const candidate = formData && formData.candidate;
     if (!candidate || !candidate.fullName) {
-      throw new Error(
-        "Thiếu thông tin ứng viên. Hãy chọn lại dòng và mở lại sidebar.",
-      );
+      throw new Error("Thiếu thông tin ứng viên. Hãy chọn lại dòng và mở lại sidebar.");
     }
 
     let aiRes = null;
@@ -21,10 +19,7 @@ class OutlineCvSummarizerService {
 
     try {
       // 1. Đọc nội dung CV
-      const cvContent = CvReaderService.readCvContent(
-        formData && formData.cvFile,
-        candidate,
-      );
+      const cvContent = CvReaderService.readCvContent(formData && formData.cvFile, candidate);
 
       // 2. Gọi AI tóm tắt
       aiRes = AiProviderService.summarizeCv(cvContent, candidate);

@@ -3,8 +3,7 @@
  */
 const OUTLINE_CV_SUMMARIZER_CONFIG = {
   GATEWAY: {
-    WEB_APP_URL:
-      "https://script.google.com/a/macros/kyanon.digital/s/AKfycbwqPVlgbzfCnb4ITwu5JWZknHmf5FKcdkTc2JHtJy8cvPnMLl0F5UoGUnl2qcaRZFfI/exec",
+    WEB_APP_URL: "https://script.google.com/a/macros/kyanon.digital/s/AKfycbwqPVlgbzfCnb4ITwu5JWZknHmf5FKcdkTc2JHtJy8cvPnMLl0F5UoGUnl2qcaRZFfI/exec",
   },
 
   OUTLINE: {
@@ -34,23 +33,7 @@ const OUTLINE_CV_SUMMARIZER_CONFIG = {
 
   LOG: {
     SHEET_NAME: "AI Cost Log",
-    HEADERS: [
-      "Timestamp",
-      "User Call",
-      "Fullname",
-      "Provider",
-      "Model",
-      "Time Start",
-      "Time End",
-      "Latency (s)",
-      "Input Tokens",
-      "Output Tokens",
-      "Price Input ($/1M)",
-      "Price Output ($/1M)",
-      "Total Cost ($)",
-      "Status",
-      "Error Details",
-    ],
+    HEADERS: ["Timestamp", "User Call", "Fullname", "Provider", "Model", "Time Start", "Time End", "Latency (s)", "Input Tokens", "Output Tokens", "Price Input ($/1M)", "Price Output ($/1M)", "Total Cost ($)", "Status", "Error Details"],
   },
 
   COLS: {
