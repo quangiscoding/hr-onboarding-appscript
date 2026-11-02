@@ -7,9 +7,10 @@ class AvatarUpdateUtil {
   static get ISSUE_MESSAGES() {
     return {
       MISSING_ALLOC_CODE: "Nhân sự chưa có Alloc Code / Working Email.",
+      MISSING_PERSONAL_EMAIL: "Nhân sự chưa có Email cá nhân trên Sheet Hera.",
       NOT_IN_SHEET: "Nhân sự chưa được thêm vào sheet Employee Avatar.",
-      EMPTY_IMAGE: "Nhân sự chưa có link ảnh",
-      INVALID_RATIO_MISSING_BACKUP: "Ảnh của nhân sự chưa đúng tỉ lệ 1:1",
+      EMPTY_IMAGE: "Nhân sự chưa có link ảnh trên UC06.",
+      INVALID_RATIO_MISSING_BACKUP: "Ảnh của nhân sự chưa đúng tỉ lệ 1:1.",
     };
   }
 
@@ -57,7 +58,15 @@ class AvatarUpdateUtil {
 
   /** Phân loại 1 ứng viên cụ thể */
   static classifyCandidate(candidate, uc06Info) {
-    // 0. ĐIỀU KIỆN TIÊN QUYẾT: PHẢI CÓ ALLOC CODE / WORKING EMAIL
+    // 0. CHECK ĐIỀU KIỆN TIÊN QUYẾT 1: BẮT BUỘC CÓ PERSONAL EMAIL (ĐỂ MAPPING UC06)
+    const personalEmail = String(candidate.personalEmail || "").trim();
+    if (!personalEmail) {
+      candidate.issueReason = "MISSING_PERSONAL_EMAIL";
+      candidate.issueMessage = this.ISSUE_MESSAGES.MISSING_PERSONAL_EMAIL;
+      return "MISSING";
+    }
+
+    // 0. CHECK ĐIỀU KIỆN TIÊN QUYẾT 2: BẮT BUỘC CÓ ALLOC CODE
     const allocCode = String(candidate.allocCode || "").trim();
     if (!allocCode) {
       candidate.issueReason = "MISSING_ALLOC_CODE";
@@ -244,7 +253,9 @@ class AvatarUpdateUtil {
       } catch (e) {
         continue;
       }
-      if (!d || !d.fullName || !d.personalEmail) continue;
+
+      // Giữ lại ứng viên khi chỉ có fullName, không drop khi thiếu email
+      if (!d || !d.fullName) continue;
 
       const isStatusOk =
         String(d.status || "")
@@ -258,9 +269,11 @@ class AvatarUpdateUtil {
           .toLowerCase() === currentAllocCode;
 
       if (isStatusOk && isDateOk && isTaOk) {
-        const targetEmail = d.personalEmail || d.workingEmail;
-        const lockKey = `${triggerType}_${d.rowNumber}_${targetEmail.toLowerCase()}`;
+        const targetEmail = d.personalEmail || d.workingEmail || `row_${d.rowNumber}@missing.local`;
+        const lockKey = buildWorkflowLockKey_(triggerType, targetEmail);
+
         d.isLocked = ctx.lockedKeysSet.size > 0 ? ctx.lockedKeysSet.has(lockKey) : isRowLockedForWorkflow(d.rowNumber, triggerType, targetEmail);
+
         list.push(d);
       }
     }

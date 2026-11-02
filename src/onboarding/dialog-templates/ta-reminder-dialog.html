@@ -21,31 +21,48 @@
         margin-bottom: 14px;
       }
       .stat-card {
-        border: 1px solid #e5e7eb;
         border-radius: 6px;
         padding: 10px 14px;
-        background: #f9fafb;
       }
-      .stat-title {
-        font-size: 12px;
-        color: #6b7280;
-        margin-bottom: 4px;
-        font-weight: 500;
+      .stat-card.card-total {
+        background-color: #eff6ff;
+        border: 1px solid #bfdbfe;
       }
-      .stat-value {
-        font-size: 18px;
-        font-weight: bold;
+      .stat-card.card-total .stat-title {
+        color: #1e40af;
       }
       .val-total {
-        color: #111827;
+        color: #1d4ed8;
+      }
+      .stat-card.card-ready {
+        background-color: #f0fdf4;
+        border: 1px solid #bbf7d0;
+      }
+      .stat-card.card-ready .stat-title {
+        color: #166534;
       }
       .val-ready {
-        color: #16a34a;
+        color: #15803d;
+      }
+      .stat-card.card-missing {
+        background-color: #fef2f2;
+        border: 1px solid #fecaca;
+      }
+      .stat-card.card-missing .stat-title {
+        color: #991b1b;
       }
       .val-missing {
         color: #dc2626;
       }
-
+      .stat-title {
+        font-size: 12px;
+        margin-bottom: 4px;
+        font-weight: 600;
+      }
+      .stat-value {
+        font-size: 20px;
+        font-weight: bold;
+      }
       .header-notice {
         padding: 10px 14px;
         border-radius: 6px;
@@ -68,7 +85,6 @@
         border: 1px solid #e2e8f0;
         color: #475569;
       }
-
       .table-container {
         max-height: 280px;
         overflow-y: auto;
@@ -99,7 +115,6 @@
       tr:hover {
         background-color: #f9fafb;
       }
-
       .badge {
         display: inline-block;
         padding: 3px 8px;
@@ -128,7 +143,10 @@
         background: #fce7f3;
         color: #be185d;
       }
-
+      .badge-no-email {
+        background: #ffedd5;
+        color: #c2410c;
+      }
       .action-link {
         color: #2563eb;
         text-decoration: none;
@@ -150,7 +168,6 @@
       .action-btn-crop:hover {
         background: #dbeafe;
       }
-
       .footer-actions {
         display: flex;
         justify-content: space-between;
@@ -183,16 +200,16 @@
   <body>
     <!-- 1. THỐNG KÊ NHANH -->
     <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-title">👥 Tổng Onboard hôm nay</div>
+      <div class="stat-card card-total">
+        <div class="stat-title">Tổng Onboard hôm nay</div>
         <div class="stat-value val-total"><?= totalCount ?></div>
       </div>
-      <div class="stat-card">
-        <div class="stat-title">✅ Đã đủ điều kiện</div>
+      <div class="stat-card card-ready">
+        <div class="stat-title">Đã đủ điều kiện</div>
         <div class="stat-value val-ready"><?= readyCount ?></div>
       </div>
-      <div class="stat-card">
-        <div class="stat-title">⚠️ Chưa đủ điều kiện</div>
+      <div class="stat-card card-missing">
+        <div class="stat-title">Chưa đủ điều kiện</div>
         <div class="stat-value val-missing"><?= missingCount ?></div>
       </div>
     </div>
@@ -200,14 +217,14 @@
     <!-- 2. THÔNG BÁO TÌNH TRẠNG -->
     <? if (noticeType === 'MISSING') { ?>
     <div class="header-notice notice-warn">
-      ⚠️ <strong>CHƯA GỬI MAIL CHO DEVOPS:</strong> Còn <strong><?= missingCount ?></strong> nhân sự chưa đủ điều kiện (thiếu Alloc Code hoặc ảnh chưa đạt 1:1). Hệ thống chỉ gửi mail khi <strong>100%</strong> đều đạt chuẩn.
+      <strong>CHƯA GỬI MAIL CHO DEVOPS:</strong> Còn <strong><?= missingCount ?></strong> nhân sự chưa đủ điều kiện (thiếu Alloc Code, thiếu Email hoặc ảnh chưa đạt 1:1). Hệ thống chỉ gửi mail khi <strong>100%</strong> đều đạt chuẩn.
     </div>
     <? } else if (noticeType === 'SUCCESS') { ?>
     <div class="header-notice notice-success">
-      🎉 <strong>HOÀN TẤT:</strong> Toàn bộ <strong><?= readyCount ?></strong> nhân sự onboard hôm nay đã đủ điều kiện và đã được gửi email thông báo cho DevOps thành công.
+      <strong>HOÀN TẤT:</strong> Toàn bộ <strong><?= readyCount ?></strong> nhân sự onboard hôm nay đã đủ điều kiện và đã được gửi email thông báo cho DevOps thành công.
     </div>
     <? } else { ?>
-    <div class="header-notice notice-info">ℹ️ <strong>ĐÃ XỬ LÝ:</strong> Toàn bộ nhân sự onboard hôm nay đã được xử lý và khóa dòng từ các lần chạy trước.</div>
+    <div class="header-notice notice-info"><strong>ĐÃ XỬ LÝ:</strong> Toàn bộ nhân sự onboard hôm nay đã được xử lý và khóa dòng từ các lần chạy trước.</div>
     <? } ?>
 
     <!-- 3. BẢNG CHI TIẾT & HÀNH ĐỘNG CẦN LÀM -->
@@ -216,8 +233,8 @@
         <thead>
           <tr>
             <th style="width: 8%">Dòng</th>
-            <th style="width: 22%">Họ và Tên</th>
-            <th style="width: 28%">Working / Personal Email</th>
+            <th style="width: 20%">Họ và Tên</th>
+            <th style="width: 30%">Working / Personal Email</th>
             <th style="width: 17%">Trạng thái</th>
             <th style="width: 25%">Hành động cần làm</th>
           </tr>
@@ -228,16 +245,20 @@
             <td style="font-weight: 600; color: #4b5563">#<?= c.rowNumber ?></td>
             <td style="font-weight: 600"><?= c.fullName ?></td>
             <td style="color: #4b5563">
-              <? if (c.workingEmail) { ?> <?= c.workingEmail ?> <? } else { ?>
+              <? if (c.workingEmail) { ?> <?= c.workingEmail ?> <? } else if (c.personalEmail) { ?>
               <span style="color: #be185d"
                 ><?= c.personalEmail ?>
                 (Chưa có Working Email)</span
               >
+              <? } else { ?>
+              <span style="color: #c2410c; font-style: italic">Chưa có cả 2 Email</span>
               <? } ?>
             </td>
             <td>
               <? if (c.isReady) { ?>
-              <span class="badge badge-ok">✅ Đạt chuẩn 1:1</span>
+              <span class="badge badge-ok">Đạt chuẩn 1:1</span>
+              <? } else if (c.issueReason === 'MISSING_PERSONAL_EMAIL') { ?>
+              <span class="badge badge-no-email">Thiếu Personal Email</span>
               <? } else if (c.issueReason === 'MISSING_ALLOC_CODE') { ?>
               <span class="badge badge-no-alloc">Thiếu Alloc Code</span>
               <? } else if (c.issueReason === 'NOT_IN_SHEET') { ?>
@@ -245,20 +266,22 @@
               <? } else if (c.issueReason === 'EMPTY_IMAGE') { ?>
               <span class="badge badge-no-pic">Thiếu link ảnh</span>
               <? } else { ?>
-              <span class="badge badge-not-square">⚠️ <?= c.dimensions ? c.dimensions.width + 'x' + c.dimensions.height : 'Chưa vuông' ?></span>
+              <span class="badge badge-not-square"><?= c.dimensions ? c.dimensions.width + 'x' + c.dimensions.height : 'Chưa vuông' ?></span>
               <? } ?>
             </td>
             <td>
               <? if (c.isReady) { ?>
               <span style="color: #16a34a; font-weight: 500">Sẵn sàng gửi mail</span>
+              <? } else if (c.issueReason === 'MISSING_PERSONAL_EMAIL') { ?>
+              <a href="<?= c.rowLink ?>" target="_blank" class="action-link" style="color: #c2410c">Điền Email tại file Onboarding List</a>
               <? } else if (c.issueReason === 'MISSING_ALLOC_CODE') { ?>
-              <a href="<?= c.rowLink ?>" target="_blank" class="action-link" style="color: #be185d">📝 Điền Alloc Code tại Hera</a>
+              <a href="<?= c.rowLink ?>" target="_blank" class="action-link" style="color: #be185d">Điền Alloc Code tại file Onboarding List</a>
               <? } else if (c.issueReason === 'NOT_IN_SHEET') { ?>
-              <a href="<?= uc06Url ?>" target="_blank" class="action-link">➕ Mở UC06 thêm dòng</a>
+              <a href="<?= uc06Url ?>" target="_blank" class="action-link">Thêm nhân sự vào sheet Employee Avatar</a>
               <? } else if (c.issueReason === 'EMPTY_IMAGE') { ?>
-              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link">👉 Dán link ảnh (F)</a>
+              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link">Thêm ảnh nhân sự vào sheet Employee Avatar</a>
               <? } else { ?>
-              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-btn-crop">✂️ Cắt ảnh 1:1 (H)</a>
+              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-btn-crop">Bổ sung ảnh tỉ lệ 1:1</a>
               <? } ?>
             </td>
           </tr>
@@ -268,7 +291,7 @@
     </div>
 
     <div class="footer-actions">
-      <a href="<?= uc06Url ?>" target="_blank" class="btn-secondary">📂 Mở file Sheet Avatar (UC06) ↗</a>
+      <a href="<?= uc06Url ?>" target="_blank" class="btn-secondary">Mở file Sheet Avatar (UC06)</a>
       <button class="btn-close" onclick="google.script.host.close()">Đóng thông báo</button>
     </div>
   </body>
