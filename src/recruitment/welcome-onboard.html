@@ -129,8 +129,6 @@
         cursor: pointer;
         font-size: 11.5px;
       }
-
-      /* Style Canvas xem trước */
       .canvas-container {
         width: 100%;
         text-align: center;
@@ -180,7 +178,6 @@
       .btn-download:hover {
         background: #137333;
       }
-
       .cv-file-name {
         font-size: 11.5px;
         color: #137333;
@@ -246,7 +243,6 @@
     <div class="subtitle">Tạo draft bài đăng chào mừng nhân sự mới trên Outline Wiki</div>
     <div id="loading">Đang đọc dữ liệu ứng viên từ dòng đang chọn...</div>
     <div id="error-box" class="status"></div>
-
     <div id="main" style="display: none">
       <!-- 1. THÔNG TIN ỨNG VIÊN -->
       <div>
@@ -254,26 +250,21 @@
         <div class="card" id="candidate-card"></div>
       </div>
 
-      <!-- 2. CÔNG CỤ TẠO & CĂN CHỈNH ÁNH WELCOME (CANVAS) -->
+      <!-- 2. CÔNG CỤ TẠO & CĂN CHỈNH ẢNH WELCOME (CANVAS) -->
       <div>
         <div class="section-title">Ảnh Welcome Card</div>
         <div class="card">
           <div class="canvas-container">
             <canvas id="welcomeCanvas" width="1000" height="1000"></canvas>
           </div>
-          <!-- THÊM DÒNG NÀY ĐỂ BÁO TRẠNG THÁI AVATAR -->
           <div id="avatar-status-badge" class="avatar-status-badge" style="font-size: 11px; margin-top: 6px; font-weight: 500; color: #5f6368; text-align: center"></div>
-
-          <!-- NÚT UPLOAD ÁNH TRỰC TIẾP TỪ MÁY TÍNH -->
           <div style="margin-top: 8px">
             <button class="btn-secondary" style="border-color: #1a73e8; font-weight: 600" onclick="document.getElementById('avatar-input').click()">📷 Upload Ảnh Ứng Viên từ máy</button>
             <input type="file" id="avatar-input" accept="image/*" onchange="handleAvatarUpload(this)" />
-
             <button class="btn-secondary" style="margin-top: 4px" onclick="document.getElementById('frame-input').click()">🎨 Chọn Khung Template khác (nếu cần)</button>
             <input type="file" id="frame-input" accept="image/*" onchange="handleFrameUpload(this)" />
           </div>
 
-          <!-- THANH TRUỘT BỘ ĐIỀU CHỈNH -->
           <div style="margin-top: 10px">
             <div class="control-row">
               <label>Zoom:</label>
@@ -311,25 +302,32 @@
       <!-- 4. INTRODUCTION & SUBMIT OUTLINE -->
       <div class="section-title">Introduction</div>
       <textarea id="introduction" placeholder="We are thrilled to welcome Ms./Mr. ... as our ...! 🎉 ..."></textarea>
+
       <div class="hint">
         <b>💡 HƯỚNG DẪN:</b><br />
         1. Bấm <b>Upload Ảnh Ứng Viên</b> -> Căn chỉnh góc -> Bấm <b>Tải ảnh về máy</b>.<br />
         2. Bấm <b>Submit</b> để tạo bài draft trên Outline Wiki.<br />
         3. Mở draft trên Outline -> Kéo-thả (hoặc Ctrl+V) file ảnh vừa tải vào bài.
       </div>
+
       <button id="submit-btn" class="btn" onclick="handleSubmit()">Submit → Tạo draft trên Outline</button>
       <div id="status" class="status"></div>
     </div>
 
     <script>
+      // ------------------------------------------------------------------
+      // CẤU HÌNH WEBHOOK N8N
+      // Dùng URL /webhook-test/ khi đang bật "Listen for test event" trên canvas n8n
+      // Đổi thành URL /webhook/ khi đã Active workflow
+      // ------------------------------------------------------------------
+      const N8N_AI_WEBHOOK_URL = "https://n8n.poc.kyanon.dev/webhook-test/summarize-cv";
+
       let currentCandidate = null;
       let cvFileData = null;
 
       /* ---------------- HELPER ĐỔI TÊN THÀNH "TEN HO" ---------------- */
       function formatShortName(fullName) {
         if (!fullName) return "";
-
-        // 1. Loại bỏ dấu tiếng Việt
         const accentless = fullName
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "")
@@ -337,29 +335,21 @@
           .replace(/Đ/g, "D")
           .trim();
 
-        // 2. Tách từ
         const parts = accentless.split(/\s+/);
         if (parts.length === 1) return parts[0].toUpperCase();
-
-        const ho = parts[0]; // Họ (Tran)
-        const ten = parts[parts.length - 1]; // Tên (Anh)
-
-        // Kết hợp thành "ANH TRAN"
+        const ho = parts[0];
+        const ten = parts[parts.length - 1];
         return `${ten} ${ho}`.toUpperCase();
       }
 
-      /* ---------------- XỬ LÝ CANVAS CĂN CHỈNH ÁNH ---------------- */
+      /* ---------------- XỬ LÝ CANVAS CĂN CHỈNH ẢNH ---------------- */
       const canvas = document.getElementById("welcomeCanvas");
       const ctx = canvas.getContext("2d");
-
       let avatarImg = new Image();
       let frameImg = new Image();
       let avatarLoaded = false;
       let frameLoaded = false;
 
-      // Khung mặc định: data URI được inject server-side khi mở sidebar (xem
-      // showSidebar + recruitment/welcome-frame.html). Data URI tải tức thì, không
-      // phụ thuộc mạng và không làm canvas bị taint — nút tải ảnh (toDataURL) luôn chạy.
       frameImg.onload = () => {
         frameLoaded = true;
         renderCanvas();
@@ -369,7 +359,6 @@
         frameImg.src = DEFAULT_FRAME_SRC;
       }
 
-      // 1. Nút Upload Ảnh ứng viên từ máy tính
       function handleAvatarUpload(input) {
         const file = input.files && input.files[0];
         if (!file) return;
@@ -385,7 +374,6 @@
         reader.readAsDataURL(file);
       }
 
-      // 2. Nút Upload Khung Template tùy chỉnh từ máy tính
       function handleFrameUpload(input) {
         const file = input.files && input.files[0];
         if (!file) return;
@@ -421,13 +409,11 @@
           ctx.arc(500, 445, 230, 0, Math.PI * 2, true);
           ctx.closePath();
           ctx.clip();
-
           const aspect = avatarImg.width / avatarImg.height;
           let drawW = 480 * zoom;
           let drawH = (480 / aspect) * zoom;
           let drawX = 500 - drawW / 2 + offsetX;
           let drawY = 445 - drawH / 2 + offsetY;
-
           ctx.drawImage(avatarImg, drawX, drawY, drawW, drawH);
           ctx.restore();
         }
@@ -436,15 +422,13 @@
         if (frameLoaded) {
           ctx.drawImage(frameImg, 0, 0, 1000, 1000);
         } else {
-          // Fallback nền đỏ giả lập nếu chưa chọn khung
           ctx.fillStyle = "#C8102E";
           ctx.fillRect(0, 0, 1000, 1000);
           ctx.clearRect(270, 215, 460, 460);
         }
 
-        // LAYER 3: Dải đen & Chữ Thông Tin Nhân Sự (lấy tự động từ Sheet)
+        // LAYER 3: Dải đen & Chữ Thông Tin Nhân Sự
         if (currentCandidate) {
-          // Chuyển "Trần Thị Tú Anh" -> "ANH TRAN"
           const name = formatShortName(currentCandidate.fullName);
           const position = currentCandidate.title || "";
           const squad = currentCandidate.squad || "";
@@ -460,6 +444,7 @@
           ctx.textBaseline = "middle";
           ctx.font = "bold 48px sans-serif";
           ctx.fillText(name, 500, 690);
+
           ctx.font = "bold 36px sans-serif";
           ctx.fillText(position, 500, 775);
           ctx.fillText(squad, 500, 830);
@@ -478,7 +463,6 @@
         link.click();
       }
 
-      /* ---------------- GIỮ NGUYÊN 100% CÁC HÀM BAN ĐẦU ---------------- */
       function escapeHtml(str) {
         const div = document.createElement("div");
         div.textContent = String(str == null ? "" : str);
@@ -505,7 +489,6 @@
           .map(([label, value]) => `<div class="field"><span class="label">${label}</span><span class="value">${escapeHtml(value)}</span></div>`)
           .join("");
 
-        // Cập nhật lại khung Canvas khi nạp xong dữ liệu candidate
         renderCanvas();
       }
 
@@ -556,36 +539,54 @@
         return str.length > n ? str.slice(0, n) + "..." : str;
       }
 
-      /* ---------------- AI SUMMARIZE ---------------- */
-      function handleAiSummarize() {
+      /* ---------------- AI SUMMARIZE (GỌI TRỰC TIẾP QUA N8N) ---------------- */
+      async function handleAiSummarize() {
         if (!currentCandidate) return;
+
         const btn = document.getElementById("ai-btn");
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner"></span>AI đang đọc CV...';
+        btn.innerHTML = '<span class="spinner"></span>AI đang đọc CV và soạn Introduction qua n8n...';
         clearStatus();
-        google.script.run
-          .withSuccessHandler(function (res) {
-            btn.disabled = false;
-            btn.innerHTML = "✨ AI tóm tắt CV → soạn Introduction";
-            if (res && res.ok) {
-              document.getElementById("introduction").value = res.introduction;
-              showStatus("success", "✨ AI đã soạn Introduction. Bạn có thể chỉnh tay trước khi Submit.");
-            } else {
-              showStatus("error", "❌ " + escapeHtml((res && res.error) || "Lỗi không xác định."));
-            }
-          })
-          .withFailureHandler(function (err) {
-            btn.disabled = false;
-            btn.innerHTML = "✨ AI tóm tắt CV → soạn Introduction";
-            showStatus("error", "❌ Lỗi: " + escapeHtml(err.message));
-          })
-          .summarizeCvToIntro({
-            candidate: currentCandidate,
-            cvFile: cvFileData,
+
+        // Đóng gói payload đúng định dạng phẳng mà n8n Webhook mong đợi
+        const payload = {
+          callerEmail: currentCandidate.callerEmail || "",
+          spreadsheetId: currentCandidate.spreadsheetId || "",
+          secondarySpreadsheetId: currentCandidate.secondarySpreadsheetId || "",
+          candidate: currentCandidate,
+          cvFile: cvFileData,
+        };
+
+        try {
+          const response = await fetch(N8N_AI_WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
           });
+
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}: Lỗi phản hồi từ n8n`);
+          }
+
+          if (data && data.ok) {
+            document.getElementById("introduction").value = data.introduction || "";
+            showStatus("success", "✨ AI đã soạn Introduction và ghi log chi phí thành công!");
+          } else {
+            showStatus("error", "❌ " + escapeHtml((data && data.error) || "Lỗi xử lý AI từ n8n."));
+          }
+        } catch (err) {
+          showStatus("error", "❌ Không thể kết nối tới n8n Webhook: " + escapeHtml(err.message));
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = "✨ AI tóm tắt CV → soạn Introduction";
+        }
       }
 
-      /* ---------------- SUBMIT ---------------- */
+      /* ---------------- SUBMIT OUTLINE (GIỮ NGUYÊN APP SCRIPT) ---------------- */
       function handleSubmit() {
         const introduction = document.getElementById("introduction").value.trim();
         if (!introduction) {
@@ -632,7 +633,6 @@
             renderCandidate(res.candidate);
             updateCvSheetStatus(res.candidate);
 
-            // NẠP ẢNH TỪ UC06 NẾU TÌM THẤY
             const badge = document.getElementById("avatar-status-badge");
             if (res.candidate.avatarBase64) {
               avatarImg = new Image();
@@ -649,32 +649,28 @@
                 badge.innerHTML = "⚠️ <span style='color: #b3261e;'>Chưa có ảnh trên sheet Employee Avatar — Bạn có thể upload thủ công từ máy</span>";
               }
             }
-
             document.getElementById("main").style.display = "block";
           })
           .withFailureHandler(function (err) {
             document.getElementById("loading").style.display = "none";
             const box = document.getElementById("error-box");
             box.style.display = "block";
-
             const errMessage = (err && err.message) || String(err);
 
-            // Bắt chính xác lỗi quyền / đa tài khoản do Google ném ra
             if (/authorization is required|permission_denied/i.test(errMessage)) {
               box.className = "status error";
               box.innerHTML = `
-      <div style="line-height: 1.5;">
-        <b style="color: #b3261e;">⚠️ Xung đột tài khoản Google:</b><br/>
-        Trình duyệt đang ưu tiên tài khoản Google mặc định thay vì tài khoản công ty.<br/><br/>
-        <b>Cách xử lý:</b><br/>
-        • Mở Sheet trên <b>Tab ẩn danh (Incognito)</b> bằng tài khoản công ty.<br/>
-        • Hoặc tạo một <b>Profile trình duyệt riêng</b> chỉ đăng nhập duy nhất tài khoản công ty.
-      </div>
-    `;
+              <div style="line-height: 1.5;">
+                <b style="color: #b3261e;">⚠️ Xung đột tài khoản Google:</b><br/>
+                Trình duyệt đang ưu tiên tài khoản Google mặc định thay vì tài khoản công ty.<br/><br/>
+                <b>Cách xử lý:</b><br/>
+                • Mở Sheet trên <b>Tab ẩn danh (Incognito)</b> bằng tài khoản công ty.<br/>
+                • Hoặc tạo một <b>Profile trình duyệt riêng</b> chỉ đăng nhập duy nhất tài khoản công ty.
+              </div>
+            `;
               return;
             }
 
-            // Các lỗi thực thi khác (nếu có)
             box.className = "status error";
             box.textContent = "Lỗi: " + errMessage;
           })

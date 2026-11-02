@@ -6,16 +6,9 @@
 function showSidebar() {
   // Dùng template (thay vì createHtmlOutputFromFile) để inject khung Welcome Card
   // mặc định dưới dạng data URI — sidebar mở là hiện sẵn khung, không phụ thuộc mạng.
-  const template = HtmlService.createTemplateFromFile(
-    "recruitment/welcome-onboard",
-  );
+  const template = HtmlService.createTemplateFromFile("recruitment/welcome-onboard");
   template.frameDataUrl = getWelcomeFrameDataUrl_();
-  SpreadsheetApp.getUi().showSidebar(
-    template
-      .evaluate()
-      .setTitle("AI Recruitment — Welcome Onboard")
-      .setWidth(420),
-  );
+  SpreadsheetApp.getUi().showSidebar(template.evaluate().setTitle("AI Recruitment — Welcome Onboard").setWidth(420));
 }
 
 /**
@@ -25,18 +18,13 @@ function promptSetupOutlineToken() {
   const ui = SpreadsheetApp.getUi();
   const currentToken = OutlineApiService.getPersonalToken();
 
-  let msg =
-    "Nhập API Token cá nhân Outline của bạn để tạo bài draft dưới tên bạn.";
+  let msg = "Nhập API Token cá nhân Outline của bạn để tạo bài draft dưới tên bạn.";
   if (currentToken) {
     const masked = OutlineApiUtil.maskToken(currentToken);
     msg += `\n\n(Token hiện tại: ${masked})`;
   }
 
-  const result = ui.prompt(
-    "🔑 Cài đặt Outline API Token",
-    msg,
-    ui.ButtonSet.OK_CANCEL,
-  );
+  const result = ui.prompt("🔑 Cài đặt Outline API Token", msg, ui.ButtonSet.OK_CANCEL);
 
   if (result.getSelectedButton() === ui.Button.OK) {
     const newToken = result.getResponseText().trim();
@@ -47,9 +35,7 @@ function promptSetupOutlineToken() {
 
     try {
       OutlineApiService.setPersonalToken(newToken);
-      ui.alert(
-        "✅ Đã lưu Outline API Token cá nhân thành công!\nTừ giờ bài draft sẽ được tạo trực tiếp trên tài khoản Outline của bạn.",
-      );
+      ui.alert("✅ Đã lưu Outline API Token cá nhân thành công!\nTừ giờ bài draft sẽ được tạo trực tiếp trên tài khoản Outline của bạn.");
     } catch (err) {
       ui.alert(`❌ Lỗi: ${err.message}`);
     }
@@ -66,11 +52,7 @@ function promptSetupOutlineToken() {
  */
 function getWelcomeFrameDataUrl_() {
   try {
-    const content = HtmlService.createHtmlOutputFromFile(
-      "recruitment/welcome-frame",
-    )
-      .getContent()
-      .trim();
+    const content = HtmlService.createHtmlOutputFromFile("recruitment/welcome-frame").getContent().trim();
     return content.startsWith("data:image") ? content : "";
   } catch (e) {
     return "";
@@ -80,12 +62,23 @@ function getWelcomeFrameDataUrl_() {
 /**
  * Đọc thông tin ứng viên tại dòng đang chọn để fill form trong sidebar,
  * đồng thời đối chiếu qua Sheet UC06 để lấy ảnh avatar nếu có.
- * Được gọi từ sidebar qua google.script.run khi mở.
+ * Đã bổ sung callerEmail và spreadsheetId để n8n ghi log vào file hiện tại.
+ *
  * @returns {Object} { ok, error?, candidate: {...} }
  */
 function getSelectedCandidate() {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getActiveSheet();
+
+    // Chặn người dùng nếu họ đang đứng ở tab ghi log chi phí
+    if (sheet.getName() === OUTLINE_CV_SUMMARIZER_CONFIG.LOG.SHEET_NAME) {
+      return {
+        ok: false,
+        error: `Bạn đang ở tab "${OUTLINE_CV_SUMMARIZER_CONFIG.LOG.SHEET_NAME}". Hãy chuyển sang tab danh sách ứng viên rồi chọn dòng.`,
+      };
+    }
+
     const activeRange = sheet.getActiveRange();
     if (!activeRange || activeRange.getRow() < 2) {
       return {
@@ -98,15 +91,13 @@ function getSelectedCandidate() {
     const colMap = getHeaderColumnMap(sheet);
     const readCol = (key) => {
       const col = colMap[key];
-      return col
-        ? String(sheet.getRange(rowIndex, col).getDisplayValue()).trim()
-        : "";
+      return col ? String(sheet.getRange(rowIndex, col).getDisplayValue()).trim() : "";
     };
 
-    // Cột CV: cell thường chứa HYPERLINK
+    // Đọc URL CV
     let cvUrl = "";
-    if (colMap[COLS.CV]) {
-      const cvCell = sheet.getRange(rowIndex, colMap[COLS.CV]);
+    if (colMap[OUTLINE_CV_SUMMARIZER_CONFIG.COLS.CV]) {
+      const cvCell = sheet.getRange(rowIndex, colMap[OUTLINE_CV_SUMMARIZER_CONFIG.COLS.CV]);
       const richText = cvCell.getRichTextValue();
       cvUrl = (richText && richText.getLinkUrl()) || "";
       if (!cvUrl) {
@@ -117,23 +108,35 @@ function getSelectedCandidate() {
       if (!cvUrl) cvUrl = String(cvCell.getDisplayValue()).trim();
     }
 
+    let callerEmail = "";
+    try {
+      callerEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch (e) {
+      callerEmail = "";
+    }
+
     const candidate = {
       rowNumber: rowIndex,
-      fullName: readCol(COLS.FULL_NAME),
-      accentlessFullName: readCol(COLS.ACCENTLESS_FULL_NAME),
-      level: readCol(COLS.LEVEL),
-      employmentType: readCol(COLS.EMPLOYMENT_TYPE),
-      title: readCol(COLS.TITLE),
-      squad: readCol(COLS.SQUAD),
-      lineManager: readCol(COLS.LINE_MANAGER),
-      taInCharge: readCol(COLS.TA_IN_CHARGE),
-      dateOfOnboard: readCol(COLS.DATE_ONBOARD),
-      workingEmail: formatKyanonEmail(readCol(COLS.ALLOC_CODE)),
-      personalEmail: readCol(COLS.PERSONAL_EMAIL),
+      fullName: readCol(OUTLINE_CV_SUMMARIZER_CONFIG.COLS.FULL_NAME),
+      accentlessFullName: readCol(typeof COLS !== "undefined" ? COLS.ACCENTLESS_FULL_NAME : "accentlessfullname"),
+      level: readCol(OUTLINE_CV_SUMMARIZER_CONFIG.COLS.LEVEL),
+      employmentType: readCol(typeof COLS !== "undefined" ? COLS.EMPLOYMENT_TYPE : "employmenttype"),
+      title: readCol(OUTLINE_CV_SUMMARIZER_CONFIG.COLS.TITLE),
+      squad: readCol(typeof COLS !== "undefined" ? COLS.SQUAD : "squad"),
+      lineManager: readCol(typeof COLS !== "undefined" ? COLS.LINE_MANAGER : "linemanager"),
+      taInCharge: readCol(typeof COLS !== "undefined" ? COLS.TA_IN_CHARGE : "taincharge"),
+      dateOfOnboard: readCol(typeof COLS !== "undefined" ? COLS.DATE_ONBOARD : "dateofonboard"),
+      workingEmail: typeof formatKyanonEmail === "function" ? formatKyanonEmail(readCol(typeof COLS !== "undefined" ? COLS.ALLOC_CODE : "alloccode")) : "",
+      personalEmail: readCol(typeof COLS !== "undefined" ? COLS.PERSONAL_EMAIL : "personalemail"),
       phoneNumber: readCol("phonenumber"),
       cvUrl: cvUrl,
       avatarBase64: null,
       avatarSource: null,
+
+      // Metadata gửi sang n8n:
+      callerEmail: callerEmail,
+      spreadsheetId: ss.getId(),
+      logSheetName: OUTLINE_CV_SUMMARIZER_CONFIG.LOG.SHEET_NAME, // "AI Cost Log"
     };
 
     if (!candidate.fullName) {
@@ -143,18 +146,15 @@ function getSelectedCandidate() {
       };
     }
 
-    // ------------------------------------------------------------------
-    // ĐỐI CHIẾU SANG SHEET UC06 ĐỂ LẤY AVATAR
-    // ------------------------------------------------------------------
-    const uc06AvatarUrl = findUc06AvatarUrl_(
-      candidate.personalEmail,
-      candidate.workingEmail,
-    );
-    if (uc06AvatarUrl) {
-      const base64Str = getDriveFileBase64(uc06AvatarUrl);
-      if (base64Str) {
-        candidate.avatarBase64 = `data:image/jpeg;base64,${base64Str}`;
-        candidate.avatarSource = "UC06";
+    // Đối chiếu sang UC06 để lấy avatar
+    if (typeof findUc06AvatarUrl_ === "function") {
+      const uc06AvatarUrl = findUc06AvatarUrl_(candidate.personalEmail, candidate.workingEmail);
+      if (uc06AvatarUrl && typeof getDriveFileBase64 === "function") {
+        const base64Str = getDriveFileBase64(uc06AvatarUrl);
+        if (base64Str) {
+          candidate.avatarBase64 = `data:image/jpeg;base64,${base64Str}`;
+          candidate.avatarSource = "UC06";
+        }
       }
     }
 
@@ -192,9 +192,7 @@ function findUc06AvatarUrl_(personalEmail, workingEmail) {
     if (!emailCol || (!pictureCol && !croppedCol)) return "";
 
     const data = uc06Sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-    const searchEmails = [personalEmail, workingEmail]
-      .filter(Boolean)
-      .map((e) => String(e).trim().toLowerCase());
+    const searchEmails = [personalEmail, workingEmail].filter(Boolean).map((e) => String(e).trim().toLowerCase());
 
     if (searchEmails.length === 0) return "";
 
@@ -207,15 +205,11 @@ function findUc06AvatarUrl_(personalEmail, workingEmail) {
 
       if (searchEmails.includes(rawEmail)) {
         // Ưu tiên 1: Cột "Ảnh 1:1"
-        const croppedUrl = croppedCol
-          ? String(row[croppedCol - 1] || "").trim()
-          : "";
+        const croppedUrl = croppedCol ? String(row[croppedCol - 1] || "").trim() : "";
         if (croppedUrl) return croppedUrl;
 
         // Ưu tiên 2: Cột "Picture" gốc
-        const rawPicUrl = pictureCol
-          ? String(row[pictureCol - 1] || "").trim()
-          : "";
+        const rawPicUrl = pictureCol ? String(row[pictureCol - 1] || "").trim() : "";
         if (rawPicUrl) return rawPicUrl;
       }
     }
@@ -258,9 +252,7 @@ function summarizeCvToIntro(formData) {
  */
 function submitIntroductionPost(formData) {
   try {
-    const introduction = String(
-      (formData && formData.introduction) || "",
-    ).trim();
+    const introduction = String((formData && formData.introduction) || "").trim();
     const candidate = formData && formData.candidate;
 
     if (!introduction) {
@@ -269,16 +261,12 @@ function submitIntroductionPost(formData) {
     if (!candidate || !candidate.fullName) {
       return {
         ok: false,
-        error:
-          "Thiếu thông tin ứng viên. Hãy đóng sidebar, chọn lại dòng và mở lại.",
+        error: "Thiếu thông tin ứng viên. Hãy đóng sidebar, chọn lại dòng và mở lại.",
       };
     }
 
     // 1. Xây markdown của bài
-    const { title, text } = OutlineApiUtil.buildWelcomePostMarkdown(
-      candidate,
-      introduction,
-    );
+    const { title, text } = OutlineApiUtil.buildWelcomePostMarkdown(candidate, introduction);
 
     // 2. Tạo draft Outline
     const doc = OutlineApiService.createDocument({ title, text });
@@ -286,10 +274,7 @@ function submitIntroductionPost(formData) {
     return {
       ok: true,
       message: `Đã tạo draft "${title}" trên Outline! Ảnh ứng viên hãy chèn trực tiếp trên Outline nhé.`,
-      url:
-        doc && doc.url
-          ? doc.url
-          : `${OUTLINE_CV_SUMMARIZER_CONFIG.OUTLINE.BASE_URL}/drafts`,
+      url: doc && doc.url ? doc.url : `${OUTLINE_CV_SUMMARIZER_CONFIG.OUTLINE.BASE_URL}/drafts`,
     };
   } catch (error) {
     Logger.log("❌ submitIntroductionPost lỗi: " + error.toString());
