@@ -31,6 +31,7 @@ const OUTLINE_CV_SUMMARIZER_CONFIG = {
   },
 
   AI_PRICING: {
+    "gemini-3.5-flash-lite": { input: 0.3, output: 2.5 }, // <--- THÊM DÒNG NÀY
     "gemini-2.5-flash": { input: 0.3, output: 2.5 },
     "gemini-flash-latest": { input: 0.3, output: 2.5 },
     "google/gemini-2.5-flash": { input: 0.3, output: 2.5 },

@@ -159,7 +159,37 @@ class AiProviderService {
    */
   static handleAiSummarize(payload) {
     try {
-      const response = this.callN8nGateway(payload);
+      const rawRes = this.callN8nGateway(payload);
+
+      // 1. Bóc tách mảng nếu n8n trả về [ { ... } ]
+      const response = Array.isArray(rawRes) ? rawRes[0] : rawRes;
+
+      if (!response || response.ok === false) {
+        throw new Error(response?.error || "n8n xử lý tóm tắt CV không thành công.");
+      }
+
+      const log = response.logRow || {};
+
+      // 2. Ghi log chi phí vào tab "AI Cost Log"
+      if (typeof logAiCostWorkflow === "function") {
+        logAiCostWorkflow({
+          userEmail: log["User Call"] || payload.callerEmail,
+          fullName: log["Fullname"] || payload.candidate?.fullName,
+          provider: log["Provider"] || "gemini",
+          model: log["Model"] || "gemini-3.5-flash-lite",
+          timeStart: log["Time Start"] || "",
+          timeEnd: log["Time End"] || "",
+          latency: Number(log["Latency (s)"]) || 0,
+          inputTokens: Number(log["Input Tokens"]) || 0,
+          outputTokens: Number(log["Output Tokens"]) || 0,
+          priceInput: Number(log["Price Input ($/1M)"]) || 0.3,
+          priceOutput: Number(log["Price Output ($/1M)"]) || 2.5,
+          totalCost: Number(log["Total Cost ($)"]) || 0,
+          status: log["Status"] || "SUCCESS",
+          errorDetail: log["Error Details"] || "",
+        });
+      }
+
       return {
         ok: true,
         introduction: response.introduction || response.text || "",
@@ -167,6 +197,23 @@ class AiProviderService {
       };
     } catch (err) {
       Logger.log("❌ Lỗi tại handleAiSummarize: " + err.message);
+
+      // Ghi log FAILED nếu n8n hoặc mạng lỗi
+      try {
+        if (typeof logAiCostWorkflow === "function") {
+          logAiCostWorkflow({
+            userEmail: payload.callerEmail,
+            fullName: payload.candidate?.fullName || "N/A",
+            provider: "gemini",
+            model: "gemini-3.5-flash-lite",
+            status: "FAILED",
+            errorDetail: err.message || String(err),
+          });
+        }
+      } catch (logErr) {
+        Logger.log("⚠️ Không thể ghi log lỗi: " + logErr.message);
+      }
+
       return {
         ok: false,
         error: err.message || String(err),
