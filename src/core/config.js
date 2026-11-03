@@ -27,8 +27,7 @@ const CONFIG = {
 
   /** Địa chỉ văn phòng dùng trong Welcome Email, tra theo Onboarding Type */
   OFFICE_ADDRESS: {
-    DEFAULT:
-      "Floor 2, Room 2.6, 294-296 Truong Sa, Cau Kieu Ward, Ho Chi Minh City",
+    DEFAULT: "Floor 2, Room 2.6, 294-296 Truong Sa, Cau Kieu Ward, Ho Chi Minh City",
     DANANG: "Floor 3, 433-435 Nguyen Huu Tho, Cam Le, Da Nang",
     HOA_CAU: "Floor 1, Room 1.2, 09 Hoa Cau, Cau Kieu Ward, Ho Chi Minh City",
   },
@@ -37,39 +36,15 @@ const CONFIG = {
   LOG: {
     INTERNAL: {
       SHEET_NAME: "Internal Email Log",
-      HEADERS: [
-        "Timestamp",
-        "Fullname",
-        "Position",
-        "Request Type",
-        "Sent To",
-        "Status",
-        "Error Details",
-      ],
+      HEADERS: ["Timestamp", "Fullname", "Position", "Request Type", "Sent To", "Status", "Error Details"],
     },
     TA_NOTIFICATION: {
       SHEET_NAME: "TA Notification Log",
-      HEADERS: [
-        "Timestamp",
-        "Fullname",
-        "Position",
-        "Alloc Code",
-        "Sent To",
-        "Status",
-        "Error Details",
-      ],
+      HEADERS: ["Timestamp", "Fullname", "Position", "Alloc Code", "Sent To", "Status", "Error Details"],
     },
     CANDIDATE: {
       SHEET_NAME: "Candidate Draft Log",
-      HEADERS: [
-        "Timestamp",
-        "Fullname",
-        "Position",
-        "Alloc Code",
-        "Draft ID",
-        "Status",
-        "Error Details",
-      ],
+      HEADERS: ["Timestamp", "Fullname", "Position", "Alloc Code", "Draft ID", "Status", "Error Details"],
     },
   },
   SPREADSHEET_UC06_ID: "1NoTqsI8oiV0ilqlhLYiAKK6igsyw1n4Z50OxDR3eKcw",
