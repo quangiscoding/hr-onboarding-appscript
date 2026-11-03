@@ -8,7 +8,7 @@ function showSidebar() {
   // mặc định dưới dạng data URI — sidebar mở là hiện sẵn khung, không phụ thuộc mạng.
   const template = HtmlService.createTemplateFromFile("recruitment/welcome-onboard");
   template.frameDataUrl = getWelcomeFrameDataUrl_();
-  SpreadsheetApp.getUi().showSidebar(template.evaluate().setTitle("AI Recruitment — Welcome Onboard").setWidth(420));
+  SpreadsheetApp.getUi().showSidebar(template.evaluate().setTitle("📝 Outline Introduction - Welcome Onboard").setWidth(420));
 }
 
 /**

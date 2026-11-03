@@ -11,19 +11,14 @@ class OutlineApiService {
    * Lấy token cá nhân riêng của User
    */
   static getPersonalToken() {
-    return (
-      PropertiesService.getUserProperties().getProperty(this.TOKEN_KEY) || ""
-    );
+    return PropertiesService.getUserProperties().getProperty(this.TOKEN_KEY) || "";
   }
 
   /**
    * Lưu token cá nhân vào UserProperties
    */
   static setPersonalToken(token) {
-    PropertiesService.getUserProperties().setProperty(
-      this.TOKEN_KEY,
-      (token || "").trim(),
-    );
+    PropertiesService.getUserProperties().setProperty(this.TOKEN_KEY, (token || "").trim());
   }
 
   /**
@@ -33,14 +28,10 @@ class OutlineApiService {
     const userToken = this.getPersonalToken();
     if (userToken) return userToken;
 
-    const scriptToken = PropertiesService.getScriptProperties().getProperty(
-      this.TOKEN_KEY,
-    );
+    const scriptToken = PropertiesService.getScriptProperties().getProperty(this.TOKEN_KEY);
     if (scriptToken && scriptToken.trim()) return scriptToken.trim();
 
-    throw new Error(
-      "Bạn chưa cài đặt Outline API Token cá nhân! Hãy vào menu '🚀 AI Recruitment' -> 'Cài đặt Outline API Token cá nhân' để nhập key.",
-    );
+    throw new Error("Bạn chưa cài đặt Outline API Token cá nhân! Hãy vào menu '📝 Outline Introduction' -> 'Cài đặt Outline API Token cá nhân' để nhập key.");
   }
 
   /**
@@ -55,10 +46,8 @@ class OutlineApiService {
     const outlineConfig = OUTLINE_CV_SUMMARIZER_CONFIG.OUTLINE;
     const token = this.getValidToken();
 
-    const isPublish =
-      publish !== null ? publish : outlineConfig.PUBLISH === true;
-    const targetCollectionId =
-      collectionId || outlineConfig.COLLECTION_ID || null;
+    const isPublish = publish !== null ? publish : outlineConfig.PUBLISH === true;
+    const targetCollectionId = collectionId || outlineConfig.COLLECTION_ID || null;
 
     const payload = {
       title: title,
@@ -70,16 +59,13 @@ class OutlineApiService {
       payload.collectionId = targetCollectionId;
     }
 
-    const response = UrlFetchApp.fetch(
-      `${outlineConfig.BASE_URL}/api/documents.create`,
-      {
-        method: "post",
-        contentType: "application/json",
-        headers: { Authorization: `Bearer ${token}` },
-        payload: JSON.stringify(payload),
-        muteHttpExceptions: true,
-      },
-    );
+    const response = UrlFetchApp.fetch(`${outlineConfig.BASE_URL}/api/documents.create`, {
+      method: "post",
+      contentType: "application/json",
+      headers: { Authorization: `Bearer ${token}` },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true,
+    });
 
     const statusCode = response.getResponseCode();
     const rawText = response.getContentText() || "{}";
@@ -88,15 +74,11 @@ class OutlineApiService {
     try {
       body = JSON.parse(rawText);
     } catch (e) {
-      throw new Error(
-        `Phản hồi Outline API không hợp lệ (HTTP ${statusCode}).`,
-      );
+      throw new Error(`Phản hồi Outline API không hợp lệ (HTTP ${statusCode}).`);
     }
 
     if (statusCode !== 200 || body.ok !== true) {
-      throw new Error(
-        `Outline API lỗi (${statusCode}): ${body.error || rawText}`,
-      );
+      throw new Error(`Outline API lỗi (${statusCode}): ${body.error || rawText}`);
     }
 
     return body.data;
