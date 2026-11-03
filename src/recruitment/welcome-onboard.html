@@ -571,7 +571,7 @@
 
             if (res && res.ok) {
               document.getElementById("introduction").value = res.introduction || "";
-              showStatus("success", "✨ AI đã soạn Introduction và ghi log chi phí thành công!");
+              showStatus("success", "✨ AI đã soạn Introduction thành công!");
             } else {
               showStatus("error", "❌ " + escapeHtml((res && res.error) || "Lỗi xử lý AI từ n8n."));
             }
