@@ -1,11 +1,18 @@
 /**
  * Cấu hình module tóm tắt CV trên Onboarding Sheet
  */
+function getGatewayConfig_() {
+  const props = PropertiesService.getScriptProperties().getProperties();
+  return {
+    WEB_APP_URL: props.GATEWAY_WEB_APP_URL || "",
+    N8N_WEBHOOK_URL: props.GATEWAY_N8N_WEBHOOK_URL || "",
+    SECRET: props.GATEWAY_SECRET || "",
+  };
+}
+
 const OUTLINE_CV_SUMMARIZER_CONFIG = {
-  GATEWAY: {
-    WEB_APP_URL: "https://script.google.com/a/macros/kyanon.digital/s/AKfycbwqPVlgbzfCnb4ITwu5JWZknHmf5FKcdkTc2JHtJy8cvPnMLl0F5UoGUnl2qcaRZFfI/exec",
-    N8N_WEBHOOK_URL: "https://n8n.poc.kyanon.dev/webhook-test/summarize-cv",
-    SECRET: "hera_gateway_secret_2026_xyz", // Khớp với Header Auth trên n8n Webhook
+  get GATEWAY() {
+    return getGatewayConfig_();
   },
 
   OUTLINE: {

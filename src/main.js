@@ -56,3 +56,13 @@ function inspectIdentityToken() {
     Logger.log("Lỗi giải mã: " + e.message);
   }
 }
+
+function setupGatewayProperties() {
+  const scriptProperties = PropertiesService.getScriptProperties();
+  scriptProperties.setProperties({
+    GATEWAY_WEB_APP_URL: "https://script.google.com/a/macros/kyanon.digital/s/AKfycbwqPVlgbzfCnb4ITwu5JWZknHmf5FKcdkTc2JHtJy8cvPnMLl0F5UoGUnl2qcaRZFfI/exec",
+    GATEWAY_N8N_WEBHOOK_URL: "https://n8n.poc.kyanon.dev/webhook-test/summarize-cv",
+    GATEWAY_SECRET: "hera_gateway_secret_2026_xyz",
+  });
+  Logger.log("✅ Đã lưu cấu hình Gateway vào Script Properties thành công!");
+}
