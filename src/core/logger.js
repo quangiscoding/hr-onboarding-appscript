@@ -42,10 +42,7 @@ function getOrCreateLogSheet(sheetName, headers) {
     sheet = ss.insertSheet(sheetName);
     if (headers && headers.length > 0) {
       sheet.appendRow(headers);
-      sheet
-        .getRange(1, 1, 1, headers.length)
-        .setFontWeight("bold")
-        .setBackground("#f3f3f3");
+      sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#f3f3f3");
       sheet.setFrozenRows(1);
     }
   }
@@ -69,9 +66,7 @@ function appendWorkflowLog(config, values) {
       sheet.appendRow(rowData);
     }
   } catch (error) {
-    Logger.log(
-      `❌ Lỗi ghi log vào tab "${config?.SHEET_NAME}": ` + error.message,
-    );
+    Logger.log(`❌ Lỗi ghi log vào tab "${config?.SHEET_NAME}": ` + error.message);
   }
 }
 
@@ -83,71 +78,28 @@ function safeTitleCase_(str) {
 /**
  * Ghi log luồng Internal Email
  */
-function logInternalWorkflow(
-  data,
-  sentEmails,
-  status = "EMAIL_SENT",
-  errorDetail = "",
-) {
+function logInternalWorkflow(data, sentEmails, status = "EMAIL_SENT", errorDetail = "") {
   if (!Array.isArray(sentEmails) || sentEmails.length === 0) {
-    appendWorkflowLog(CONFIG.LOG.INTERNAL, [
-      data?.fullName || "",
-      safeTitleCase_(data?.position),
-      "N/A",
-      "N/A",
-      status,
-      errorDetail,
-    ]);
+    appendWorkflowLog(CONFIG.LOG.INTERNAL, [data?.fullName || "", safeTitleCase_(data?.position), "N/A", "N/A", status, errorDetail]);
     return;
   }
   sentEmails.forEach((sent) => {
-    appendWorkflowLog(CONFIG.LOG.INTERNAL, [
-      data?.fullName || "",
-      safeTitleCase_(data?.position),
-      sent.type || "",
-      sent.to || "",
-      status,
-      errorDetail,
-    ]);
+    appendWorkflowLog(CONFIG.LOG.INTERNAL, [data?.fullName || "", safeTitleCase_(data?.position), sent.type || "", sent.to || "", status, errorDetail]);
   });
 }
 
 /**
  * Ghi log luồng TA Notification
  */
-function logTaNotificationWorkflow(
-  data,
-  sentTo,
-  status = "EMAIL_SENT",
-  errorDetail = "",
-) {
-  appendWorkflowLog(CONFIG.LOG.TA_NOTIFICATION, [
-    data?.fullName || "",
-    safeTitleCase_(data?.position),
-    data?.allocCode || "",
-    sentTo || "",
-    status,
-    errorDetail,
-  ]);
+function logTaNotificationWorkflow(data, sentTo, status = "EMAIL_SENT", errorDetail = "") {
+  appendWorkflowLog(CONFIG.LOG.TA_NOTIFICATION, [data?.fullName || "", safeTitleCase_(data?.position), data?.allocCode || "", sentTo || "", status, errorDetail]);
 }
 
 /**
  * Ghi log luồng Candidate Welcome Draft
  */
-function logCandidateWorkflow(
-  data,
-  draftId,
-  status = "DRAFT_CREATED",
-  errorDetail = "",
-) {
-  appendWorkflowLog(CONFIG.LOG.CANDIDATE, [
-    data?.fullName || "",
-    safeTitleCase_(data?.position),
-    data?.allocCode || "",
-    draftId || "",
-    status,
-    errorDetail,
-  ]);
+function logCandidateWorkflow(data, draftId, status = "DRAFT_CREATED", errorDetail = "") {
+  appendWorkflowLog(CONFIG.LOG.CANDIDATE, [data?.fullName || "", safeTitleCase_(data?.position), data?.allocCode || "", draftId || "", status, errorDetail]);
 }
 
 /**
@@ -158,42 +110,41 @@ function logAiCostWorkflow(data) {
     const config = OUTLINE_CV_SUMMARIZER_CONFIG?.LOG;
     if (!config) return;
 
-    let userEmail = "";
-    try {
-      userEmail =
-        Session.getActiveUser().getEmail() ||
-        Session.getEffectiveUser().getEmail();
-    } catch (e) {
-      userEmail = "N/A";
+    let userEmail = data?.userEmail || "";
+    if (!userEmail) {
+      try {
+        userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+      } catch (e) {
+        userEmail = "N/A";
+      }
     }
 
     const provider = data?.provider || "N/A";
     const model = data?.model || "N/A";
-    const pricing = OUTLINE_CV_SUMMARIZER_CONFIG?.AI_PRICING?.[model] ||
-      OUTLINE_CV_SUMMARIZER_CONFIG?.AI_PRICING?.DEFAULT || {
-        input: 0,
-        output: 0,
-      };
 
+    // 1. Xử lý giá & chi phí: Ưu tiên lấy giá n8n đã tính sẵn, nếu không có mới tự tính
     const inputTokens = Number(data?.inputTokens) || 0;
     const outputTokens = Number(data?.outputTokens) || 0;
 
-    const inputCost = (inputTokens / 1000000) * pricing.input;
-    const outputCost = (outputTokens / 1000000) * pricing.output;
-    const totalCost = inputCost + outputCost;
+    let priceInput = data?.priceInput;
+    let priceOutput = data?.priceOutput;
+    let totalCost = data?.totalCost;
 
-    const timeStart = data?.timeStart ? formatTime_(data.timeStart) : "";
-    const timeEnd = data?.timeEnd ? formatTime_(data.timeEnd) : "";
+    if (totalCost === undefined || totalCost === null) {
+      const pricing = OUTLINE_CV_SUMMARIZER_CONFIG?.AI_PRICING?.[model] || OUTLINE_CV_SUMMARIZER_CONFIG?.AI_PRICING?.DEFAULT || { input: 0, output: 0 };
+      priceInput = pricing.input;
+      priceOutput = pricing.output;
+      totalCost = (inputTokens / 1000000) * priceInput + (outputTokens / 1000000) * priceOutput;
+    }
 
-    const latencySec =
-      data?.timeStart && data?.timeEnd
-        ? Number(
-            (
-              (data.timeEnd.getTime() - data.timeStart.getTime()) /
-              1000
-            ).toFixed(2),
-          )
-        : 0;
+    // 2. Xử lý Time & Latency: Hỗ trợ cả Date object lẫn String định dạng sẵn từ n8n
+    const timeStart = data?.timeStart instanceof Date ? formatTime_(data.timeStart) : data?.timeStart || "";
+    const timeEnd = data?.timeEnd instanceof Date ? formatTime_(data.timeEnd) : data?.timeEnd || "";
+
+    let latencySec = Number(data?.latency) || 0;
+    if (!latencySec && data?.timeStart instanceof Date && data?.timeEnd instanceof Date) {
+      latencySec = Number(((data.timeEnd.getTime() - data.timeStart.getTime()) / 1000).toFixed(2));
+    }
 
     appendWorkflowLog(config, [
       userEmail, // User Call
@@ -205,9 +156,9 @@ function logAiCostWorkflow(data) {
       latencySec, // Latency (s)
       inputTokens, // Input Tokens
       outputTokens, // Output Tokens
-      pricing.input, // Price Input (\$/1M)
-      pricing.output, // Price Output (\$/1M)
-      totalCost, // Total Cost (\$)
+      priceInput ?? 0, // Price Input ($/1M)
+      priceOutput ?? 0, // Price Output ($/1M)
+      totalCost, // Total Cost ($)
       data?.status || "SUCCESS", // Status
       data?.errorDetail || "", // Error Details
     ]);

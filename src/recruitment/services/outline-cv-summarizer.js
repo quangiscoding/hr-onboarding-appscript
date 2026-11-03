@@ -21,39 +21,61 @@ class OutlineCvSummarizerService {
       // 1. Đọc nội dung CV
       const cvContent = CvReaderService.readCvContent(formData && formData.cvFile, candidate);
 
-      // 2. Gọi AI tóm tắt
-      aiRes = AiProviderService.summarizeCv(cvContent, candidate);
-      const timeEnd = new Date();
+      // 2. Gọi AI tóm tắt qua n8n
+      const rawRes = AiProviderService.summarizeCv(cvContent, candidate);
 
-      // 3. Ghi log thành công
+      // Xử lý trường hợp n8n trả về mảng [ { ... } ]
+      aiRes = Array.isArray(rawRes) ? rawRes[0] : rawRes;
+
+      if (!aiRes || aiRes.ok === false) {
+        throw new Error(aiRes?.error || "n8n xử lý tóm tắt CV không thành công.");
+      }
+
+      const timeEnd = new Date();
+      const log = aiRes.logRow || {};
+
+      // 3. Ghi log thành công: Map chính xác các key từ logRow vào logger.js
       this.logCost_({
-        fullName: candidate.fullName,
-        provider: aiRes.provider,
-        model: aiRes.model,
-        timeStart: timeStart,
-        timeEnd: timeEnd,
-        inputTokens: aiRes.inputTokens,
-        outputTokens: aiRes.outputTokens,
-        status: "SUCCESS",
+        userEmail: log["User Call"] || candidate.callerEmail,
+        fullName: log["Fullname"] || candidate.fullName,
+        provider: log["Provider"] || "openrouter",
+        model: log["Model"] || "google/gemini-2.5-flash",
+        timeStart: log["Time Start"] || timeStart,
+        timeEnd: log["Time End"] || timeEnd,
+        latency: log["Latency (s)"],
+        inputTokens: log["Input Tokens"],
+        outputTokens: log["Output Tokens"],
+        priceInput: log["Price Input ($/1M)"],
+        priceOutput: log["Price Output ($/1M)"],
+        totalCost: log["Total Cost ($)"],
+        status: log["Status"] || "SUCCESS",
+        errorDetail: log["Error Details"] || "",
       });
 
       return {
         ok: true,
-        introduction: aiRes.text,
+        introduction: aiRes.introduction || "",
       };
     } catch (error) {
       const timeEnd = new Date();
       Logger.log("❌ OutlineCvSummarizerService lỗi: " + error.toString());
 
+      const log = (Array.isArray(aiRes) ? aiRes[0] : aiRes)?.logRow || {};
+
       // Ghi log thất bại
       this.logCost_({
+        userEmail: log["User Call"] || candidate?.callerEmail,
         fullName: candidate?.fullName || "N/A",
-        provider: aiRes?.provider || "N/A",
-        model: aiRes?.model || "N/A",
-        timeStart: timeStart,
-        timeEnd: timeEnd,
-        inputTokens: aiRes?.inputTokens || 0,
-        outputTokens: aiRes?.outputTokens || 0,
+        provider: log["Provider"] || "openrouter",
+        model: log["Model"] || "N/A",
+        timeStart: log["Time Start"] || timeStart,
+        timeEnd: log["Time End"] || timeEnd,
+        latency: log["Latency (s)"] || 0,
+        inputTokens: log["Input Tokens"] || 0,
+        outputTokens: log["Output Tokens"] || 0,
+        priceInput: log["Price Input ($/1M)"],
+        priceOutput: log["Price Output ($/1M)"],
+        totalCost: log["Total Cost ($)"] || 0,
         status: "FAILED",
         errorDetail: error.message || error.toString(),
       });
