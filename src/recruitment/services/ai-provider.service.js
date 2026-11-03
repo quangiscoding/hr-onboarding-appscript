@@ -53,8 +53,28 @@ class AiProviderService {
     const n8nWebhookUrl = OUTLINE_CV_SUMMARIZER_CONFIG.GATEWAY.N8N_WEBHOOK_URL;
     const gatewaySecret = OUTLINE_CV_SUMMARIZER_CONFIG.GATEWAY.SECRET;
 
-    const effectiveEmail = Session.getActiveUser().getEmail() || payload.callerEmail || "";
+    const effectiveEmail = (Session.getActiveUser().getEmail() || payload.callerEmail || "").trim().toLowerCase();
+    if (!effectiveEmail.endsWith("@kyanon.digital")) {
+      throw new Error(`403 Forbidden: Tài khoản '${effectiveEmail}' không thuộc domain @kyanon.digital.`);
+    }
     payload.callerEmail = effectiveEmail;
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const stringToSign = gatewaySecret + ":" + effectiveEmail + ":" + timestamp;
+
+    const rawDigest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, stringToSign, Utilities.Charset.UTF_8);
+
+    let signatureHex = "";
+    for (let i = 0; i < rawDigest.length; i++) {
+      const byteVal = rawDigest[i] < 0 ? rawDigest[i] + 256 : rawDigest[i];
+      const hex = byteVal.toString(16);
+      signatureHex += hex.length === 1 ? "0" + hex : hex;
+    }
+
+    payload._auth = {
+      timestamp: timestamp,
+      signature: signatureHex,
+    };
 
     const options = {
       method: "post",
@@ -77,8 +97,8 @@ class AiProviderService {
       throw new Error(`n8n Gateway phản hồi không đúng JSON (HTTP ${statusCode}): ${rawText}`);
     }
 
-    if (statusCode === 403) {
-      throw new Error("403 Forbidden: Sai hoặc thiếu X-Gateway-Secret xác thực với n8n.");
+    if (statusCode === 401 || statusCode === 403) {
+      throw new Error(body.error?.message || body.error || `HTTP ${statusCode}: Lỗi xác thực quyền truy cập.`);
     }
 
     if (statusCode !== 200 || body.ok === false) {
