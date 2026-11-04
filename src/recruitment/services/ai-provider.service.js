@@ -210,9 +210,9 @@ class AiProviderService {
   }
 
   /**
-   * Bóc tách text thuần từ URL Google Docs hoặc file DOCX trên Google Drive
-   * @param {string} cvUrl
-   * @returns {string}
+   * Trích xuất text trực tiếp trong bộ nhớ (In-Memory)
+   * Hỗ trợ: Google Docs gốc & DOCX tải lên Drive
+   * Không tạo file tạm, không cần bật Drive API, không lo 403
    */
   static extractDocTextFromUrl(cvUrl) {
     if (!cvUrl || typeof cvUrl !== "string") return "";
@@ -225,24 +225,45 @@ class AiProviderService {
       const file = DriveApp.getFileById(fileId);
       const mimeType = file.getMimeType();
 
-      // Trường hợp 1: File Google Docs chuẩn
+      // TH1: File Google Docs chuẩn -> đọc thẳng qua DocumentApp
       if (mimeType === MimeType.GOOGLE_DOCS) {
         return DocumentApp.openById(fileId).getBody().getText().trim();
       }
 
-      // Trường hợp 2: File Microsoft Word (.docx) lưu trên Google Drive
-      if (mimeType === MimeType.MICROSOFT_WORD || mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-        // Tạo bản copy tạm dạng Google Doc để đọc text
-        const tempFile = Drive.Files.copy({ mimeType: MimeType.GOOGLE_DOCS }, fileId);
-        const text = DocumentApp.openById(tempFile.id).getBody().getText().trim();
-        DriveApp.getFileById(tempFile.id).setTrashed(true); // Xóa file tạm
-        return text;
-      }
-    } catch (e) {
-      Logger.log("⚠️ Lỗi trích xuất Doc/Docx: " + e.message);
-    }
+      // TH2: File DOCX tải lên từ máy tính -> Giải nén trực tiếp trong RAM và lọc thẻ XML
+      if (mimeType === MimeType.MICROSOFT_WORD || mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.getName().toLowerCase().endsWith(".docx")) {
+        // Ép blob về dạng zip để unzip
+        const zipBlob = file.getBlob().setContentType("application/zip");
+        const unzippedFiles = Utilities.unzip(zipBlob);
 
-    return "";
+        // Tìm file word/document.xml chứa toàn bộ nội dung văn bản
+        const docXmlFile = unzippedFiles.find((f) => f.getName() === "word/document.xml");
+        if (!docXmlFile) {
+          throw new Error("Không tìm thấy cấu trúc văn bản trong file docx.");
+        }
+
+        const xmlContent = docXmlFile.getDataAsString();
+
+        // 1. Chuyển thẻ xuống dòng/đoạn thành dấu xuống dòng thật
+        let text = xmlContent.replace(/<\/w:p>/g, "\n");
+        // 2. Bỏ tất cả các thẻ XML <w:...>
+        text = text.replace(/<[^>]+>/g, "");
+        // 3. Giải mã các ký tự entity XML cơ bản
+        text = text
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'");
+
+        return text.trim();
+      }
+
+      throw new Error("Định dạng chưa hỗ trợ: " + mimeType);
+    } catch (err) {
+      Logger.log("❌ Lỗi extractDocTextFromUrl: " + err.message);
+      throw new Error(err.message);
+    }
   }
 }
 
