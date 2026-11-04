@@ -11,7 +11,7 @@
         height: 100%;
         margin: 0;
         padding: 0;
-        overflow: hidden; /* Chặn cuộn cả trang để cuộn nội bộ bảng */
+        overflow: hidden;
       }
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -22,12 +22,9 @@
         display: flex;
         flex-direction: column;
       }
-
-      /* KHỐI HEADER STICKY CỐ ĐỊNH */
       .sticky-header-container {
         flex-shrink: 0;
       }
-
       .stats-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -48,6 +45,7 @@
       .val-total {
         color: #1d4ed8;
       }
+
       .stat-card.card-ready {
         background-color: #f0fdf4;
         border: 1px solid #bbf7d0;
@@ -58,6 +56,7 @@
       .val-ready {
         color: #15803d;
       }
+
       .stat-card.card-missing {
         background-color: #fef2f2;
         border: 1px solid #fecaca;
@@ -68,6 +67,7 @@
       .val-missing {
         color: #dc2626;
       }
+
       .stat-title {
         font-size: 12px;
         margin-bottom: 4px;
@@ -77,6 +77,7 @@
         font-size: 20px;
         font-weight: bold;
       }
+
       .header-notice {
         padding: 10px 14px;
         border-radius: 6px;
@@ -100,7 +101,6 @@
         color: #475569;
       }
 
-      /* KHỐI BẢNG TỰ CO DÃN VÀ CUỘN ĐỘC LẬP */
       .table-container {
         flex: 1 1 auto;
         overflow-y: auto;
@@ -132,6 +132,7 @@
       tr:hover {
         background-color: #f9fafb;
       }
+
       .badge {
         display: inline-block;
         padding: 3px 8px;
@@ -164,6 +165,12 @@
         background: #ffedd5;
         color: #c2410c;
       }
+      .badge-no-code {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+      }
+
       .action-link {
         color: #2563eb;
         text-decoration: none;
@@ -173,7 +180,6 @@
         text-decoration: underline;
       }
 
-      /* KHỐI FOOTER STICKY CỐ ĐỊNH Ở ĐÁY */
       .footer-actions {
         flex-shrink: 0;
         display: flex;
@@ -206,7 +212,6 @@
     </style>
   </head>
   <body>
-    <!-- HEADER STICKY (THỐNG KÊ + THÔNG BÁO) -->
     <div class="sticky-header-container">
       <div class="stats-grid">
         <div class="stat-card card-total">
@@ -223,9 +228,14 @@
         </div>
       </div>
 
-      <? if (noticeType === 'MISSING') { ?>
+      <? if (noticeType === 'MISSING') { var reasonsMap = {}; candidates.filter(function(c){ return !c.isReady; }).forEach(function(c) { if (c.issueReason === 'MISSING_EMPLOYEE_CODE')
+      reasonsMap['thiếu Mã NV trên UC06'] = true; else if (c.issueReason === 'EMPTY_IMAGE') reasonsMap['chưa có link ảnh'] = true; else if (c.issueReason === 'INVALID_RATIO_MISSING_BACKUP')
+      reasonsMap['ảnh chưa đạt chuẩn 1:1'] = true; else if (c.issueReason === 'NOT_IN_SHEET') reasonsMap['chưa có tên trên UC06'] = true; else if (c.issueReason === 'MISSING_ALLOC_CODE')
+      reasonsMap['thiếu Alloc Code'] = true; else if (c.issueReason === 'MISSING_PERSONAL_EMAIL') reasonsMap['thiếu Email cá nhân'] = true; }); var reasonListStr = Object.keys(reasonsMap).join(', ');
+      ?>
       <div class="header-notice notice-warn">
-        <strong>CHƯA GỬI MAIL CHO DEVOPS:</strong> Còn <strong><?= missingCount ?></strong> nhân sự chưa đủ điều kiện (thiếu Alloc Code, thiếu Email hoặc ảnh chưa đạt 1:1). Hệ thống chỉ gửi mail khi <strong>100%</strong> đều đạt chuẩn.
+        <strong>CHƯA GỬI MAIL CHO DEVOPS:</strong> Còn <strong><?= missingCount ?></strong> nhân sự chưa đủ điều kiện (<?= reasonListStr ?>). Hệ thống chỉ gửi mail khi <strong>100%</strong> đều đạt
+        chuẩn.
       </div>
       <? } else if (noticeType === 'SUCCESS') { ?>
       <div class="header-notice notice-success">
@@ -236,7 +246,6 @@
       <? } ?>
     </div>
 
-    <!-- BẢNG CHI TIẾT (TỰ ĐỘNG CUỘN ĐỘC LẬP) -->
     <div class="table-container">
       <table>
         <thead>
@@ -266,12 +275,14 @@
             <td>
               <? if (c.isReady) { ?>
               <span class="badge badge-ok">Đạt chuẩn 1:1</span>
+              <? } else if (c.issueReason === 'MISSING_EMPLOYEE_CODE') { ?>
+              <span class="badge badge-no-code">Thiếu Mã NV</span>
               <? } else if (c.issueReason === 'MISSING_PERSONAL_EMAIL') { ?>
               <span class="badge badge-no-email">Thiếu Personal Email</span>
               <? } else if (c.issueReason === 'MISSING_ALLOC_CODE') { ?>
               <span class="badge badge-no-alloc">Thiếu Alloc Code</span>
               <? } else if (c.issueReason === 'NOT_IN_SHEET') { ?>
-              <span class="badge badge-no-row">Chưa có dòng</span>
+              <span class="badge badge-no-row">Chưa có trên UC06</span>
               <? } else if (c.issueReason === 'EMPTY_IMAGE') { ?>
               <span class="badge badge-no-pic">Thiếu link ảnh</span>
               <? } else { ?>
@@ -281,14 +292,16 @@
             <td>
               <? if (c.isReady) { ?>
               <span style="color: #16a34a; font-weight: 500">Sẵn sàng gửi mail</span>
+              <? } else if (c.issueReason === 'MISSING_EMPLOYEE_CODE') { ?>
+              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link" style="color: #b91c1c; font-weight: bold">Điền Mã NV tại file Employee Avatar</a>
               <? } else if (c.issueReason === 'MISSING_PERSONAL_EMAIL') { ?>
-              <a href="<?= c.rowLink ?>" target="_blank" class="action-link" style="color: #c2410c">Điền Email tại file Onboarding List</a>
+              <a href="<?= c.rowLink ?>" target="_blank" class="action-link" style="color: #c2410c">Điền Email tại Hera</a>
               <? } else if (c.issueReason === 'MISSING_ALLOC_CODE') { ?>
-              <a href="<?= c.rowLink ?>" target="_blank" class="action-link" style="color: #be185d">Điền Alloc Code tại file Onboarding List</a>
+              <a href="<?= c.rowLink ?>" target="_blank" class="action-link" style="color: #be185d">Điền Alloc Code tại Hera</a>
               <? } else if (c.issueReason === 'NOT_IN_SHEET') { ?>
-              <a href="<?= uc06Url ?>" target="_blank" class="action-link">Thêm nhân sự vào sheet Employee Avatar</a>
+              <a href="<?= uc06Url ?>" target="_blank" class="action-link">Thêm vào sheet UC06</a>
               <? } else if (c.issueReason === 'EMPTY_IMAGE') { ?>
-              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link">Thêm ảnh nhân sự vào sheet Employee Avatar</a>
+              <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link">Thêm ảnh trên UC06</a>
               <? } else { ?>
               <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link" style="color: #b45309">Bổ sung ảnh tỉ lệ 1:1</a>
               <? } ?>
@@ -299,7 +312,6 @@
       </table>
     </div>
 
-    <!-- FOOTER STICKY (NÚT BẤM & LINK NGOÀI) -->
     <div class="footer-actions">
       <a href="<?= uc06Url ?>" target="_blank" class="btn-secondary">Mở file Sheet Avatar (UC06)</a>
       <button class="btn-close" onclick="google.script.host.close()">Đóng thông báo</button>

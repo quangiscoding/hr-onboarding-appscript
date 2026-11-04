@@ -61,7 +61,7 @@ class AvatarUpdateUtil {
 
   /** Phân loại 1 ứng viên cụ thể */
   static classifyCandidate(candidate, uc06Info) {
-    // 0. BẮT BUỘC CÓ PERSONAL EMAIL ĐỂ MAP VỚI UC06
+    // 1. Kiểm tra Email cá nhân
     const personalEmail = String(candidate.personalEmail || "").trim();
     if (!personalEmail) {
       candidate.issueReason = "MISSING_PERSONAL_EMAIL";
@@ -69,7 +69,7 @@ class AvatarUpdateUtil {
       return "MISSING";
     }
 
-    // 0. BẮT BUỘC CÓ ALLOC CODE
+    // 2. Kiểm tra Alloc Code
     const allocCode = String(candidate.allocCode || "").trim();
     if (!allocCode) {
       candidate.issueReason = "MISSING_ALLOC_CODE";
@@ -77,9 +77,8 @@ class AvatarUpdateUtil {
       return "MISSING";
     }
 
-    // LẤY MÃ NHÂN VIÊN TỪ DỮ LIỆU CỘT CODE CỦA UC06
-    const empCode = uc06Info ? String(uc06Info.employeeCode || "").trim() : "";
-    candidate.employeeCode = empCode;
+    // Gán dữ liệu đọc được từ UC06
+    candidate.employeeCode = uc06Info ? String(uc06Info.employeeCode || "").trim() : "";
 
     Object.assign(candidate, {
       avatarUrl: uc06Info?.pictureUrl || "",
@@ -91,20 +90,21 @@ class AvatarUpdateUtil {
       dimensions: uc06Info?.dimensions || null,
     });
 
+    // 3. Chưa có trên sheet UC06
     if (!candidate.uc06RowNumber) {
       candidate.issueReason = "NOT_IN_SHEET";
       candidate.issueMessage = this.ISSUE_MESSAGES.NOT_IN_SHEET;
       return "MISSING";
     }
 
-    // ⛔ KIỂM TRA ĐIỀU KIỆN TIÊN QUYẾT: BẮT BUỘC PHẢI CÓ MÃ NHÂN SỰ
+    // ⛔ 4. BẮT BUỘC CÓ MÃ NHÂN VIÊN (CODE) - NẾU THIẾU THÌ BÁO THẲNG LỖI MÃ NV
     if (!candidate.employeeCode) {
       candidate.issueReason = "MISSING_EMPLOYEE_CODE";
       candidate.issueMessage = this.ISSUE_MESSAGES.MISSING_EMPLOYEE_CODE;
       return "MISSING";
     }
 
-    // Đã có link ảnh crop 1:1
+    // 5. Kiểm tra ảnh crop 1:1
     if (candidate.squareBackupUrl) {
       candidate.finalAvatarUrl = candidate.squareBackupUrl;
       candidate.finalAvatarCellLink = candidate.uc06SquareLink;
@@ -112,7 +112,7 @@ class AvatarUpdateUtil {
       return "READY";
     }
 
-    // Ảnh gốc đã đạt chuẩn vuông 1:1
+    // 6. Kiểm tra ảnh gốc vuông
     if (candidate.avatarUrl && candidate.isSquare) {
       candidate.finalAvatarUrl = candidate.avatarUrl;
       candidate.finalAvatarCellLink = candidate.uc06RowLink;
