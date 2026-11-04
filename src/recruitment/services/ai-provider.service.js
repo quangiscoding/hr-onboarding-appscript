@@ -214,41 +214,48 @@ class AiProviderService {
    * Hỗ trợ: Google Docs gốc & DOCX tải lên Drive
    * Không tạo file tạm, không cần bật Drive API, không lo 403
    */
+  /**
+   * Bóc tách 100% text thuần túy từ URL Google Drive (Docs, DOCX, PDF)
+   * Luôn trả về chuỗi String, không trả về Blob hay Object
+   * @param {string} cvUrl
+   * @returns {string} Toàn bộ văn bản dạng chữ
+   */
   static extractDocTextFromUrl(cvUrl) {
     if (!cvUrl || typeof cvUrl !== "string") return "";
 
-    const match = cvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
-    if (!match || !match[1]) return "";
-    const fileId = match[1];
+    let fileId = "";
+    const matchD = cvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    if (matchD && matchD[1]) {
+      fileId = matchD[1];
+    } else {
+      const matchId = cvUrl.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+      if (matchId && matchId[1]) fileId = matchId[1];
+    }
+
+    if (!fileId) return "";
 
     try {
       const file = DriveApp.getFileById(fileId);
       const mimeType = file.getMimeType();
 
-      // TH1: File Google Docs chuẩn -> đọc thẳng qua DocumentApp
+      // 1. Google Docs gốc -> lấy text trực tiếp
       if (mimeType === MimeType.GOOGLE_DOCS) {
         return DocumentApp.openById(fileId).getBody().getText().trim();
       }
 
-      // TH2: File DOCX tải lên từ máy tính -> Giải nén trực tiếp trong RAM và lọc thẻ XML
+      // 2. File Word DOCX -> unzip đọc XML trong RAM ra text thuần
       if (mimeType === MimeType.MICROSOFT_WORD || mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.getName().toLowerCase().endsWith(".docx")) {
-        // Ép blob về dạng zip để unzip
         const zipBlob = file.getBlob().setContentType("application/zip");
         const unzippedFiles = Utilities.unzip(zipBlob);
-
-        // Tìm file word/document.xml chứa toàn bộ nội dung văn bản
         const docXmlFile = unzippedFiles.find((f) => f.getName() === "word/document.xml");
+
         if (!docXmlFile) {
-          throw new Error("Không tìm thấy cấu trúc văn bản trong file docx.");
+          throw new Error("Không tìm thấy cấu trúc văn bản trong file DOCX.");
         }
 
         const xmlContent = docXmlFile.getDataAsString();
-
-        // 1. Chuyển thẻ xuống dòng/đoạn thành dấu xuống dòng thật
         let text = xmlContent.replace(/<\/w:p>/g, "\n");
-        // 2. Bỏ tất cả các thẻ XML <w:...>
         text = text.replace(/<[^>]+>/g, "");
-        // 3. Giải mã các ký tự entity XML cơ bản
         text = text
           .replace(/&amp;/g, "&")
           .replace(/&lt;/g, "<")
@@ -259,10 +266,44 @@ class AiProviderService {
         return text.trim();
       }
 
-      throw new Error("Định dạng chưa hỗ trợ: " + mimeType);
+      // 3. File PDF -> Convert ngầm sang Google Doc để bóc sạch chữ rồi xóa ngay
+      if (mimeType === MimeType.PDF || file.getName().toLowerCase().endsWith(".pdf")) {
+        const token = ScriptApp.getOAuthToken();
+        const copyUrl = "https://www.googleapis.com/drive/v3/files/" + fileId + "/copy";
+
+        // Gọi Drive API convert nội dung PDF thành Google Doc tạm
+        const copyRes = UrlFetchApp.fetch(copyUrl, {
+          method: "post",
+          contentType: "application/json",
+          headers: {
+            Authorization: "Bearer " + token,
+          },
+          payload: JSON.stringify({
+            mimeType: "application/vnd.google-apps.document",
+            name: "temp_extract_pdf_" + fileId,
+          }),
+          muteHttpExceptions: true,
+        });
+
+        const status = copyRes.getResponseCode();
+        const resText = copyRes.getContentText();
+
+        if (status === 200) {
+          const tempDocId = JSON.parse(resText).id;
+          // Đọc toàn bộ text từ tài liệu vừa convert
+          const text = DocumentApp.openById(tempDocId).getBody().getText().trim();
+          // Xóa ngay lập tức file tạm
+          DriveApp.getFileById(tempDocId).setTrashed(true);
+          return text;
+        } else {
+          throw new Error(`Google Drive không thể bóc text từ PDF (HTTP ${status}): ${resText}`);
+        }
+      }
+
+      throw new Error("Định dạng file không được hỗ trợ: " + mimeType);
     } catch (err) {
       Logger.log("❌ Lỗi extractDocTextFromUrl: " + err.message);
-      throw new Error(err.message);
+      throw err;
     }
   }
 }
