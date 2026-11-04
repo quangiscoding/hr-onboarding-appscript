@@ -30,7 +30,7 @@
       </tr>
     </thead>
     <tbody>
-      <? it.candidates.forEach(function(item) { var imgUrl = item.finalAvatarUrl || item.squareBackupUrl || item.avatarUrl; var driveFileId = ""; if (imgUrl) { var m =
+      <? it.candidates.forEach(function(item) { var imgUrl = item.finalAvatarUrl || item.squareBackupUrl || item.avatarUrl || ""; var driveFileId = ""; if (imgUrl) { var m =
       String(imgUrl).match(/(?:\/(?:d|folders)\/|[?&]id=)([-\w]{25,50})/); driveFileId = m ? m[1] : ""; } var directDownloadLink = driveFileId ? "https://drive.google.com/uc?export=download&id=" +
       driveFileId : imgUrl; ?>
       <tr style="border-bottom: 1px solid #eeeeee">
@@ -55,7 +55,7 @@
           <span style="font-size: 11px; color: #888888"><?= item.squad ?></span>
         </td>
 
-        <!-- CỘT 5: NÚT TẢI ẢNH TỪNG ỨNG VIÊN (ĐÃ BỎ DÒNG #...) -->
+        <!-- CỘT 5: NÚT TẢI ẢNH TỪNG ỨNG VIÊN -->
         <td style="padding: 10px 8px; text-align: center; font-weight: bold">
           <? if (directDownloadLink) { ?>
           <a
@@ -63,7 +63,7 @@
             target="_blank"
             style="display: inline-block; padding: 4px 10px; background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; text-decoration: none; border-radius: 4px; font-size: 12px"
           >
-            Tải ảnh ứng viên
+            Tải ảnh
           </a>
           <? } else { ?>
           <span style="color: #ef403e; font-size: 12px">Chưa có</span>

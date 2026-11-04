@@ -8,25 +8,27 @@ class AvatarUpdateUtil {
     return {
       MISSING_ALLOC_CODE: "Nhân sự chưa có Alloc Code / Working Email.",
       MISSING_PERSONAL_EMAIL: "Nhân sự chưa có Email cá nhân trên Sheet Hera.",
+      MISSING_EMPLOYEE_CODE: "Nhân sự chưa có Mã nhân viên (Code) trên UC06.", // Thêm thông báo này
       NOT_IN_SHEET: "Nhân sự chưa được thêm vào sheet Employee Avatar.",
       EMPTY_IMAGE: "Nhân sự chưa có link ảnh trên UC06.",
       INVALID_RATIO_MISSING_BACKUP: "Ảnh của nhân sự chưa đúng tỉ lệ 1:1.",
     };
   }
 
-  /** Phân tích thông tin ảnh từ 1 dòng dữ liệu của file UC06 */
+  /** Phân tích thông tin ảnh và Mã NV từ 1 dòng dữ liệu của file UC06 */
   static parseRow(row, indices, sheetUrl, rowIndex) {
     const rawEmail = row[indices.email];
     if (!rawEmail) return null;
 
+    // ĐỌC MÃ NHÂN VIÊN THEO INDEX CỘT ĐƯỢC MAP ĐỘNG TỪ HEADER
+    const employeeCode = indices.code >= 0 ? String(row[indices.code] || "").trim() : "";
     const pictureUrl = String(row[indices.picture] || "").trim();
     const squareBackupUrl = indices.square >= 0 ? String(row[indices.square] || "").trim() : "";
-
     let isSquare = false;
     let dimensions = null;
     let checkVal = "";
 
-    // Ưu tiên 1: Đã có link ảnh cắt 1:1 tại cột Ảnh 1:1 (Cột H)
+    // Ưu tiên 1: Đã có link ảnh cắt 1:1 tại cột Ảnh 1:1
     if (squareBackupUrl) {
       isSquare = true;
       checkVal = "1:1 (Đã crop)";
@@ -45,20 +47,21 @@ class AvatarUpdateUtil {
       email: String(rawEmail).trim().toLowerCase(),
       checkVal,
       data: {
-        pictureUrl,
-        squareBackupUrl,
+        employeeCode: employeeCode,
+        pictureUrl: pictureUrl,
+        squareBackupUrl: squareBackupUrl,
         uc06RowNumber: rowIndex,
         uc06RowLink: `${sheetUrl}&range=${indices.pictureColLetter}${rowIndex}`,
         uc06SquareLink: indices.squareColLetter ? `${sheetUrl}&range=${indices.squareColLetter}${rowIndex}` : "",
-        isSquare,
-        dimensions,
+        isSquare: isSquare,
+        dimensions: dimensions,
       },
     };
   }
 
   /** Phân loại 1 ứng viên cụ thể */
   static classifyCandidate(candidate, uc06Info) {
-    // 0. CHECK ĐIỀU KIỆN TIÊN QUYẾT 1: BẮT BUỘC CÓ PERSONAL EMAIL (ĐỂ MAPPING UC06)
+    // 0. BẮT BUỘC CÓ PERSONAL EMAIL ĐỂ MAP VỚI UC06
     const personalEmail = String(candidate.personalEmail || "").trim();
     if (!personalEmail) {
       candidate.issueReason = "MISSING_PERSONAL_EMAIL";
@@ -66,13 +69,17 @@ class AvatarUpdateUtil {
       return "MISSING";
     }
 
-    // 0. CHECK ĐIỀU KIỆN TIÊN QUYẾT 2: BẮT BUỘC CÓ ALLOC CODE
+    // 0. BẮT BUỘC CÓ ALLOC CODE
     const allocCode = String(candidate.allocCode || "").trim();
     if (!allocCode) {
       candidate.issueReason = "MISSING_ALLOC_CODE";
       candidate.issueMessage = this.ISSUE_MESSAGES.MISSING_ALLOC_CODE;
       return "MISSING";
     }
+
+    // LẤY MÃ NHÂN VIÊN TỪ DỮ LIỆU CỘT CODE CỦA UC06
+    const empCode = uc06Info ? String(uc06Info.employeeCode || "").trim() : "";
+    candidate.employeeCode = empCode;
 
     Object.assign(candidate, {
       avatarUrl: uc06Info?.pictureUrl || "",
@@ -87,6 +94,13 @@ class AvatarUpdateUtil {
     if (!candidate.uc06RowNumber) {
       candidate.issueReason = "NOT_IN_SHEET";
       candidate.issueMessage = this.ISSUE_MESSAGES.NOT_IN_SHEET;
+      return "MISSING";
+    }
+
+    // ⛔ KIỂM TRA ĐIỀU KIỆN TIÊN QUYẾT: BẮT BUỘC PHẢI CÓ MÃ NHÂN SỰ
+    if (!candidate.employeeCode) {
+      candidate.issueReason = "MISSING_EMPLOYEE_CODE";
+      candidate.issueMessage = this.ISSUE_MESSAGES.MISSING_EMPLOYEE_CODE;
       return "MISSING";
     }
 
@@ -115,20 +129,17 @@ class AvatarUpdateUtil {
   static partitionCandidates(candidates, avatarMap) {
     const ready = [];
     const missing = [];
-
     (candidates || []).forEach((c) => {
       const cleanEmail = String(c.personalEmail || c.workingEmail || "")
         .toLowerCase()
         .trim();
       const uc06 = cleanEmail ? avatarMap[cleanEmail] : null;
-
       if (this.classifyCandidate(c, uc06) === "READY") {
         ready.push(c);
       } else {
         missing.push(c);
       }
     });
-
     return { ready, missing };
   }
 
@@ -136,15 +147,18 @@ class AvatarUpdateUtil {
   static loadMapAndSync(spreadsheetId) {
     const avatarMap = {};
     if (!spreadsheetId) return avatarMap;
-
     const ss = SpreadsheetApp.openById(spreadsheetId);
     const sheet = ss.getSheetByName("Cập nhật Avatar") || ss.getSheets()[0];
     const lastRow = sheet.getLastRow();
     const lastCol = sheet.getLastColumn();
-
     if (lastRow <= 1 || lastCol <= 0) return avatarMap;
 
+    // Dùng getHeaderColumnMap để map động tên cột với vị trí cột (1-indexed)
     const colMap = getHeaderColumnMap(sheet);
+
+    // Map cột mã nhân viên linh hoạt: hỗ trợ các tên "Code", "Employee Code", "Mã NV", "Mã nhân viên"
+    const codeCol = colMap[normalizeHeaderKey("Code")] || colMap[normalizeHeaderKey("Employee Code")] || colMap[normalizeHeaderKey("Mã NV")] || colMap[normalizeHeaderKey("Mã nhân viên")] || 1; // Fallback an toàn về cột 1 nếu header không tìm thấy
+
     const emailCol = colMap[normalizeHeaderKey("Email Address")];
     const pictureCol = colMap[normalizeHeaderKey("Picture")];
     const checkCol = colMap[normalizeHeaderKey("Check 1:1")];
@@ -153,6 +167,7 @@ class AvatarUpdateUtil {
     if (!emailCol || !pictureCol) return avatarMap;
 
     const indices = {
+      code: codeCol - 1, // Chuyển từ 1-indexed của colMap sang 0-indexed của mảng row
       email: emailCol - 1,
       picture: pictureCol - 1,
       square: squareCol ? squareCol - 1 : -1,
@@ -169,10 +184,8 @@ class AvatarUpdateUtil {
       const parsed = this.parseRow(row, indices, sheetUrl, i + 2);
       const currentCheck = checkCol ? String(row[checkCol - 1] || "") : "";
       const newCheck = parsed ? parsed.checkVal : "";
-
       if (newCheck !== currentCheck) hasChanges = true;
       checkOutputs.push([newCheck]);
-
       if (parsed) avatarMap[parsed.email] = parsed.data;
     });
 
@@ -188,14 +201,12 @@ class AvatarUpdateUtil {
     const sheet = ss.getActiveSheet();
     const sheetUrl = ss.getUrl();
     const rawLastRow = sheet.getLastRow();
-
     if (rawLastRow <= 1) {
       return { isEmpty: true, message: "Sheet dữ liệu hiện đang rỗng." };
     }
 
     const colMap = getHeaderColumnMap(sheet);
     const allRowsData = sheet.getRange(1, 1, rawLastRow, sheet.getLastColumn()).getValues();
-
     const cachedContext = {
       colMap,
       allRowsData,
@@ -244,8 +255,8 @@ class AvatarUpdateUtil {
     const scriptTz = Session.getScriptTimeZone();
     const todayStr = Utilities.formatDate(new Date(), scriptTz, "yyyy-MM-dd");
     const todayDisplay = Utilities.formatDate(new Date(), scriptTz, "dd/MM/yyyy");
-
     const list = [];
+
     for (let r = ctx.actualLastRow; r >= 2; r--) {
       let d;
       try {
@@ -254,7 +265,6 @@ class AvatarUpdateUtil {
         continue;
       }
 
-      // Giữ lại ứng viên khi chỉ có fullName, không drop khi thiếu email
       if (!d || !d.fullName) continue;
 
       const isStatusOk =
@@ -271,9 +281,7 @@ class AvatarUpdateUtil {
       if (isStatusOk && isDateOk && isTaOk) {
         const targetEmail = d.personalEmail || d.workingEmail || `row_${d.rowNumber}@missing.local`;
         const lockKey = buildWorkflowLockKey_(triggerType, targetEmail);
-
         d.isLocked = ctx.lockedKeysSet.size > 0 ? ctx.lockedKeysSet.has(lockKey) : isRowLockedForWorkflow(d.rowNumber, triggerType, targetEmail);
-
         list.push(d);
       }
     }
@@ -289,7 +297,6 @@ class AvatarUpdateUtil {
     const colMap = cachedContext.colMap;
     const rowValues = cachedContext.allRowsData[rowIndex - 1] || [];
     const rowData = {};
-
     Object.keys(colMap).forEach((key) => {
       rowData[key] = rowValues[colMap[key] - 1];
     });

@@ -119,7 +119,7 @@ class EmailTemplateBuilder {
   }
 
   /** Avatar Digest Email cho DevOps */
-  static getAvatarUpdateDigest(candidates, sheetUrl, todayStr, batchZipUrl = "") {
+  static getAvatarUpdateDigest(candidates, sheetUrl, todayStr, batchZipUrl) {
     const list = candidates || [];
     const count = list.length;
     const subject = `[Avatar Updated] Danh sách cập nhật Avatar nhân sự onboard ngày ${todayStr} (${count} nhân sự)`;
@@ -134,7 +134,6 @@ class EmailTemplateBuilder {
       htmlBody: this.renderView_(ONBOARDING_CONFIG.TEMPLATES.EMAIL.AVATAR_UPDATE, payload),
     };
   }
-
   /** Avatar Reminder Digest cho TA */
   static getAvatarTaReminderDigest(candidates, taName, todayStr) {
     const subject = `[REMINDER] Nhắc nhở bổ sung Link Avatar nhân sự onboard ngày ${todayStr} (${candidates.length} nhân sự)`;
