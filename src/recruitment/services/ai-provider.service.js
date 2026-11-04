@@ -59,23 +59,6 @@ class AiProviderService {
     }
     payload.callerEmail = effectiveEmail;
 
-    const timestamp = Math.floor(Date.now() / 1000);
-    const stringToSign = gatewaySecret + ":" + effectiveEmail + ":" + timestamp;
-
-    const rawDigest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, stringToSign, Utilities.Charset.UTF_8);
-
-    let signatureHex = "";
-    for (let i = 0; i < rawDigest.length; i++) {
-      const byteVal = rawDigest[i] < 0 ? rawDigest[i] + 256 : rawDigest[i];
-      const hex = byteVal.toString(16);
-      signatureHex += hex.length === 1 ? "0" + hex : hex;
-    }
-
-    payload._auth = {
-      timestamp: timestamp,
-      signature: signatureHex,
-    };
-
     const options = {
       method: "post",
       contentType: "application/json",
@@ -89,8 +72,8 @@ class AiProviderService {
     const response = UrlFetchApp.fetch(n8nWebhookUrl, options);
     const statusCode = response.getResponseCode();
     const rawText = response.getContentText() || "{}";
-
     let body = {};
+
     try {
       body = JSON.parse(rawText);
     } catch (e) {
@@ -111,9 +94,6 @@ class AiProviderService {
 
   /**
    * Tóm tắt CV ứng viên theo danh sách provider cấu hình (Hàm gốc)
-   * @param {Object} cvContent - { kind, pdfBase64, text, fileName }
-   * @param {Object} candidate - Thông tin ứng viên
-   * @returns {{ text: string, provider: string, model: string, inputTokens: number, outputTokens: number }}
    */
   static summarizeCv(cvContent, candidate) {
     const prompt = AiProviderUtil.buildWelcomePrompt(candidate);
@@ -121,8 +101,8 @@ class AiProviderService {
 
     if (cvContent && cvContent.kind === "pdf_inline") {
       promptParts.push({
-        inline_data: {
-          mime_type: "application/pdf",
+        inlineData: {
+          mimeType: "application/pdf",
           data: cvContent.pdfBase64,
         },
       });
@@ -159,9 +139,17 @@ class AiProviderService {
    */
   static handleAiSummarize(payload) {
     try {
+      // 1. Trích xuất text từ Google Doc / Word nếu có url mà chưa có cvText
+      if (payload.candidate && payload.candidate.cvUrl && !payload.candidate.cvText) {
+        payload.candidate.cvText = this.extractDocTextFromUrl(payload.candidate.cvUrl);
+      }
+
+      // 2. Bỏ file nhị phân để n8n không bị gửi nhầm base64 rác
+      delete payload.cvFile;
+
       const rawRes = this.callN8nGateway(payload);
 
-      // 1. Bóc tách mảng nếu n8n trả về [ { ... } ]
+      // Bóc tách mảng nếu n8n trả về [ { ... } ]
       const response = Array.isArray(rawRes) ? rawRes[0] : rawRes;
 
       if (!response || response.ok === false) {
@@ -170,7 +158,7 @@ class AiProviderService {
 
       const log = response.logRow || {};
 
-      // 2. Ghi log chi phí vào tab "AI Cost Log"
+      // Ghi log chi phí vào tab "AI Cost Log"
       if (typeof logAiCostWorkflow === "function") {
         logAiCostWorkflow({
           userEmail: log["User Call"] || payload.callerEmail,
@@ -198,7 +186,7 @@ class AiProviderService {
     } catch (err) {
       Logger.log("❌ Lỗi tại handleAiSummarize: " + err.message);
 
-      // Ghi log FAILED nếu n8n hoặc mạng lỗi
+      // Ghi log FAILED nếu lỗi
       try {
         if (typeof logAiCostWorkflow === "function") {
           logAiCostWorkflow({
@@ -220,54 +208,55 @@ class AiProviderService {
       };
     }
   }
+
+  /**
+   * Bóc tách text thuần từ URL Google Docs hoặc file DOCX trên Google Drive
+   * @param {string} cvUrl
+   * @returns {string}
+   */
+  static extractDocTextFromUrl(cvUrl) {
+    if (!cvUrl || typeof cvUrl !== "string") return "";
+
+    const match = cvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    if (!match || !match[1]) return "";
+    const fileId = match[1];
+
+    try {
+      const file = DriveApp.getFileById(fileId);
+      const mimeType = file.getMimeType();
+
+      // Trường hợp 1: File Google Docs chuẩn
+      if (mimeType === MimeType.GOOGLE_DOCS) {
+        return DocumentApp.openById(fileId).getBody().getText().trim();
+      }
+
+      // Trường hợp 2: File Microsoft Word (.docx) lưu trên Google Drive
+      if (mimeType === MimeType.MICROSOFT_WORD || mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+        // Tạo bản copy tạm dạng Google Doc để đọc text
+        const tempFile = Drive.Files.copy({ mimeType: MimeType.GOOGLE_DOCS }, fileId);
+        const text = DocumentApp.openById(tempFile.id).getBody().getText().trim();
+        DriveApp.getFileById(tempFile.id).setTrashed(true); // Xóa file tạm
+        return text;
+      }
+    } catch (e) {
+      Logger.log("⚠️ Lỗi trích xuất Doc/Docx: " + e.message);
+    }
+
+    return "";
+  }
 }
 
 // =============================================================================
 // GLOBAL BRIDGES (Cho sidebar HTML gọi qua google.script.run) & TEST FUNCTIONS
 // =============================================================================
 
-/**
- * Endpoint cầu nối để Sidebar HTML gọi thông qua google.script.run
- * @param {Object} payload
- * @returns {Object}
- */
 function callN8nAiGateway(payload) {
   return AiProviderService.handleAiSummarize(payload);
 }
 
-/**
- * Hàm test kết nối Gateway gốc
- */
-function testAiGatewayConnection() {
-  try {
-    Logger.log("🔄 Đang gửi test request sang Gateway...");
-    const res = AiProviderService.callGateway({
-      provider: "gemini",
-      model: "gemini-2.5-flash",
-      promptParts: [{ text: "Trả lời đúng 1 từ: PONG" }],
-    });
-    Logger.log("✅ KẾT NỐI THÀNH CÔNG!");
-    Logger.log("Phản hồi từ AI: " + res.text);
-    Logger.log("Provider: " + res.provider + " | Model: " + res.model);
-    Logger.log("Input Tokens: " + res.inputTokens + " | Output Tokens: " + res.outputTokens);
-  } catch (e) {
-    Logger.log("❌ KẾT NỐI THẤT BẠI: " + e.message);
-  }
-}
-
-/**
- * Hàm test kết nối n8n Gateway Webhook
- */
-function testN8nGatewayConnection() {
-  try {
-    Logger.log("🔄 Đang gửi test request sang n8n Gateway...");
-    const res = AiProviderService.callN8nGateway({
-      candidate: { fullName: "Test User", title: "Tester" },
-      promptParts: [{ text: "Hello from Apps Script" }],
-    });
-    Logger.log("✅ KẾT NỐI N8N THÀNH CÔNG!");
-    Logger.log("Response: " + JSON.stringify(res));
-  } catch (e) {
-    Logger.log("❌ KẾT NỐI N8N THẤT BẠI: " + e.message);
-  }
+function testExtractCvText() {
+  const testUrl = "https://docs.google.com/document/d/1kwwlGsdb2CjtF1qz93s2tjxU7LrRJSJlIEvl1gHUE3s/edit?tab=t.0";
+  const text = AiProviderService.extractDocTextFromUrl(testUrl);
+  Logger.log("Độ dài text: " + text.length);
+  Logger.log("Full text: " + text);
 }
