@@ -14,7 +14,10 @@ class AvatarUpdateService {
     const { candidates, sheetUrl, todayDisplay } = AvatarUpdateUtil.getTodayOnboardCandidates(currentAllocCode, TRIGGER);
 
     if (!candidates || !candidates.length) {
-      throw new WorkflowError("NO_CANDIDATES_FOUND", `Không tìm thấy nhân sự onboard hôm nay (${todayDisplay}) thuộc quản lý của bạn (${currentAllocCode}).\nHãy kiểm tra lại cột Offer Status và Date of Onboard.`);
+      throw new WorkflowError(
+        "NO_CANDIDATES_FOUND",
+        `Không tìm thấy nhân sự onboard hôm nay (${todayDisplay}) thuộc quản lý của bạn (${currentAllocCode}).\nHãy kiểm tra lại cột Offer Status và Date of Onboard.`,
+      );
     }
 
     const alreadyProcessed = candidates.filter((c) => c.isLocked);
@@ -71,7 +74,63 @@ class AvatarUpdateService {
       throw new WorkflowError("MISSING_DEVOPS_RECIPIENT", "Chưa cấu hình email người nhận cho DevOps tại tab Data (Cột Send to).");
     }
 
-    const tpl = getAvatarUpdateDigestTemplate(readyList, sheetUrl, todayDisplay);
+    // 1. Gom toàn bộ file ảnh hợp lệ tạo thành 1 file ZIP trên Drive làm link tải hàng loạt
+    let batchZipUrl = "";
+    try {
+      const blobs = [];
+      const usedNames = new Set();
+
+      (readyList || []).forEach((c) => {
+        const imgUrl = c.finalAvatarUrl || c.squareBackupUrl || c.avatarUrl;
+        if (!imgUrl) return;
+
+        const driveId = extractDriveFileId_(imgUrl);
+        if (!driveId) return;
+
+        try {
+          const file = DriveApp.getFileById(driveId);
+          const blob = file.getBlob();
+
+          // Ưu tiên Code từ UC06 (Cột A) -> Alloc Code -> Số dòng
+          const empCode = c.employeeCode || c.allocCode || `row_${c.rowNumber}`;
+          const cleanName = String(c.fullName || "Candidate")
+            .replace(/[\\/:*?"<>|]/g, "")
+            .trim();
+
+          let fileName = `[${empCode}] ${cleanName}.jpg`;
+          if (usedNames.has(fileName)) {
+            fileName = `[${empCode}] ${cleanName}_${c.rowNumber}.jpg`;
+          }
+          usedNames.add(fileName);
+
+          blob.setName(fileName);
+          blobs.push(blob);
+        } catch (fetchErr) {
+          Logger.log(`⚠️ Không lấy được file ảnh của ${c.fullName} (ID: ${driveId}): ${fetchErr.message}`);
+        }
+      });
+
+      if (blobs.length > 0) {
+        const todayClean = String(todayDisplay || "Today").replace(/[\/-]/g, "");
+        const zipBlob = Utilities.zip(blobs, `Avatars_Onboard_${todayClean}.zip`);
+        const zipFile = DriveApp.createFile(zipBlob);
+
+        try {
+          zipFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (shareErr) {
+          Logger.log("⚠️ Không thể set public quyền xem ZIP (chính sách workspace chặn): " + shareErr.message);
+        }
+
+        // Link tải trực tiếp về máy
+        batchZipUrl = `https://drive.google.com/uc?export=download&id=${zipFile.getId()}`;
+      }
+    } catch (zipErr) {
+      Logger.log("⚠️ Lỗi trong quá trình tạo file ZIP nén avatar: " + zipErr.message);
+    }
+
+    // 2. Render template kèm link file ZIP
+    const tpl = getAvatarUpdateDigestTemplate(readyList, sheetUrl, todayDisplay, batchZipUrl);
+
     try {
       // Dùng hàm sendDirectEmail_ dùng chung hoặc qua OnboardingService
       if (typeof sendDirectEmail_ === "function") {

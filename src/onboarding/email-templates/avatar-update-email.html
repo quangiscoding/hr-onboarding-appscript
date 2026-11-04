@@ -1,60 +1,46 @@
-<div
-  style="
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-    color: #333333;
-    max-width: 680px;
-    margin: 0;
-  "
->
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 760px; margin: 0">
   <p style="margin: 0 0 12px 0">Hi IT Ops Team,</p>
-
   <p style="margin: 0 0 16px 0">
-    Nhờ team hỗ trợ cập nhật avatar cho
-    <strong><?= it.candidates.length ?></strong> nhân sự mới onboard ngày
-    <strong><?= it.todayStr ?></strong> tại
-    <a
-      href="<?= it.sheetUrl ?>"
-      target="_blank"
-      style="color: #0d6efd; font-weight: bold; text-decoration: underline"
-    >
-      File Hera | On-boarding List ↗
-    </a>
+    Nhờ team hỗ trợ cập nhật avatar cho <strong><?= it.candidates.length ?></strong> nhân sự mới onboard ngày <strong><?= it.todayStr ?></strong> tại
+    <a href="<?= it.sheetUrl ?>" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline"> File Hera | On-boarding List ↗ </a>
   </p>
 
-  <table
-    style="
-      width: 100%;
-      border-collapse: collapse;
-      margin: 0 0 20px 0;
-      border-top: 2px solid #ef403e;
-      font-size: 13px;
-    "
-  >
+  <!-- NÚT TẢI TOÀN BỘ ẢNH .ZIP HÀNG LOẠT TRONG EMAIL -->
+  <? if (it.batchZipUrl) { ?>
+  <div style="margin: 0 0 16px 0">
+    <a
+      href="<?= it.batchZipUrl ?>"
+      target="_blank"
+      style="display: inline-block; background-color: #047857; color: #ffffff; text-decoration: none; padding: 9px 18px; border-radius: 5px; font-weight: bold; font-size: 13px"
+    >
+      📦 Tải toàn bộ ảnh (.ZIP) ↗
+    </a>
+  </div>
+  <? } ?>
+
+  <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #ef403e; font-size: 13px">
     <thead>
-      <tr
-        style="
-          background-color: #f8f9fa;
-          text-align: left;
-          border-bottom: 1px solid #dddddd;
-        "
-      >
-        <th style="padding: 10px 8px; color: #444444">Họ và tên</th>
-        <th style="padding: 10px 8px; color: #444444">Working Email</th>
-        <th style="padding: 10px 8px; color: #444444">Chức vụ / Squad</th>
-        <th style="padding: 10px 8px; color: #444444">Avatar</th>
-        <th style="padding: 10px 8px; color: #444444; text-align: center">
-          Thông tin nhân sự
-        </th>
+      <tr style="background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #dddddd">
+        <th style="padding: 10px 8px; color: #444444; width: 12%">Mã NV</th>
+        <th style="padding: 10px 8px; color: #444444; width: 22%">Họ và tên</th>
+        <th style="padding: 10px 8px; color: #444444; width: 24%">Working Email</th>
+        <th style="padding: 10px 8px; color: #444444; width: 20%">Chức vụ / Squad</th>
+        <th style="padding: 10px 8px; color: #444444; text-align: center; width: 11%">Tải ảnh</th>
+        <th style="padding: 10px 8px; color: #444444; text-align: center; width: 11%">Hera</th>
       </tr>
     </thead>
     <tbody>
-      <? it.candidates.forEach(function(item) { ?>
+      <? it.candidates.forEach(function(item) { var imgUrl = item.finalAvatarUrl || item.squareBackupUrl || item.avatarUrl; var driveFileId = ""; if (imgUrl) { var m =
+      String(imgUrl).match(/(?:\/(?:d|folders)\/|[?&]id=)([-\w]{25,50})/); driveFileId = m ? m[1] : ""; } var directDownloadLink = driveFileId ? "https://drive.google.com/uc?export=download&id=" +
+      driveFileId : imgUrl; ?>
       <tr style="border-bottom: 1px solid #eeeeee">
-        <td style="padding: 10px 8px; font-weight: bold; color: #111111">
-          <?= item.fullName ?>
-        </td>
+        <!-- CỘT 1: MÃ NHÂN VIÊN LẤY TỪ SHEET EMPLOYEE AVATAR (UC06) -->
+        <td style="padding: 10px 8px; font-weight: bold; color: #1e40af"><?= item.employeeCode || "-" ?></td>
+
+        <!-- CỘT 2: HỌ VÀ TÊN -->
+        <td style="padding: 10px 8px; font-weight: bold; color: #111111"><?= item.fullName ?></td>
+
+        <!-- CỘT 3: WORKING EMAIL -->
         <td style="padding: 10px 8px; font-weight: bold">
           <? if (item.workingEmail) { ?>
           <span style="color: #111111"><?= item.workingEmail ?></span>
@@ -62,42 +48,31 @@
           <span style="color: #ef403e">Chưa khởi tạo</span>
           <? } ?>
         </td>
+
+        <!-- CỘT 4: CHỨC VỤ & SQUAD -->
         <td style="padding: 10px 8px; color: #555555">
           <?= item.position ?><br />
           <span style="font-size: 11px; color: #888888"><?= item.squad ?></span>
         </td>
-        <td style="padding: 10px 8px; font-weight: bold">
-          <? if (item.finalAvatarUrl) { ?>
+
+        <!-- CỘT 5: NÚT TẢI ẢNH TỪNG ỨNG VIÊN (ĐÃ BỎ DÒNG #...) -->
+        <td style="padding: 10px 8px; text-align: center; font-weight: bold">
+          <? if (directDownloadLink) { ?>
           <a
-            href="<?= item.finalAvatarUrl ?>"
+            href="<?= directDownloadLink ?>"
             target="_blank"
-            style="color: #0d6efd; text-decoration: underline"
+            style="display: inline-block; padding: 4px 10px; background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; text-decoration: none; border-radius: 4px; font-size: 12px"
           >
-            Xem ảnh Drive ↗
+            Tải ảnh ứng viên
           </a>
-          <? if (item.finalAvatarCellLink) { ?>
-          <br /><span style="font-size: 11px; font-weight: normal">
-            <a
-              href="<?= item.finalAvatarCellLink ?>"
-              target="_blank"
-              style="color: #666666; text-decoration: underline"
-            >
-              (Dòng #<?= item.uc06RowNumber ?><? if (item.isFromSquareBackup) {
-              ?> - Cột Ảnh 1:1<? } ?>)
-            </a>
-          </span>
-          <? } ?> <? } else { ?>
-          <span style="color: #ef403e">Chưa có link</span>
+          <? } else { ?>
+          <span style="color: #ef403e; font-size: 12px">Chưa có</span>
           <? } ?>
         </td>
+
+        <!-- CỘT 6: LINK ĐỐI SOÁT HERA -->
         <td style="padding: 10px 8px; text-align: center; font-weight: bold">
-          <a
-            href="<?= item.rowLink ?>"
-            target="_blank"
-            style="color: #0d6efd; text-decoration: underline"
-          >
-            Link ↗
-          </a>
+          <a href="<?= item.rowLink ?>" target="_blank" style="color: #0d6efd; text-decoration: underline"> Link ↗ </a>
         </td>
       </tr>
       <? }); ?>

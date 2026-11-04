@@ -9,11 +9,7 @@ class EmailTemplateBuilder {
    */
   static renderView_(fullPath, data) {
     if (!fullPath || typeof fullPath !== "string") {
-      throw new WorkflowError(
-        "INVALID_TEMPLATE_PATH",
-        `Đường dẫn template HTML không hợp lệ: "${fullPath}". Hãy kiểm tra lại key trong ONBOARDING_CONFIG.TEMPLATES.EMAIL!`,
-        { fullPath, data },
-      );
+      throw new WorkflowError("INVALID_TEMPLATE_PATH", `Đường dẫn template HTML không hợp lệ: "${fullPath}". Hãy kiểm tra lại key trong ONBOARDING_CONFIG.TEMPLATES.EMAIL!`, { fullPath, data });
     }
     const template = HtmlService.createTemplateFromFile(fullPath);
     Object.assign(template, data);
@@ -40,10 +36,7 @@ class EmailTemplateBuilder {
     const subject = `Yêu cầu khởi tạo tài khoản email công ty cho nhân sự mới - ${data.fullName || ""}`;
     return {
       subject,
-      htmlBody: this.renderView_(
-        ONBOARDING_CONFIG.TEMPLATES.EMAIL.DEVOPS,
-        payload,
-      ),
+      htmlBody: this.renderView_(ONBOARDING_CONFIG.TEMPLATES.EMAIL.DEVOPS, payload),
     };
   }
 
@@ -92,10 +85,7 @@ class EmailTemplateBuilder {
 
     return {
       subject,
-      htmlBody: this.renderView_(
-        ONBOARDING_CONFIG.TEMPLATES.EMAIL.TA_NOTIFICATION,
-        payload,
-      ),
+      htmlBody: this.renderView_(ONBOARDING_CONFIG.TEMPLATES.EMAIL.TA_NOTIFICATION, payload),
     };
   }
 
@@ -119,30 +109,29 @@ class EmailTemplateBuilder {
       guidePreviewUrl,
     });
 
-    const subjectDetail = squadTitle
-      ? `${positionTitle}_${squadTitle}`
-      : positionTitle;
+    const subjectDetail = squadTitle ? `${positionTitle}_${squadTitle}` : positionTitle;
     const subject = `Welcome to Kyanon Digital: Essential Onboarding Steps for ${subjectDetail}`;
 
     return {
       subject,
-      htmlBody: this.renderView_(
-        ONBOARDING_CONFIG.TEMPLATES.EMAIL.WELCOME_CANDIDATE,
-        payload,
-      ),
+      htmlBody: this.renderView_(ONBOARDING_CONFIG.TEMPLATES.EMAIL.WELCOME_CANDIDATE, payload),
     };
   }
 
   /** Avatar Digest Email cho DevOps */
-  static getAvatarUpdateDigest(candidates, sheetUrl, todayStr) {
-    const subject = `[Avatar Updated] Danh sách cập nhật Avatar nhân sự onboard ngày ${todayStr} (${candidates.length} nhân sự)`;
-    const payload = { candidates, sheetUrl, todayStr };
+  static getAvatarUpdateDigest(candidates, sheetUrl, todayStr, batchZipUrl = "") {
+    const list = candidates || [];
+    const count = list.length;
+    const subject = `[Avatar Updated] Danh sách cập nhật Avatar nhân sự onboard ngày ${todayStr} (${count} nhân sự)`;
+    const payload = {
+      candidates: list,
+      sheetUrl: sheetUrl || "",
+      todayStr: todayStr || "",
+      batchZipUrl: batchZipUrl || "",
+    };
     return {
       subject,
-      htmlBody: this.renderView_(
-        ONBOARDING_CONFIG.TEMPLATES.EMAIL.AVATAR_UPDATE, // ✅ Sửa thành AVATAR_UPDATE
-        payload,
-      ),
+      htmlBody: this.renderView_(ONBOARDING_CONFIG.TEMPLATES.EMAIL.AVATAR_UPDATE, payload),
     };
   }
 
@@ -153,10 +142,7 @@ class EmailTemplateBuilder {
 
     return {
       subject,
-      htmlBody: this.renderView_(
-        ONBOARDING_CONFIG.TEMPLATES.EMAIL.AVATAR_TA_REMINDER,
-        payload,
-      ),
+      htmlBody: this.renderView_(ONBOARDING_CONFIG.TEMPLATES.EMAIL.AVATAR_TA_REMINDER, payload),
     };
   }
 }
@@ -165,11 +151,7 @@ class EmailTemplateBuilder {
 const getDevOpsEmailTemplate = (d) => EmailTemplateBuilder.getDevOpsEmail(d);
 const getHREmailTemplate = (d) => EmailTemplateBuilder.getHREmail(d);
 const getITEmailTemplate = (d) => EmailTemplateBuilder.getITEmail(d);
-const getTaNotificationEmailTemplate = (d) =>
-  EmailTemplateBuilder.getTaNotificationEmail(d);
-const getWelcomeCandidateEmailTemplate = (d, url) =>
-  EmailTemplateBuilder.getWelcomeCandidateEmail(d, url);
-const getAvatarUpdateDigestTemplate = (c, s, d) =>
-  EmailTemplateBuilder.getAvatarUpdateDigest(c, s, d);
-const getAvatarTaReminderDigestTemplate = (c, t, d) =>
-  EmailTemplateBuilder.getAvatarTaReminderDigest(c, t, d);
+const getTaNotificationEmailTemplate = (d) => EmailTemplateBuilder.getTaNotificationEmail(d);
+const getWelcomeCandidateEmailTemplate = (d, url) => EmailTemplateBuilder.getWelcomeCandidateEmail(d, url);
+const getAvatarUpdateDigestTemplate = (c, s, d) => EmailTemplateBuilder.getAvatarUpdateDigest(c, s, d);
+const getAvatarTaReminderDigestTemplate = (c, t, d) => EmailTemplateBuilder.getAvatarTaReminderDigest(c, t, d);
