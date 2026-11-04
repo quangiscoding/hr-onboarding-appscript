@@ -254,9 +254,124 @@ function callN8nAiGateway(payload) {
   return AiProviderService.handleAiSummarize(payload);
 }
 
-function testExtractCvText() {
-  const testUrl = "https://docs.google.com/document/d/1kwwlGsdb2CjtF1qz93s2tjxU7LrRJSJlIEvl1gHUE3s/edit?tab=t.0";
-  const text = AiProviderService.extractDocTextFromUrl(testUrl);
-  Logger.log("Độ dài text: " + text.length);
-  Logger.log("Full text: " + text);
+/**
+ * Lấy thông tin dòng đang được chọn trên Sheet
+ * Hỗ trợ bóc tách link trần, Rich Text Hyperlink và công thức =HYPERLINK()
+ */
+function testExtractCvFromSelectedRow() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getActiveSheet();
+  const activeCell = sheet.getActiveCell();
+  const selectedRowIndex = activeCell.getRow();
+
+  if (selectedRowIndex < 2) {
+    SpreadsheetApp.getUi().alert("⚠️ Vui lòng click chọn vào một dòng dữ liệu ứng viên (dòng 2 trở đi).");
+    return;
+  }
+
+  const lastCol = sheet.getLastColumn();
+  const headers = sheet
+    .getRange(1, 1, 1, lastCol)
+    .getValues()[0]
+    .map((h) => String(h).trim());
+  const rowData = sheet.getRange(selectedRowIndex, 1, 1, lastCol).getValues()[0];
+
+  const cvColIdx = headers.indexOf("CV");
+  const nameColIdx = headers.indexOf("Full Name");
+  const titleColIdx = headers.indexOf("Title");
+  const squadColIdx = headers.indexOf("Squad/ Unit") !== -1 ? headers.indexOf("Squad/ Unit") : headers.indexOf("Squad");
+
+  if (cvColIdx === -1) {
+    SpreadsheetApp.getUi().alert("❌ Không tìm thấy cột 'CV' ở dòng 1. Vui lòng kiểm tra lại tên cột.");
+    return;
+  }
+
+  // --- BÓC TÁCH LINK CHUẨN (Xử lý hyperlink ẩn) ---
+  const cellCv = sheet.getRange(selectedRowIndex, cvColIdx + 1);
+  let cvUrl = "";
+
+  // 1. Kiểm tra nếu là Rich Text có gắn link
+  const richText = cellCv.getRichTextValue();
+  if (richText && richText.getLinkUrl()) {
+    cvUrl = richText.getLinkUrl();
+  }
+
+  // 2. Kiểm tra nếu ô dùng công thức =HYPERLINK("url", "text")
+  if (!cvUrl) {
+    const formula = cellCv.getFormula();
+    const matchFormula = formula.match(/HYPERLINK\(\s*["']([^"']+)["']/i);
+    if (matchFormula) {
+      cvUrl = matchFormula[1];
+    }
+  }
+
+  // 3. Nếu là chuỗi text trần
+  if (!cvUrl) {
+    cvUrl = String(cellCv.getValue()).trim();
+  }
+
+  const fullName = nameColIdx !== -1 ? String(rowData[nameColIdx]).trim() : "N/A";
+  const title = titleColIdx !== -1 ? String(rowData[titleColIdx]).trim() : "N/A";
+  const squad = squadColIdx !== -1 ? String(rowData[squadColIdx]).trim() : "N/A";
+
+  Logger.log(`👉 Dòng ${selectedRowIndex}: ${fullName} - ${title} (${squad})`);
+  Logger.log(`🔗 Link CV phát hiện: ${cvUrl}`);
+
+  if (!cvUrl) {
+    SpreadsheetApp.getUi().alert(`⚠️ Dòng ${selectedRowIndex} (${fullName}) không tìm thấy URL nào trong ô CV!`);
+    return;
+  }
+
+  let extractedText = "";
+  let statusMessage = "Thành công";
+
+  try {
+    // Gọi hàm trích xuất
+    extractedText = AiProviderService.extractDocTextFromUrl(cvUrl);
+    if (!extractedText) {
+      statusMessage = "⚠️ Hàm trả về rỗng (Kiểm tra xem file có nội dung chữ không hoặc quyền truy cập file).";
+    }
+  } catch (err) {
+    statusMessage = "❌ Lỗi: " + err.message;
+    Logger.log("❌ Lỗi trích xuất: " + err.message);
+  }
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 15px; color: #202124; margin: 0; }
+          .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; background: #e8f0fe; color: #1a73e8; }
+          .meta-table { width: 100%; margin: 12px 0; border-collapse: collapse; font-size: 13px; }
+          .meta-table td { padding: 6px 4px; border-bottom: 1px solid #f1f3f4; }
+          .meta-label { color: #5f6368; font-weight: 500; width: 110px; }
+          .cv-box { background: #f8f9fa; border: 1px solid #dadce0; border-radius: 6px; padding: 12px; height: 260px; overflow-y: auto; white-space: pre-wrap; font-size: 12px; line-height: 1.5; color: #3c4043; }
+          .url-link { color: #1a73e8; text-decoration: none; word-break: break-all; }
+        </style>
+      </head>
+      <body>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; color: #202124;">Thông tin dòng ${selectedRowIndex}</h3>
+          <span class="badge">${extractedText.length} ký tự</span>
+        </div>
+        <table class="meta-table">
+          <tr><td class="meta-label">Ứng viên:</td><td><b>${escapeHtml(fullName)}</b></td></tr>
+          <tr><td class="meta-label">Chức danh:</td><td>${escapeHtml(title)} (${escapeHtml(squad)})</td></tr>
+          <tr><td class="meta-label">Link đọc được:</td><td><a class="url-link" href="${cvUrl}" target="_blank">${escapeHtml(cvUrl)}</a></td></tr>
+          <tr><td class="meta-label">Trạng thái:</td><td>${escapeHtml(statusMessage)}</td></tr>
+        </table>
+        <div><b>Nội dung trích xuất:</b></div>
+        <div class="cv-box">${extractedText ? escapeHtml(extractedText) : "(Không có nội dung)"}</div>
+      </body>
+    </html>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(htmlContent).setWidth(680).setHeight(480);
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, "Xem trước CV Text ứng viên");
+}
+
+function escapeHtml(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
