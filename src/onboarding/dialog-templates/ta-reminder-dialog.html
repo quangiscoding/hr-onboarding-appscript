@@ -231,8 +231,7 @@
       reasonsMap['thiếu Alloc Code'] = true; else if (c.issueReason === 'MISSING_PERSONAL_EMAIL') reasonsMap['thiếu Email cá nhân'] = true; }); var reasonListStr = Object.keys(reasonsMap).join(', ');
       ?>
       <div class="header-notice notice-warn">
-        <strong>CHƯA GỬI MAIL CHO DEVOPS:</strong> Còn <strong><?= missingCount ?></strong> nhân sự chưa đủ điều kiện (<?= reasonListStr ?>). Hệ thống chỉ gửi mail khi <strong>100%</strong> đều đạt
-        chuẩn.
+        Còn <strong><?= missingCount ?></strong> nhân sự chưa đủ điều kiện (<?= reasonListStr ?>). Hệ thống chỉ gửi mail khi <strong>100%</strong> đều đạt chuẩn.
       </div>
       <? } else if (noticeType === 'SUCCESS') { ?>
       <div class="header-notice notice-success">
