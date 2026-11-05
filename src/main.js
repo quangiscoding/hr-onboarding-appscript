@@ -8,10 +8,22 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
 
   // Menu Onboarding
-  ui.createMenu("🚀 Hera Onboarding Tools").addItem(`1. ${reg.WELCOME_EMAIL.label}`, "menuSendWelcomeEmail").addItem(`2. ${reg.OFFER_ACCEPTED.label}`, "menuSendDevOpsEmail").addItem(`3. ${reg.TA_NOTIFICATION.label}`, "menuSendTaNotification").addItem(`4. ${reg.AVATAR_UPDATE.label}`, "menuSendAvatarUpdateNotification").addSeparator().addItem("🔓 Unlock Selected Row", "dev_unlockCurrentRow").addToUi();
+  ui.createMenu("🚀 Hera Onboarding Tools")
+    .addItem(`1. ${reg.WELCOME_EMAIL.label}`, "menuSendWelcomeEmail")
+    .addItem(`2. ${reg.OFFER_ACCEPTED.label}`, "menuSendDevOpsEmail")
+    .addItem(`3. ${reg.TA_NOTIFICATION.label}`, "menuSendTaNotification")
+    .addItem(`4. ${reg.AVATAR_UPDATE.label}`, "menuSendAvatarUpdateNotification")
+    .addSeparator()
+    .addItem("🔓 Unlock Selected Row", "dev_unlockCurrentRow")
+    .addToUi();
 
   // Menu Outline Introduction (Controller khác quản lý)
-  ui.createMenu("📝 Outline Introduction").addItem("1. Tạo Welcome Onboard", "showSidebar").addSeparator().addItem("2. Cài đặt Outline API Token cá nhân", "promptSetupOutlineToken").addItem("🔍 Kiểm tra CV Text dòng đang chọn", "testExtractCvFromSelectedRow").addToUi();
+  ui.createMenu("📝 Outline Introduction")
+    .addItem("1. Tạo Welcome Onboard", "showSidebar")
+    .addSeparator()
+    .addItem("2. Cài đặt Outline API Token cá nhân", "promptSetupOutlineToken")
+    .addItem("🔍 Kiểm tra CV Text dòng đang chọn", "testExtractCvFromSelectedRow")
+    .addToUi();
 }
 
 /* --- ONBOARDING MENU HOOKS --- */

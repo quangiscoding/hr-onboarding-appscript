@@ -34,7 +34,10 @@ class AvatarUpdateService {
       });
     }
 
-    // 2. Phân loại theo điều kiện ảnh 1:1
+    // 🟢 TỰ ĐỘNG SAO CHÉP ẢNH GỐC 1:1 VÀO FOLDER SQUAD & GHI CỘT "ẢNH 1:1" TRÊN UC06
+    AvatarUpdateUtil.autoBackupSquareAvatars(pendingCandidates, avatarMap, ONBOARDING_CONFIG.SPREADSHEET_UC06_ID);
+
+    // 2. Phân loại theo điều kiện ảnh 1:1 và Mã NV
     const { ready, missing } = AvatarUpdateUtil.partitionCandidates(pendingCandidates, avatarMap);
 
     // 3. CỔNG CHẶN GATEKEEPER: CÒN BẠN CHƯA ĐẠT -> DỪNG GỬI, BẬT CẢNH BÁO CHO TA
@@ -44,7 +47,7 @@ class AvatarUpdateService {
         missing,
         alreadyProcessed,
         noticeType: "MISSING",
-        message: `⚠️ Chưa gửi mail cho DevOps vì còn ${missing.length} bạn chưa đủ điều kiện ảnh 1:1.`,
+        message: `⚠️ Chưa gửi mail cho DevOps vì còn ${missing.length} bạn chưa đủ điều kiện.`,
       });
     }
 
@@ -132,7 +135,6 @@ class AvatarUpdateService {
     const tpl = getAvatarUpdateDigestTemplate(readyList, sheetUrl, todayDisplay, batchZipUrl);
 
     try {
-      // Dùng hàm sendDirectEmail_ dùng chung hoặc qua OnboardingService
       if (typeof sendDirectEmail_ === "function") {
         sendDirectEmail_(to, tpl, cc);
       } else {
@@ -166,6 +168,7 @@ class AvatarUpdateService {
    */
   static _buildResponse({ ready, missing, alreadyProcessed, noticeType, message }) {
     let displayList = [];
+
     if (noticeType === "MISSING") {
       // Đưa danh sách thiếu lên trên để TA ưu tiên xử lý
       displayList = [...missing.map((c) => ({ ...c, isReady: false })), ...ready.map((c) => ({ ...c, isReady: true }))];

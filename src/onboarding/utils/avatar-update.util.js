@@ -320,4 +320,109 @@ class AvatarUpdateUtil {
       taEmail: formatKyanonEmail(rowData[COLS.TA_IN_CHARGE]),
     };
   }
+
+  /**
+   * Helper lấy hoặc tạo mới Folder con trên Drive
+   * @private
+   */
+  static _getOrCreateDriveFolder(parentFolder, folderName) {
+    const safeName = String(folderName || "Others").trim();
+    const folders = parentFolder.getFoldersByName(safeName);
+    if (folders.hasNext()) {
+      return folders.next();
+    }
+    return parentFolder.createFolder(safeName);
+  }
+
+  /**
+   * Tự động sao chép ảnh gốc 1:1 vào thư mục nhân sự và cập nhật link vào cột "Ảnh 1:1" trên UC06
+   * Cấu trúc: Root -> Squad -> [<Code>] <FullName>
+   */
+  static autoBackupSquareAvatars(candidates, avatarMap, spreadsheetUc06Id) {
+    if (!candidates || !candidates.length || !spreadsheetUc06Id) return;
+
+    let ss,
+      sheet,
+      lastCol,
+      headers,
+      squareColIdx = -1;
+    let rootFolder = null;
+
+    candidates.forEach((c) => {
+      const cleanEmail = String(c.personalEmail || c.workingEmail || "")
+        .toLowerCase()
+        .trim();
+      const uc06 = cleanEmail ? avatarMap[cleanEmail] : null;
+
+      // Điều kiện: Đã có ảnh gốc, ảnh gốc đạt chuẩn 1:1, nhưng chưa có link tại cột "Ảnh 1:1"
+      if (uc06 && uc06.isSquare && !uc06.squareBackupUrl && uc06.pictureUrl && uc06.uc06RowNumber) {
+        const driveId = extractDriveFileId_(uc06.pictureUrl);
+        if (!driveId) return;
+
+        try {
+          // Lazy load sheet UC06 và Root folder khi phát sinh nhân sự cần sao chép
+          if (!sheet) {
+            ss = SpreadsheetApp.openById(spreadsheetUc06Id);
+            sheet = ss.getSheetByName("Cập nhật Avatar") || ss.getSheets()[0];
+            lastCol = sheet.getLastColumn();
+            headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+
+            // Tìm cột "Ảnh 1:1"
+            headers.forEach((h, idx) => {
+              const norm = normalizeHeaderKey(h);
+              if (norm === "anh11" || norm === "nh11" || norm === normalizeHeaderKey("Ảnh 1:1")) {
+                squareColIdx = idx + 1;
+              }
+            });
+
+            if (squareColIdx === -1) {
+              squareColIdx = lastCol + 1;
+              sheet.getRange(1, squareColIdx).setValue("Ảnh 1:1");
+            }
+
+            const userFolderId = PropertiesService.getUserProperties().getProperty("AVATAR_STORAGE_FOLDER_ID");
+            if (userFolderId) {
+              try {
+                rootFolder = DriveApp.getFolderById(userFolderId);
+              } catch (e) {
+                rootFolder = DriveApp.getRootFolder();
+              }
+            } else {
+              rootFolder = DriveApp.getRootFolder();
+            }
+          }
+
+          const sourceFile = DriveApp.getFileById(driveId);
+
+          // Cây thư mục: Root -> Squad -> [<Code>] <FullName>
+          const squadFolder = this._getOrCreateDriveFolder(rootFolder, c.squad || "Others");
+          const empCode = uc06.employeeCode || c.allocCode || "";
+          const folderTitle = empCode ? `[${empCode}] ${c.fullName}` : c.fullName;
+          const targetFolder = this._getOrCreateDriveFolder(squadFolder, folderTitle);
+
+          // Nhân bản file với tên chuẩn
+          const cleanName = String(c.fullName || "Candidate")
+            .replace(/[\\/:*?"<>|]/g, "")
+            .trim();
+          const fileName = empCode ? `[${empCode}] ${cleanName}_1x1.jpg` : `${cleanName}_1x1.jpg`;
+          const copiedFile = sourceFile.makeCopy(fileName, targetFolder);
+
+          try {
+            copiedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          } catch (e) {}
+
+          const copiedUrl = copiedFile.getUrl();
+
+          // Ghi trực tiếp URL vào ô cột "Ảnh 1:1" trên UC06
+          sheet.getRange(uc06.uc06RowNumber, squareColIdx).setValue(copiedUrl);
+
+          // Cập nhật lại bộ nhớ RAM để classifyCandidate chuyển trạng thái thành READY ngay lập tức
+          uc06.squareBackupUrl = copiedUrl;
+          uc06.uc06SquareLink = `${sheet.getParent().getUrl()}#gid=${sheet.getSheetId()}&range=${getColumnLetterFromIndex(squareColIdx)}${uc06.uc06RowNumber}`;
+        } catch (err) {
+          Logger.log(`⚠️ Lỗi tự động sao chép ảnh 1:1 cho ${c.fullName}: ${err.message}`);
+        }
+      }
+    });
+  }
 }

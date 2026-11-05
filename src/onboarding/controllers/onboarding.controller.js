@@ -78,7 +78,10 @@ class OnboardingController {
       }
 
       if (lockMode === "WARN") {
-        const reRunConfirm = UIFeedback.confirm("⚠️ Đã từng gửi thông báo", `Nhân sự "${data.fullName}" đã từng được gửi thông báo TA trước đó rồi.\n\nBạn có muốn gửi tiếp email cập nhật tiến độ mới cho TA không?`);
+        const reRunConfirm = UIFeedback.confirm(
+          "⚠️ Đã từng gửi thông báo",
+          `Nhân sự "${data.fullName}" đã từng được gửi thông báo TA trước đó rồi.\n\nBạn có muốn gửi tiếp email cập nhật tiến độ mới cho TA không?`,
+        );
         if (!reRunConfirm) return null;
       }
     }
