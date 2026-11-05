@@ -65,6 +65,69 @@ class AvatarUpdateService {
   }
 
   /**
+   * Helper chuẩn bị dữ liệu và kích thước Modal trả về Controller
+   * @private
+   */
+  static _buildResponse({ ready, missing, alreadyProcessed, noticeType, message }) {
+    let displayList = [];
+
+    if (noticeType === "MISSING") {
+      displayList = [
+        ...(missing || []).map((c) => ({ ...c, isReady: false, isProcessed: false })),
+        ...(ready || []).map((c) => ({ ...c, isReady: true, isProcessed: false })),
+        ...(alreadyProcessed || []).map((c) => ({ ...c, isReady: true, isProcessed: true })),
+      ];
+    } else if (noticeType === "SUCCESS") {
+      displayList = (ready || []).map((c) => ({ ...c, isReady: true, isProcessed: true }));
+    } else {
+      // PROCESSED: Đảm bảo gán cờ isProcessed = true cho toàn bộ danh sách đã xử lý
+      displayList = (alreadyProcessed || []).map((c) => ({ ...c, isReady: true, isProcessed: true }));
+    }
+
+    const safeReady = ready || [];
+    const safeMissing = missing || [];
+    const safeProcessed = alreadyProcessed || [];
+    const totalCount = safeReady.length + safeMissing.length + safeProcessed.length;
+
+    // Khi noticeType là PROCESSED thì số lượng card xanh lấy từ safeProcessed.length
+    const readyCount = noticeType === "PROCESSED" ? safeProcessed.length : safeReady.length;
+    const missingCount = safeMissing.length;
+    const alreadyProcessedCount = safeProcessed.length;
+
+    const calculatedHeight = Math.min(270 + displayList.length * 38, 560);
+    const safeHeight = isNaN(calculatedHeight) || calculatedHeight <= 0 ? 500 : calculatedHeight;
+
+    let title = `🎉 Đã gửi Avatar cho toàn bộ ${readyCount} nhân sự hôm nay`;
+    if (noticeType === "MISSING") {
+      title = `⚠️ Cần xử lý Avatar: ${readyCount}/${readyCount + missingCount} bạn đủ điều kiện`;
+    } else if (noticeType === "PROCESSED") {
+      title = `ℹ️ Đã hoàn tất xử lý Avatar (${alreadyProcessedCount} nhân sự)`;
+    }
+
+    return {
+      ok: true,
+      hasModal: true,
+      modalConfig: {
+        templatePath: ONBOARDING_CONFIG.TEMPLATES.DIALOG.TA_REMINDER,
+        title,
+        width: 760,
+        height: safeHeight,
+        data: {
+          totalCount,
+          readyCount, // Trả về số thực tế (ở đây là 1 hoặc 2 thay vì 0)
+          missingCount,
+          alreadyProcessedCount,
+          candidates: displayList,
+          noticeType,
+          uc06Url: `https://docs.google.com/spreadsheets/d/${ONBOARDING_CONFIG.SPREADSHEET_UC06_ID}/edit`,
+        },
+      },
+      status: noticeType === "MISSING" ? "HAS_MISSING" : "SUCCESS",
+      message,
+    };
+  }
+
+  /**
    * Helper nén ảnh thành ZIP và đính kèm trực tiếp vào Email gửi cho DevOps
    * Không lưu file trung gian lên Drive tránh lỗi chính sách chia sẻ workspace
    * @private
@@ -159,58 +222,5 @@ class AvatarUpdateService {
       }
       logInternalWorkflow(c, [{ type: "DevOps Avatar Update", to }], "EMAIL_SENT", "");
     });
-  }
-
-  /**
-   * Helper chuẩn bị dữ liệu và kích thước Modal trả về Controller
-   * @private
-   */
-  static _buildResponse({ ready, missing, alreadyProcessed, noticeType, message }) {
-    let displayList = [];
-
-    if (noticeType === "MISSING") {
-      displayList = [...missing.map((c) => ({ ...c, isReady: false })), ...ready.map((c) => ({ ...c, isReady: true }))];
-    } else if (noticeType === "SUCCESS") {
-      displayList = ready.map((c) => ({ ...c, isReady: true }));
-    } else {
-      displayList = alreadyProcessed.map((c) => ({ ...c, isReady: true }));
-    }
-
-    const totalCount = ready.length + missing.length + alreadyProcessed.length;
-    const readyCount = ready.length;
-    const missingCount = missing.length;
-    const alreadyProcessedCount = alreadyProcessed.length;
-
-    const calculatedHeight = Math.min(270 + displayList.length * 38, 560);
-    const safeHeight = isNaN(calculatedHeight) || calculatedHeight <= 0 ? 500 : calculatedHeight;
-
-    let title = `🎉 Đã gửi Avatar cho toàn bộ ${readyCount} nhân sự hôm nay`;
-    if (noticeType === "MISSING") {
-      title = `⚠️ Cần xử lý Avatar: ${readyCount}/${readyCount + missingCount} bạn đủ điều kiện`;
-    } else if (noticeType === "PROCESSED") {
-      title = `ℹ️ Đã hoàn tất xử lý Avatar (${alreadyProcessedCount} nhân sự)`;
-    }
-
-    return {
-      ok: true,
-      hasModal: true,
-      modalConfig: {
-        templatePath: ONBOARDING_CONFIG.TEMPLATES.DIALOG.TA_REMINDER,
-        title,
-        width: 760,
-        height: safeHeight,
-        data: {
-          totalCount,
-          readyCount,
-          missingCount,
-          alreadyProcessedCount,
-          candidates: displayList,
-          noticeType,
-          uc06Url: `https://docs.google.com/spreadsheets/d/${ONBOARDING_CONFIG.SPREADSHEET_UC06_ID}/edit`,
-        },
-      },
-      status: noticeType === "MISSING" ? "HAS_MISSING" : "SUCCESS",
-      message,
-    };
   }
 }
