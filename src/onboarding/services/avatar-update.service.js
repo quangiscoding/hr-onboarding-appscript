@@ -20,6 +20,22 @@ class AvatarUpdateService {
       );
     }
 
+    // Gán dữ liệu ảnh từ UC06 cho tất cả ứng viên (kể cả những bạn đã bị khóa từ trước)
+    (candidates || []).forEach((c) => {
+      const cleanEmail = String(c.personalEmail || c.workingEmail || "")
+        .toLowerCase()
+        .trim();
+      const uc06 = cleanEmail ? avatarMap[cleanEmail] : null;
+      if (uc06) {
+        c.employeeCode = uc06.employeeCode || c.employeeCode || "";
+        c.avatarUrl = uc06.pictureUrl || "";
+        c.squareBackupUrl = uc06.squareBackupUrl || "";
+        c.uc06RowLink = uc06.uc06RowLink || "";
+        c.uc06SquareLink = uc06.uc06SquareLink || "";
+        c.finalAvatarUrl = uc06.squareBackupUrl || uc06.pictureUrl || "";
+      }
+    });
+
     const alreadyProcessed = candidates.filter((c) => c.isLocked);
     const pendingCandidates = candidates.filter((c) => !c.isLocked);
 
@@ -80,7 +96,6 @@ class AvatarUpdateService {
     } else if (noticeType === "SUCCESS") {
       displayList = (ready || []).map((c) => ({ ...c, isReady: true, isProcessed: true }));
     } else {
-      // PROCESSED: Đảm bảo gán cờ isProcessed = true cho toàn bộ danh sách đã xử lý
       displayList = (alreadyProcessed || []).map((c) => ({ ...c, isReady: true, isProcessed: true }));
     }
 
@@ -89,7 +104,6 @@ class AvatarUpdateService {
     const safeProcessed = alreadyProcessed || [];
     const totalCount = safeReady.length + safeMissing.length + safeProcessed.length;
 
-    // Khi noticeType là PROCESSED thì số lượng card xanh lấy từ safeProcessed.length
     const readyCount = noticeType === "PROCESSED" ? safeProcessed.length : safeReady.length;
     const missingCount = safeMissing.length;
     const alreadyProcessedCount = safeProcessed.length;
@@ -114,7 +128,7 @@ class AvatarUpdateService {
         height: safeHeight,
         data: {
           totalCount,
-          readyCount, // Trả về số thực tế (ở đây là 1 hoặc 2 thay vì 0)
+          readyCount,
           missingCount,
           alreadyProcessedCount,
           candidates: displayList,

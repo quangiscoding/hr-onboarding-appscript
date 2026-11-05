@@ -289,9 +289,11 @@
               <? } ?>
             </td>
             <td>
-              <? if (isDone) { ?>
+              <? if (isDone) { var photoUrl = c.finalAvatarUrl || c.squareBackupUrl || c.avatarUrl; ?> <? if (photoUrl) { ?>
+              <a href="<?= photoUrl ?>" target="_blank" class="action-link" style="color: #0369a1; font-weight: 500"> 🖼️ Xem ảnh 1:1 (Đã gửi) </a>
+              <? } else { ?>
               <span style="color: #0369a1; font-weight: 500">✓ Đã hoàn tất (Đã khóa)</span>
-              <? } else if (c.isReady) { ?>
+              <? } ?> <? } else if (c.isReady) { ?>
               <span style="color: #16a34a; font-weight: 500">Sẵn sàng gửi mail</span>
               <? } else if (c.issueReason === 'MISSING_EMPLOYEE_CODE') { ?>
               <a href="<?= c.uc06RowLink || uc06Url ?>" target="_blank" class="action-link" style="color: #b91c1c; font-weight: bold">Điền Mã NV tại file Employee Avatar</a>
