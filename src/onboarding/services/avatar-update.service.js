@@ -51,7 +51,7 @@ class AvatarUpdateService {
       });
     }
 
-    // 4. KHI 100% ĐẠT CHUẨN: GỬI MAIL CHO DEVOPS VÀ KHÓA DÒNG
+    // 4. KHI 100% ĐẠT CHUẨN: GỬI MAIL KÈM ATTACHMENT ZIP CHO DEVOPS VÀ KHÓA DÒNG
     this._sendDevOpsEmail(ready, sheetUrl, todayDisplay, currentUser);
     this._lockAndLogCandidates(ready, TRIGGER);
 
@@ -65,7 +65,8 @@ class AvatarUpdateService {
   }
 
   /**
-   * Helper gửi email cho DevOps
+   * Helper nén ảnh thành ZIP và đính kèm trực tiếp vào Email gửi cho DevOps
+   * Không lưu file trung gian lên Drive tránh lỗi chính sách chia sẻ workspace
    * @private
    */
   static _sendDevOpsEmail(readyList, sheetUrl, todayDisplay, currentUser) {
@@ -77,8 +78,8 @@ class AvatarUpdateService {
       throw new WorkflowError("MISSING_DEVOPS_RECIPIENT", "Chưa cấu hình email người nhận cho DevOps tại tab Data (Cột Send to).");
     }
 
-    // 1. Gom toàn bộ file ảnh hợp lệ tạo thành 1 file ZIP trên Drive làm link tải hàng loạt
-    let batchZipUrl = "";
+    // 1. Gom toàn bộ file ảnh hợp lệ nén thành 1 Blob ZIP trong RAM
+    let zipAttachment = null;
     try {
       const blobs = [];
       const usedNames = new Set();
@@ -94,7 +95,7 @@ class AvatarUpdateService {
           const file = DriveApp.getFileById(driveId);
           const blob = file.getBlob();
 
-          // Ưu tiên Code từ UC06 (Cột A) -> Alloc Code -> Số dòng
+          // Ưu tiên Code từ UC06 -> Alloc Code -> Số dòng
           const empCode = c.employeeCode || c.allocCode || `row_${c.rowNumber}`;
           const cleanName = String(c.fullName || "Candidate")
             .replace(/[\\/:*?"<>|]/g, "")
@@ -115,33 +116,31 @@ class AvatarUpdateService {
 
       if (blobs.length > 0) {
         const todayClean = String(todayDisplay || "Today").replace(/[\/-]/g, "");
-        const zipBlob = Utilities.zip(blobs, `Avatars_Onboard_${todayClean}.zip`);
-        const zipFile = DriveApp.createFile(zipBlob);
-
-        try {
-          zipFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        } catch (shareErr) {
-          Logger.log("⚠️ Không thể set public quyền xem ZIP (chính sách workspace chặn): " + shareErr.message);
-        }
-
-        // Link tải trực tiếp về máy
-        batchZipUrl = `https://drive.google.com/uc?export=download&id=${zipFile.getId()}`;
+        zipAttachment = Utilities.zip(blobs, `Avatars_Onboard_${todayClean}.zip`);
       }
     } catch (zipErr) {
       Logger.log("⚠️ Lỗi trong quá trình tạo file ZIP nén avatar: " + zipErr.message);
     }
 
-    // 2. Render template kèm link file ZIP
-    const tpl = getAvatarUpdateDigestTemplate(readyList, sheetUrl, todayDisplay, batchZipUrl);
+    // 2. Render template email (trả về { subject, htmlBody })
+    const mail = getAvatarUpdateDigestTemplate(readyList, sheetUrl, todayDisplay, "");
 
+    // 3. Gửi email qua OnboardingService.sendDirectEmail_
     try {
+      const options = {
+        name: "Hera Onboarding System",
+        attachments: zipAttachment ? [zipAttachment] : [],
+      };
+
       if (typeof sendDirectEmail_ === "function") {
-        sendDirectEmail_(to, tpl, cc);
+        sendDirectEmail_(to, mail, cc, options);
       } else {
-        OnboardingService.sendDirectEmail_(to, tpl, cc);
+        OnboardingService.sendDirectEmail_(to, mail, cc, options);
       }
     } catch (errMail) {
-      throw new WorkflowError("DEVOPS_MAIL_FAILED", `Gửi mail cho DevOps thất bại: ${errMail.message}`, { originalError: errMail.message });
+      throw new WorkflowError("DEVOPS_MAIL_FAILED", `Gửi mail cho DevOps thất bại: ${errMail.message}`, {
+        originalError: errMail.message,
+      });
     }
   }
 
@@ -170,7 +169,6 @@ class AvatarUpdateService {
     let displayList = [];
 
     if (noticeType === "MISSING") {
-      // Đưa danh sách thiếu lên trên để TA ưu tiên xử lý
       displayList = [...missing.map((c) => ({ ...c, isReady: false })), ...ready.map((c) => ({ ...c, isReady: true }))];
     } else if (noticeType === "SUCCESS") {
       displayList = ready.map((c) => ({ ...c, isReady: true }));

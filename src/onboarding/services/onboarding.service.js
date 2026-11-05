@@ -7,18 +7,26 @@ class OnboardingService {
    * @param {string} to - Danh sách email nhận (cách nhau bởi dấu phẩy)
    * @param {Object} mail - { subject, htmlBody }
    * @param {string} [cc] - Danh sách email CC
+   * @param {Object} [options] - Cấu hình nâng cao { attachments, name }
    */
-  static sendDirectEmail_(to, mail, cc) {
+  static sendDirectEmail_(to, mail, cc, options = {}) {
     const cleanTo = String(to || "").trim();
     if (!cleanTo) {
       throw new WorkflowError("INVALID_RECIPIENT", "Địa chỉ email nhận (To) bị trống hoặc không hợp lệ.");
     }
-
     try {
-      GmailApp.sendEmail(cleanTo, mail.subject, "", {
-        htmlBody: mail.htmlBody,
-        cc: cc ? String(cc).trim() : "",
-      });
+      const emailOptions = {
+        htmlBody: (mail && mail.htmlBody) || "",
+        name: options.name || "Hera Onboarding System",
+        attachments: options.attachments || [],
+      };
+
+      const cleanCc = String(cc || "").trim();
+      if (cleanCc) {
+        emailOptions.cc = cleanCc;
+      }
+
+      GmailApp.sendEmail(cleanTo, (mail && mail.subject) || "(No Subject)", "", emailOptions);
     } catch (err) {
       Logger.log(`❌ Lỗi GmailApp.sendEmail tới (${cleanTo}): ${err.toString()}`);
       throw new WorkflowError("GMAIL_SEND_ERROR", `Lỗi khi gửi email tới ${cleanTo}: ${err.message}`, { originalError: err.message, stack: err.stack });
