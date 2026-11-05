@@ -360,14 +360,14 @@ class AvatarUpdateUtil {
         if (!driveId) return;
 
         try {
-          // Lazy load sheet UC06 và Root folder khi phát sinh nhân sự cần sao chép
+          // Lazy load sheet UC06 và xác định Root Folder
           if (!sheet) {
             ss = SpreadsheetApp.openById(spreadsheetUc06Id);
             sheet = ss.getSheetByName("Cập nhật Avatar") || ss.getSheets()[0];
             lastCol = sheet.getLastColumn();
             headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
 
-            // Tìm cột "Ảnh 1:1"
+            // 1. Tìm hoặc khởi tạo cột "Ảnh 1:1"
             headers.forEach((h, idx) => {
               const norm = normalizeHeaderKey(h);
               if (norm === "anh11" || norm === "nh11" || norm === normalizeHeaderKey("Ảnh 1:1")) {
@@ -380,11 +380,28 @@ class AvatarUpdateUtil {
               sheet.getRange(1, squareColIdx).setValue("Ảnh 1:1");
             }
 
-            const userFolderId = PropertiesService.getUserProperties().getProperty("AVATAR_STORAGE_FOLDER_ID");
-            if (userFolderId) {
+            // 2. ĐỌC THƯ MỤC LƯU TRỮ TỪ DEVELOPER METADATA CỦA FILE UC06
+            let targetFolderId = "";
+            try {
+              const metaList = ss.getDeveloperMetadata();
+              const folderMeta = metaList.find((m) => m.getKey() === "AVATAR_STORAGE_FOLDER_ID");
+              if (folderMeta) {
+                targetFolderId = folderMeta.getValue();
+              }
+            } catch (metaErr) {
+              Logger.log("⚠️ Không đọc được Metadata từ UC06: " + metaErr.message);
+            }
+
+            // Fallback: Nếu metadata trống thì lấy từ config ONBOARDING_CONFIG (nếu có)
+            if (!targetFolderId && typeof ONBOARDING_CONFIG !== "undefined") {
+              targetFolderId = ONBOARDING_CONFIG.AVATAR_STORAGE_FOLDER_ID || "";
+            }
+
+            if (targetFolderId) {
               try {
-                rootFolder = DriveApp.getFolderById(userFolderId);
+                rootFolder = DriveApp.getFolderById(targetFolderId.trim());
               } catch (e) {
+                Logger.log(`⚠️ ID thư mục (${targetFolderId}) không hợp lệ hoặc thiếu quyền: ${e.message}`);
                 rootFolder = DriveApp.getRootFolder();
               }
             } else {
