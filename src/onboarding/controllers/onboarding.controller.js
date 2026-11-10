@@ -23,7 +23,7 @@ class OnboardingController {
         run: (d) => OnboardingService.handleTaNotification(d),
       },
       AVATAR_UPDATE: {
-        label: "Gửi mail nhắc DevOps update avatar",
+        label: "Gửi mail nhắc IT Ops update avatar",
         isBatch: true,
         run: () => OnboardingService.handleAvatarUpdate(),
       },
