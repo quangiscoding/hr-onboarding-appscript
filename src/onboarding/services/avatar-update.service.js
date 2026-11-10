@@ -170,6 +170,15 @@ class AvatarUpdateService {
 
         try {
           const file = DriveApp.getFileById(driveId);
+
+          // 🟢 Fallback lấy avatarFolderUrl nếu chưa có từ bước util
+          if (!c.avatarFolderUrl) {
+            const parents = file.getParents();
+            if (parents.hasNext()) {
+              c.avatarFolderUrl = parents.next().getUrl();
+            }
+          }
+
           const blob = file.getBlob();
 
           // Ưu tiên Code từ UC06 -> Alloc Code -> Số dòng
@@ -187,7 +196,7 @@ class AvatarUpdateService {
           blob.setName(fileName);
           blobs.push(blob);
         } catch (fetchErr) {
-          Logger.log(`⚠️ Không lấy được file ảnh của ${c.fullName} (ID: ${driveId}): ${fetchErr.message}`);
+          Logger.log(`⚠️ Không lấy được file/folder ảnh của ${c.fullName} (ID: ${driveId}): ${fetchErr.message}`);
         }
       });
 

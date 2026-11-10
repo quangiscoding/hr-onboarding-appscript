@@ -8,7 +8,7 @@ class AvatarUpdateUtil {
     return {
       MISSING_ALLOC_CODE: "Nhân sự chưa có Alloc Code / Working Email.",
       MISSING_PERSONAL_EMAIL: "Nhân sự chưa có Email cá nhân trên Sheet Hera.",
-      MISSING_EMPLOYEE_CODE: "Nhân sự chưa có Mã nhân viên (Code) trên UC06.", // Thêm thông báo này
+      MISSING_EMPLOYEE_CODE: "Nhân sự chưa có Mã nhân viên (Code) trên UC06.",
       NOT_IN_SHEET: "Nhân sự chưa được thêm vào sheet Employee Avatar.",
       EMPTY_IMAGE: "Nhân sự chưa có link ảnh trên UC06.",
       INVALID_RATIO_MISSING_BACKUP: "Ảnh của nhân sự chưa đúng tỉ lệ 1:1.",
@@ -24,14 +24,20 @@ class AvatarUpdateUtil {
     const employeeCode = indices.code >= 0 ? String(row[indices.code] || "").trim() : "";
     const pictureUrl = String(row[indices.picture] || "").trim();
     const squareBackupUrl = indices.square >= 0 ? String(row[indices.square] || "").trim() : "";
+
     let isSquare = false;
     let dimensions = null;
     let checkVal = "";
+    let avatarFolderUrl = "";
 
     // Ưu tiên 1: Đã có link ảnh cắt 1:1 tại cột Ảnh 1:1
     if (squareBackupUrl) {
       isSquare = true;
       checkVal = "1:1 (Đã crop)";
+      const fileId = extractDriveFileId_(squareBackupUrl);
+      if (fileId) {
+        avatarFolderUrl = this._getParentFolderUrl_(fileId);
+      }
     }
     // Ưu tiên 2: Ảnh gốc tại cột Picture đã tự chuẩn 1:1
     else if (pictureUrl) {
@@ -40,6 +46,9 @@ class AvatarUpdateUtil {
       if (dimensions) {
         isSquare = dimensions.isSquare;
         checkVal = isSquare ? "1:1" : `${dimensions.width}x${dimensions.height}`;
+      }
+      if (fileId) {
+        avatarFolderUrl = this._getParentFolderUrl_(fileId);
       }
     }
 
@@ -50,6 +59,7 @@ class AvatarUpdateUtil {
         employeeCode: employeeCode,
         pictureUrl: pictureUrl,
         squareBackupUrl: squareBackupUrl,
+        avatarFolderUrl: avatarFolderUrl,
         uc06RowNumber: rowIndex,
         uc06RowLink: `${sheetUrl}&range=${indices.pictureColLetter}${rowIndex}`,
         uc06SquareLink: indices.squareColLetter ? `${sheetUrl}&range=${indices.squareColLetter}${rowIndex}` : "",
@@ -57,6 +67,21 @@ class AvatarUpdateUtil {
         dimensions: dimensions,
       },
     };
+  }
+
+  /** Helper lấy URL folder cha từ File ID trên Google Drive */
+  static _getParentFolderUrl_(fileId) {
+    if (!fileId) return "";
+    try {
+      const file = DriveApp.getFileById(fileId);
+      const parents = file.getParents();
+      if (parents.hasNext()) {
+        return parents.next().getUrl();
+      }
+    } catch (e) {
+      // Bỏ qua nếu không có quyền truy cập hoặc file bị xóa
+    }
+    return "";
   }
 
   /** Phân loại 1 ứng viên cụ thể */
@@ -79,10 +104,10 @@ class AvatarUpdateUtil {
 
     // Gán dữ liệu đọc được từ UC06
     candidate.employeeCode = uc06Info ? String(uc06Info.employeeCode || "").trim() : "";
-
     Object.assign(candidate, {
       avatarUrl: uc06Info?.pictureUrl || "",
       squareBackupUrl: uc06Info?.squareBackupUrl || "",
+      avatarFolderUrl: candidate.avatarFolderUrl || uc06Info?.avatarFolderUrl || "",
       uc06RowNumber: uc06Info?.uc06RowNumber || null,
       uc06RowLink: uc06Info?.uc06RowLink || "",
       uc06SquareLink: uc06Info?.uc06SquareLink || "",
@@ -129,17 +154,20 @@ class AvatarUpdateUtil {
   static partitionCandidates(candidates, avatarMap) {
     const ready = [];
     const missing = [];
+
     (candidates || []).forEach((c) => {
       const cleanEmail = String(c.personalEmail || c.workingEmail || "")
         .toLowerCase()
         .trim();
       const uc06 = cleanEmail ? avatarMap[cleanEmail] : null;
+
       if (this.classifyCandidate(c, uc06) === "READY") {
         ready.push(c);
       } else {
         missing.push(c);
       }
     });
+
     return { ready, missing };
   }
 
@@ -147,6 +175,7 @@ class AvatarUpdateUtil {
   static loadMapAndSync(spreadsheetId) {
     const avatarMap = {};
     if (!spreadsheetId) return avatarMap;
+
     const ss = SpreadsheetApp.openById(spreadsheetId);
     const sheet = ss.getSheetByName("Cập nhật Avatar") || ss.getSheets()[0];
     const lastRow = sheet.getLastRow();
@@ -184,29 +213,34 @@ class AvatarUpdateUtil {
       const parsed = this.parseRow(row, indices, sheetUrl, i + 2);
       const currentCheck = checkCol ? String(row[checkCol - 1] || "") : "";
       const newCheck = parsed ? parsed.checkVal : "";
+
       if (newCheck !== currentCheck) hasChanges = true;
       checkOutputs.push([newCheck]);
+
       if (parsed) avatarMap[parsed.email] = parsed.data;
     });
 
     if (hasChanges && checkCol) {
       sheet.getRange(2, checkCol, checkOutputs.length, 1).setValues(checkOutputs);
     }
+
     return avatarMap;
   }
 
-  /** Tải toàn bộ dữ liệu Sheet Hera và Developer Metadata vào RAM một lần duy nhất */
+  /** Tải toàn bộ dữ liệu Sheet đang tương tác và Developer Metadata vào RAM một lần duy nhất */
   static loadBatchContext() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getActiveSheet();
     const sheetUrl = ss.getUrl();
     const rawLastRow = sheet.getLastRow();
+
     if (rawLastRow <= 1) {
       return { isEmpty: true, message: "Sheet dữ liệu hiện đang rỗng." };
     }
 
     const colMap = getHeaderColumnMap(sheet);
     const allRowsData = sheet.getRange(1, 1, rawLastRow, sheet.getLastColumn()).getValues();
+
     const cachedContext = {
       colMap,
       allRowsData,
@@ -255,8 +289,8 @@ class AvatarUpdateUtil {
     const scriptTz = Session.getScriptTimeZone();
     const todayStr = Utilities.formatDate(new Date(), scriptTz, "yyyy-MM-dd");
     const todayDisplay = Utilities.formatDate(new Date(), scriptTz, "dd/MM/yyyy");
-    const list = [];
 
+    const list = [];
     for (let r = ctx.actualLastRow; r >= 2; r--) {
       let d;
       try {
@@ -297,6 +331,7 @@ class AvatarUpdateUtil {
     const colMap = cachedContext.colMap;
     const rowValues = cachedContext.allRowsData[rowIndex - 1] || [];
     const rowData = {};
+
     Object.keys(colMap).forEach((key) => {
       rowData[key] = rowValues[colMap[key] - 1];
     });
@@ -416,6 +451,11 @@ class AvatarUpdateUtil {
           const empCode = uc06.employeeCode || c.allocCode || "";
           const folderTitle = empCode ? `[${empCode}] ${c.fullName}` : c.fullName;
           const targetFolder = this._getOrCreateDriveFolder(squadFolder, folderTitle);
+
+          // 🟢 Lưu URL Folder vừa tìm/tạo vào Candidate và UC06
+          const targetFolderUrl = targetFolder.getUrl();
+          c.avatarFolderUrl = targetFolderUrl;
+          uc06.avatarFolderUrl = targetFolderUrl;
 
           // Nhân bản file với tên chuẩn
           const cleanName = String(c.fullName || "Candidate")

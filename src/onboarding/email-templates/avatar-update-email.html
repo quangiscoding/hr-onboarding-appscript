@@ -1,8 +1,8 @@
-<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 760px; margin: 0">
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333333; max-width: 860px; margin: 0">
   <p style="margin: 0 0 12px 0">Hi IT Ops Team,</p>
   <p style="margin: 0 0 16px 0">
     Nhờ team hỗ trợ cập nhật avatar cho <strong><?= it.candidates.length ?></strong> nhân sự mới onboard ngày <strong><?= it.todayStr ?></strong> tại
-    <a href="<?= it.sheetUrl ?>" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline"> File Hera | On-boarding List ↗ </a>
+    <a href="<?= it.sheetUrl ?>" target="_blank" style="color: #0d6efd; font-weight: bold; text-decoration: underline"> File On-boarding List ↗ </a>
   </p>
 
   <!-- NÚT TẢI TOÀN BỘ ẢNH .ZIP HÀNG LOẠT TRONG EMAIL -->
@@ -21,12 +21,13 @@
   <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0; border-top: 2px solid #ef403e; font-size: 13px">
     <thead>
       <tr style="background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #dddddd">
-        <th style="padding: 10px 8px; color: #444444; width: 12%">Mã NV</th>
-        <th style="padding: 10px 8px; color: #444444; width: 22%">Họ và tên</th>
-        <th style="padding: 10px 8px; color: #444444; width: 24%">Working Email</th>
-        <th style="padding: 10px 8px; color: #444444; width: 20%">Chức vụ / Squad</th>
-        <th style="padding: 10px 8px; color: #444444; text-align: center; width: 11%">Tải ảnh</th>
-        <th style="padding: 10px 8px; color: #444444; text-align: center; width: 11%">Hera</th>
+        <th style="padding: 10px 8px; color: #444444; width: 10%">Mã NV</th>
+        <th style="padding: 10px 8px; color: #444444; width: 18%">Họ và tên</th>
+        <th style="padding: 10px 8px; color: #444444; width: 20%">Working Email</th>
+        <th style="padding: 10px 8px; color: #444444; width: 16%">Chức vụ / Squad</th>
+        <th style="padding: 10px 8px; color: #444444; text-align: center; width: 10%">Tải ảnh</th>
+        <th style="padding: 10px 8px; color: #444444; text-align: center; width: 13%">Folder Avatar</th>
+        <th style="padding: 10px 8px; color: #444444; text-align: center; width: 13%">Sheet Onboarding</th>
       </tr>
     </thead>
     <tbody>
@@ -34,7 +35,7 @@
       String(imgUrl).match(/(?:\/(?:d|folders)\/|[?&]id=)([-\w]{25,50})/); driveFileId = m ? m[1] : ""; } var directDownloadLink = driveFileId ? "https://drive.google.com/uc?export=download&id=" +
       driveFileId : imgUrl; ?>
       <tr style="border-bottom: 1px solid #eeeeee">
-        <!-- CỘT 1: MÃ NHÂN VIÊN LẤY TỪ SHEET EMPLOYEE AVATAR (UC06) -->
+        <!-- CỘT 1: MÃ NHÂN VIÊN LẤY TỪ UC06 -->
         <td style="padding: 10px 8px; font-weight: bold; color: #1e40af"><?= item.employeeCode || "-" ?></td>
 
         <!-- CỘT 2: HỌ VÀ TÊN -->
@@ -61,7 +62,7 @@
           <a
             href="<?= directDownloadLink ?>"
             target="_blank"
-            style="display: inline-block; padding: 4px 10px; background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; text-decoration: none; border-radius: 4px; font-size: 12px"
+            style="display: inline-block; padding: 4px 8px; background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; text-decoration: none; border-radius: 4px; font-size: 12px"
           >
             Tải ảnh
           </a>
@@ -70,9 +71,28 @@
           <? } ?>
         </td>
 
-        <!-- CỘT 6: LINK ĐỐI SOÁT HERA -->
+        <!-- CỘT 6: FOLDER EMPLOYEE'S AVATAR -->
         <td style="padding: 10px 8px; text-align: center; font-weight: bold">
-          <a href="<?= item.rowLink ?>" target="_blank" style="color: #0d6efd; text-decoration: underline"> Link ↗ </a>
+          <? if (item.avatarFolderUrl) { ?>
+          <a
+            href="<?= item.avatarFolderUrl ?>"
+            target="_blank"
+            style="display: inline-block; padding: 4px 8px; background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; text-decoration: none; border-radius: 4px; font-size: 12px"
+          >
+            Folder 📁
+          </a>
+          <? } else { ?>
+          <span style="color: #888888; font-size: 12px">-</span>
+          <? } ?>
+        </td>
+
+        <!-- CỘT 7: LINK THÔNG TIN NHÂN VIÊN TỚI SHEET ONBOARDING ĐANG TƯƠNG TÁC -->
+        <td style="padding: 10px 8px; text-align: center; font-weight: bold">
+          <? if (item.rowLink) { ?>
+          <a href="<?= item.rowLink ?>" target="_blank" style="color: #0d6efd; text-decoration: underline; font-size: 12px"> Dòng <?= item.rowNumber ?> ↗ </a>
+          <? } else { ?>
+          <span style="color: #888888; font-size: 12px">-</span>
+          <? } ?>
         </td>
       </tr>
       <? }); ?>
