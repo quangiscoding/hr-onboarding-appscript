@@ -271,10 +271,18 @@ function submitIntroductionPost(formData) {
     // 2. Tạo draft Outline
     const doc = OutlineApiService.createDocument({ title, text });
 
+    // 3. Chuẩn hóa Base URL và tạo full URL
+    const baseUrl = (OUTLINE_CV_SUMMARIZER_CONFIG?.OUTLINE?.BASE_URL || "https://outline.kyanon.digital").replace(/\/+$/, "");
+
+    let draftUrl = `${baseUrl}/drafts`;
+    if (doc && doc.url) {
+      draftUrl = doc.url.startsWith("http") ? doc.url : `${baseUrl}${doc.url.startsWith("/") ? "" : "/"}${doc.url}`;
+    }
+
     return {
       ok: true,
       message: `Đã tạo draft "${title}" trên Outline! Ảnh ứng viên hãy chèn trực tiếp trên Outline nhé.`,
-      url: doc && doc.url ? doc.url : `${OUTLINE_CV_SUMMARIZER_CONFIG.OUTLINE.BASE_URL}/drafts`,
+      url: draftUrl,
     };
   } catch (error) {
     Logger.log("❌ submitIntroductionPost lỗi: " + error.toString());
